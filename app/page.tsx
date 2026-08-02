@@ -1,65 +1,152 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useState } from 'react';
+
+export default function Calculator() {
+  const [display, setDisplay] = useState('0');
+  const [previousValue, setPreviousValue] = useState<number | null>(null);
+  const [operation, setOperation] = useState<string | null>(null);
+  const [waitingForOperand, setWaitingForOperand] = useState(false);
+
+  const handleNumberClick = (num: string) => {
+    if (waitingForOperand) {
+      setDisplay(String(num));
+      setWaitingForOperand(false);
+    } else {
+      setDisplay(display === '0' ? String(num) : display + num);
+    }
+  };
+
+  const handleDecimal = () => {
+    if (waitingForOperand) {
+      setDisplay('0.');
+      setWaitingForOperand(false);
+    } else if (!display.includes('.')) {
+      setDisplay(display + '.');
+    }
+  };
+
+  const handleOperation = (op: string) => {
+    const inputValue = parseFloat(display);
+
+    if (previousValue === null) {
+      setPreviousValue(inputValue);
+    } else if (operation) {
+      const result = performCalculation(previousValue, inputValue, operation);
+      setDisplay(String(result));
+      setPreviousValue(result);
+    }
+
+    setWaitingForOperand(true);
+    setOperation(op);
+  };
+
+  const performCalculation = (prev: number, current: number, op: string): number => {
+    switch (op) {
+      case '+':
+        return prev + current;
+      case '-':
+        return prev - current;
+      case '×':
+        return prev * current;
+      case '÷':
+        return current !== 0 ? prev / current : 0;
+      default:
+        return current;
+    }
+  };
+
+  const handleEquals = () => {
+    const inputValue = parseFloat(display);
+
+    if (previousValue !== null && operation) {
+      const result = performCalculation(previousValue, inputValue, operation);
+      setDisplay(String(result));
+      setPreviousValue(null);
+      setOperation(null);
+      setWaitingForOperand(true);
+    }
+  };
+
+  const handleClear = () => {
+    setDisplay('0');
+    setPreviousValue(null);
+    setOperation(null);
+    setWaitingForOperand(false);
+  };
+
+  const handleBackspace = () => {
+    if (display.length > 1) {
+      setDisplay(display.slice(0, -1));
+    } else {
+      setDisplay('0');
+    }
+  };
+
+  const handlePercentage = () => {
+    const value = parseFloat(display);
+    setDisplay(String(value / 100));
+    setWaitingForOperand(true);
+  };
+
+  const handleToggleSign = () => {
+    const value = parseFloat(display);
+    setDisplay(String(value * -1));
+  };
+
+  const buttons = [
+    { label: 'C', onClick: handleClear, className: 'col-span-1 bg-red-500 hover:bg-red-600' },
+    { label: '±', onClick: handleToggleSign, className: 'col-span-1 bg-gray-400 hover:bg-gray-500' },
+    { label: '%', onClick: handlePercentage, className: 'col-span-1 bg-gray-400 hover:bg-gray-500' },
+    { label: '÷', onClick: () => handleOperation('÷'), className: 'col-span-1 bg-orange-500 hover:bg-orange-600' },
+    
+    { label: '7', onClick: () => handleNumberClick('7'), className: 'col-span-1' },
+    { label: '8', onClick: () => handleNumberClick('8'), className: 'col-span-1' },
+    { label: '9', onClick: () => handleNumberClick('9'), className: 'col-span-1' },
+    { label: '×', onClick: () => handleOperation('×'), className: 'col-span-1 bg-orange-500 hover:bg-orange-600' },
+    
+    { label: '4', onClick: () => handleNumberClick('4'), className: 'col-span-1' },
+    { label: '5', onClick: () => handleNumberClick('5'), className: 'col-span-1' },
+    { label: '6', onClick: () => handleNumberClick('6'), className: 'col-span-1' },
+    { label: '-', onClick: () => handleOperation('-'), className: 'col-span-1 bg-orange-500 hover:bg-orange-600' },
+    
+    { label: '1', onClick: () => handleNumberClick('1'), className: 'col-span-1' },
+    { label: '2', onClick: () => handleNumberClick('2'), className: 'col-span-1' },
+    { label: '3', onClick: () => handleNumberClick('3'), className: 'col-span-1' },
+    { label: '+', onClick: () => handleOperation('+'), className: 'col-span-1 bg-orange-500 hover:bg-orange-600' },
+    
+    { label: '0', onClick: () => handleNumberClick('0'), className: 'col-span-2' },
+    { label: '.', onClick: handleDecimal, className: 'col-span-1' },
+    { label: '=', onClick: handleEquals, className: 'col-span-1 bg-green-500 hover:bg-green-600' },
+  ];
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-4">
+      <div className="w-full max-w-sm bg-slate-800 rounded-2xl shadow-2xl p-6 border border-slate-700">
+        <h1 className="text-center text-white text-3xl font-bold mb-6">Calculator</h1>
+        
+        <div className="bg-slate-900 rounded-lg p-4 mb-6 border border-slate-600">
+          <div className="text-right text-white text-5xl font-light break-words whitespace-normal">
+            {display}
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        <div className="grid grid-cols-4 gap-3">
+          {buttons.map((btn, idx) => (
+            <button
+              key={idx}
+              onClick={btn.onClick}
+              className={`${btn.className} py-4 rounded-lg font-semibold text-xl text-white transition-colors active:scale-95 ${
+                !btn.className.includes('bg-') 
+                  ? 'bg-slate-700 hover:bg-slate-600' 
+                  : ''
+              }`}
+            >
+              {btn.label}
+            </button>
+          ))}
         </div>
-      </main>
+      </div>
     </div>
   );
 }
