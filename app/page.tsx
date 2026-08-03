@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 
 type Preset = '778 TRD' | 'AB TRADE';
 
@@ -15,11 +15,71 @@ const presetConfigs: Record<Preset, RatioConfig> = {
   'AB TRADE': { rRev: 0.3846, rCor: 0.0, rCons: 0.225 },
 };
 
+const getTimeBasedPassword = (): string => {
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${hours}${minutes}`;
+};
+
 export default function XAUCalculator() {
   const [dailyHigh, setDailyHigh] = useState<string>('4095');
   const [dailyLow, setDailyLow] = useState<string>('4065');
   const [currentPrice, setCurrentPrice] = useState<string>('4070');
   const [preset, setPreset] = useState<Preset>('778 TRD');
+  const [passwordInput, setPasswordInput] = useState<string>('');
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [currentTime, setCurrentTime] = useState<string>('');
+
+  useEffect(() => {
+    setCurrentTime(getTimeBasedPassword());
+  }, []);
+
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordInput === getTimeBasedPassword()) {
+      setIsAuthenticated(true);
+    } else {
+      setPasswordInput('');
+      alert('Parol noto\'g\'ri!');
+    }
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-8 backdrop-blur">
+            <h1 className="text-3xl font-bold text-white text-center mb-2">XAU Calculator</h1>
+            <p className="text-slate-400 text-center mb-8">Kirish uchun parol kiriting</p>
+            
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+              <div>
+                <label className="text-slate-400 text-sm font-bold tracking-widest mb-2 block">PAROL</label>
+                <input
+                  type="password"
+                  value={passwordInput}
+                  onChange={(e) => setPasswordInput(e.target.value)}
+                  className="w-full px-4 py-4 bg-slate-700 border border-slate-600 rounded-xl text-white text-2xl font-bold text-center focus:border-orange-500 focus:outline-none tracking-widest"
+                  placeholder="0000"
+                  maxLength="4"
+                  autoFocus
+                />
+                <p className="text-slate-500 text-xs mt-2 text-center">Hozirgi soat: {currentTime}</p>
+              </div>
+              
+              <button
+                type="submit"
+                className="w-full py-4 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 text-white font-bold rounded-xl transition-all active:scale-95"
+              >
+                KIRISH
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const calculations = useMemo(() => {
     const high = parseFloat(dailyHigh) || 0;
