@@ -302,9 +302,9 @@ function CalculatorContent() {
 export default function XAUCalculator() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
-  if (!isAuthenticated) {
-    return <PasswordScreen onAuthenticate={() => setIsAuthenticated(true)} />;
-  }
-
-  return <CalculatorContent />;
+  return isAuthenticated ? (
+    <CalculatorContent />
+  ) : (
+    <PasswordScreen onAuthenticate={() => setIsAuthenticated(true)} />
+  );
 }
