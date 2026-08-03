@@ -75,12 +75,11 @@ function PasswordScreen({ onAuthenticate }: { onAuthenticate: () => void }) {
   );
 }
 
-export default function XAUCalculator() {
+function CalculatorContent() {
   const [dailyHigh, setDailyHigh] = useState<string>('4095');
   const [dailyLow, setDailyLow] = useState<string>('4065');
   const [currentPrice, setCurrentPrice] = useState<string>('4070');
   const [preset, setPreset] = useState<Preset>('778 TRD');
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
   const calculations = useMemo(() => {
     const high = parseFloat(dailyHigh) || 0;
@@ -131,10 +130,6 @@ export default function XAUCalculator() {
       tp3Percent,
     };
   }, [dailyHigh, dailyLow, currentPrice, preset]);
-
-  if (!isAuthenticated) {
-    return <PasswordScreen onAuthenticate={() => setIsAuthenticated(true)} />;
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4 md:p-8">
@@ -316,4 +311,14 @@ export default function XAUCalculator() {
       </div>
     </div>
   );
+}
+
+export default function XAUCalculatorWrapper() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+
+  if (!isAuthenticated) {
+    return <PasswordScreen onAuthenticate={() => setIsAuthenticated(true)} />;
+  }
+
+  return <CalculatorContent />;
 }
