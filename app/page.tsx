@@ -115,7 +115,7 @@ export default function XAUCalculator() {
                   maxLength="4"
                   autoFocus
                 />
-                <p className="text-slate-500 text-xs mt-2 text-center">Hozirgi soat: {currentTime}</p>
+               
               </div>
               
               <button
