@@ -232,11 +232,23 @@ function CalculatorContent() {
     if (preset === '2.6 STRATEGY') {
       const hh = parseFloat(hhPrice);
       const ll = parseFloat(llPrice);
-      isBuy = (!isNaN(hh)&&!isNaN(ll))
-        ? Math.abs(current-ll) < Math.abs(current-hh)
-        : current < (high+low)/2;
+      // HH/LL faqat current narx bilan bir xil oralikda bo'lsagina ishlatiladi.
+      // Agar HH/LL boshqa scale da bo'lsa (masalan HH=4275, current=64) —
+      // fallback: (HIGH+LOW)/2 o'rta nuqtasi ishlatiladi.
+      const scaleTolerance = Math.max(rangeVal * 20, 100);
+      const hhllValid = !isNaN(hh) && !isNaN(ll)
+        && Math.abs(hh - current) < scaleTolerance
+        && Math.abs(ll - current) < scaleTolerance;
+
+      if (hhllValid) {
+        // Narx LL ga yaqin → BUY, HH ga yaqin → SELL
+        isBuy = Math.abs(current - ll) < Math.abs(current - hh);
+      } else {
+        // HH/LL kiritilmagan yoki noto'g'ri scale → midpoint
+        isBuy = current < (high + low) / 2;
+      }
     } else {
-      isBuy = current < (high+low)/2;
+      isBuy = current < (high + low) / 2;
     }
 
     const reversal      = isBuy ? low  - rangeVal*config.rRev : high + rangeVal*config.rRev;
