@@ -88,6 +88,41 @@ function CalculatorContent() {
   const [preset,       setPreset]       = useState<Preset>('778 TRD');
   const [timeframe,    setTimeframe]    = useState<Timeframe>('1h');
 
+  // Input mode: qo'lda yoki shamoldan
+  const [inputMode, setInputMode] = useState<'manual' | 'candle'>('manual');
+
+  // Shamol (Candle) OHLC
+  const [candleOpen,  setCandleOpen]  = useState('');
+  const [candleHigh,  setCandleHigh]  = useState('');
+  const [candleLow,   setCandleLow]   = useState('');
+  const [candleClose, setCandleClose] = useState('');
+
+  // Shamoldan HIGH/LOW/Current avtomatik to'ldirish
+  const effectiveHigh    = inputMode === 'candle' && candleHigh  ? candleHigh  : dailyHigh;
+  const effectiveLow     = inputMode === 'candle' && candleLow   ? candleLow   : dailyLow;
+  const effectiveCurrent = inputMode === 'candle' && candleClose ? candleClose : currentPrice;
+
+  // Shamol tahlili
+  const candleAnalysis = useMemo(() => {
+    const o = parseFloat(candleOpen);
+    const h = parseFloat(candleHigh);
+    const l = parseFloat(candleLow);
+    const c = parseFloat(candleClose);
+    if (isNaN(o)||isNaN(h)||isNaN(l)||isNaN(c)) return null;
+    if (h <= l) return null;
+    const bodyTop    = Math.max(o, c);
+    const bodyBot    = Math.min(o, c);
+    const bodySize   = bodyTop - bodyBot;
+    const totalRange = h - l;
+    const upperWick  = h - bodyTop;
+    const lowerWick  = bodyBot - l;
+    const bodyPct    = totalRange > 0 ? ((bodySize / totalRange) * 100).toFixed(1) : '0';
+    const isBullish  = c > o;
+    const isDoji     = bodySize < totalRange * 0.05;
+    const type       = isDoji ? 'Doji' : isBullish ? 'Bullish' : 'Bearish';
+    return { o, h, l, c, bodySize: bodySize.toFixed(2), upperWick: upperWick.toFixed(2), lowerWick: lowerWick.toFixed(2), bodyPct, type, isBullish, isDoji, totalRange: totalRange.toFixed(2) };
+  }, [candleOpen, candleHigh, candleLow, candleClose]);
+
   // 2.6
   const [hhPrice, setHhPrice] = useState('');
   const [llPrice, setLlPrice] = useState('');
@@ -101,9 +136,9 @@ function CalculatorContent() {
   const [fvgType, setFvgType] = useState<OBType>('bullish');
 
   const calculations = useMemo(() => {
-    const high    = parseFloat(dailyHigh)    || 0;
-    const low     = parseFloat(dailyLow)     || 0;
-    const current = parseFloat(currentPrice) || 0;
+    const high    = parseFloat(effectiveHigh)    || 0;
+    const low     = parseFloat(effectiveLow)     || 0;
+    const current = parseFloat(effectiveCurrent) || 0;
     const rangeVal = high - low;
 
     // FIX #3: dependency array dan tf olib tashlandi — faqat timeframe
@@ -303,10 +338,10 @@ function CalculatorContent() {
       gannConfluence:gRes.text, isStrongSignal:gRes.strong,
       liquidityInfo, pipBuffer:buf,
     };
-  }, [dailyHigh,dailyLow,currentPrice,preset,timeframe,hhPrice,llPrice,obHigh,obLow,obType,fvgHigh,fvgLow,fvgType]);
+  }, [effectiveHigh,effectiveLow,effectiveCurrent,preset,timeframe,hhPrice,llPrice,obHigh,obLow,obType,fvgHigh,fvgLow,fvgType]);
 
-  const isBuy     = calculations?.isBuy ?? false;
-  const rangeVal  = parseFloat(dailyHigh) - parseFloat(dailyLow);
+  const isBuy        = calculations?.isBuy ?? false;
+  const rangeVal     = parseFloat(effectiveHigh) - parseFloat(effectiveLow);
   const tf        = timeframeConfig[timeframe];
   const rangeOk      = rangeVal > 0 && rangeVal <= tf.maxRange;
   const rangeWarning = rangeVal > tf.maxRange;
@@ -374,7 +409,111 @@ function CalculatorContent() {
           </div>
         )}
 
-        {/* INPUTS */}
+        {/* INPUT MODE TOGGLE */}
+        <div className="bg-slate-900/85 border border-slate-700 rounded-2xl p-3 mb-4 backdrop-blur">
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={()=>setInputMode('manual')}
+              className={`py-2.5 rounded-xl font-bold text-sm transition-all ${
+                inputMode==='manual'
+                  ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30'
+                  : 'bg-slate-700/80 text-slate-400 hover:bg-slate-600'
+              }`}>
+              ✏️ Qo&apos;lda kiritish
+            </button>
+            <button onClick={()=>setInputMode('candle')}
+              className={`py-2.5 rounded-xl font-bold text-sm transition-all ${
+                inputMode==='candle'
+                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/30'
+                  : 'bg-slate-700/80 text-slate-400 hover:bg-slate-600'
+              }`}>
+              🕯️ Shamoldan (OHLC)
+            </button>
+          </div>
+        </div>
+
+        {/* OHLC CANDLE INPUT */}
+        {inputMode === 'candle' && (
+          <div className="bg-slate-900/85 border border-emerald-700/50 rounded-2xl p-5 mb-4 backdrop-blur">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-2xl">🕯️</span>
+              <div>
+                <div className="text-emerald-400 text-xs font-bold tracking-widest">TRADINGVIEW SHAMOL (CANDLE)</div>
+                <div className="text-slate-500 text-xs mt-0.5">Grafigingizdan shamolning O, H, L, C ni kiriting</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-4 gap-3 mb-4">
+              <div>
+                <label className="text-slate-400 text-xs font-bold mb-1 block">OPEN</label>
+                <input type="number" value={candleOpen} onChange={e=>setCandleOpen(e.target.value)}
+                  className="w-full px-3 py-3 bg-slate-700/80 border border-emerald-700/50 rounded-xl text-white text-lg font-bold focus:border-emerald-400 focus:outline-none" step="0.01" placeholder="O"/>
+              </div>
+              <div>
+                <label className="text-red-400 text-xs font-bold mb-1 block">HIGH ↑</label>
+                <input type="number" value={candleHigh} onChange={e=>setCandleHigh(e.target.value)}
+                  className="w-full px-3 py-3 bg-slate-700/80 border border-red-700/50 rounded-xl text-white text-lg font-bold focus:border-red-400 focus:outline-none" step="0.01" placeholder="H"/>
+              </div>
+              <div>
+                <label className="text-green-400 text-xs font-bold mb-1 block">LOW ↓</label>
+                <input type="number" value={candleLow} onChange={e=>setCandleLow(e.target.value)}
+                  className="w-full px-3 py-3 bg-slate-700/80 border border-green-700/50 rounded-xl text-white text-lg font-bold focus:border-green-400 focus:outline-none" step="0.01" placeholder="L"/>
+              </div>
+              <div>
+                <label className="text-blue-400 text-xs font-bold mb-1 block">CLOSE</label>
+                <input type="number" value={candleClose} onChange={e=>setCandleClose(e.target.value)}
+                  className="w-full px-3 py-3 bg-slate-700/80 border border-blue-700/50 rounded-xl text-white text-lg font-bold focus:border-blue-400 focus:outline-none" step="0.01" placeholder="C"/>
+              </div>
+            </div>
+
+            {/* Shamol tahlil natijasi */}
+            {candleAnalysis && (
+              <div className={`rounded-xl p-4 border ${
+                candleAnalysis.isDoji   ? 'bg-yellow-900/20 border-yellow-600/40' :
+                candleAnalysis.isBullish ? 'bg-green-900/20 border-green-600/40' :
+                                          'bg-red-900/20 border-red-600/40'
+              }`}>
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-2xl">
+                    {candleAnalysis.isDoji ? '⚡' : candleAnalysis.isBullish ? '🟢' : '🔴'}
+                  </span>
+                  <span className={`font-bold text-lg ${
+                    candleAnalysis.isDoji ? 'text-yellow-400' :
+                    candleAnalysis.isBullish ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {candleAnalysis.type} Shamol
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-3 text-center text-xs">
+                  <div className="bg-slate-800/60 rounded-lg p-2">
+                    <div className="text-slate-400 mb-1">Yuqori Soya ↑</div>
+                    <div className="text-red-300 font-bold">{candleAnalysis.upperWick}</div>
+                  </div>
+                  <div className={`rounded-lg p-2 ${
+                    candleAnalysis.isBullish ? 'bg-green-900/40' : 'bg-red-900/40'
+                  }`}>
+                    <div className="text-slate-400 mb-1">Tana ({candleAnalysis.bodyPct}%)</div>
+                    <div className={`font-bold ${candleAnalysis.isBullish ? 'text-green-300' : 'text-red-300'}`}>
+                      {candleAnalysis.bodySize}
+                    </div>
+                  </div>
+                  <div className="bg-slate-800/60 rounded-lg p-2">
+                    <div className="text-slate-400 mb-1">Pastki Soya ↓</div>
+                    <div className="text-green-300 font-bold">{candleAnalysis.lowerWick}</div>
+                  </div>
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-center">
+                  <div className="text-slate-500">HIGH → <span className="text-white font-bold">{candleAnalysis.h.toFixed(2)}</span></div>
+                  <div className="text-slate-500">Range: <span className="text-white font-bold">{candleAnalysis.totalRange}</span></div>
+                  <div className="text-slate-500">LOW → <span className="text-white font-bold">{candleAnalysis.l.toFixed(2)}</span></div>
+                </div>
+                <div className="mt-2 text-center text-xs text-emerald-400 font-bold">
+                  ✓ HIGH={candleAnalysis.h.toFixed(2)}, LOW={candleAnalysis.l.toFixed(2)}, Current={candleAnalysis.c.toFixed(2)} kalkulyatorga ulandi
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="bg-slate-900/85 border border-slate-700 rounded-2xl p-6 mb-6 backdrop-blur">
           <h3 className="text-slate-400 text-xs font-bold tracking-widest mb-4">{tf.label.toUpperCase()} DIAPAZONI</h3>
 
