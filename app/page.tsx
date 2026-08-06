@@ -11,7 +11,7 @@ interface RatioConfig { rRev: number; rCor: number; rCons: number; }
 const timeframeConfig: Record<Timeframe, { label: string; maxRange: number; pipBuffer: number; consolOffset: number; color: string; }> = {
   '1m':  { label: '1 Daqiqa',  maxRange: 10,  pipBuffer: 1.0,  consolOffset: 0.5,  color: 'text-sky-400'    },
   '5m':  { label: '5 Daqiqa',  maxRange: 25,  pipBuffer: 1.5,  consolOffset: 1.0,  color: 'text-blue-400'   },
-  '15m': { label: '15 Daqiqa', maxRange: 50,  pipBuffer: 2.0,  consolOffset: 2.0,  color: 'text-indigo-400' },
+  '15m': { label: '15 Daqiqa', maxRange: 100, pipBuffer: 2.0,  consolOffset: 2.0,  color: 'text-indigo-400' },
   '1h':  { label: '1 Soat',    maxRange: 100, pipBuffer: 3.0,  consolOffset: 3.0,  color: 'text-violet-400' },
   '4h':  { label: '4 Soat',    maxRange: 250, pipBuffer: 5.0,  consolOffset: 5.0,  color: 'text-purple-400' },
   '1d':  { label: '1 Kun',     maxRange: 600, pipBuffer: 10.0, consolOffset: 10.0, color: 'text-orange-400' },
@@ -357,10 +357,18 @@ function CalculatorContent() {
         {/* BUY / SELL */}
         {calculations && (
           <div className="grid grid-cols-2 gap-4 mb-4">
-            <div className={`p-4 rounded-2xl border-2 text-center font-bold text-2xl flex items-center justify-center ${isBuy?'bg-green-900/40 border-green-500 text-green-400':'bg-slate-900/60 border-slate-700 text-slate-500'}`}>
+            <div className={`p-4 rounded-2xl border-2 text-center font-bold text-2xl flex items-center justify-center transition-all duration-300 ${
+              isBuy
+                ? 'bg-green-500/20 border-green-400 text-green-300 shadow-lg shadow-green-500/30 scale-105'
+                : 'bg-black/50 border-slate-800 text-slate-700 opacity-40'
+            }`}>
               <span className="text-3xl mr-2">&#9650;</span>BUY
             </div>
-            <div className={`p-4 rounded-2xl border-2 text-center font-bold text-2xl flex items-center justify-center ${!isBuy?'bg-red-900/40 border-red-600 text-red-400':'bg-slate-900/60 border-slate-700 text-slate-500'}`}>
+            <div className={`p-4 rounded-2xl border-2 text-center font-bold text-2xl flex items-center justify-center transition-all duration-300 ${
+              !isBuy
+                ? 'bg-red-500/20 border-red-400 text-red-300 shadow-lg shadow-red-500/30 scale-105'
+                : 'bg-black/50 border-slate-800 text-slate-700 opacity-40'
+            }`}>
               <span className="text-3xl mr-2">&#9660;</span>SELL
             </div>
           </div>
