@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
         }
         contentBlocks.push({
           type: 'image',
-          source: { type: 'base64', media_type: mediaType, data: base64Image },
+          source: { type: 'base64', media_type: mediaType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp', data: base64Image },
         });
       }
     } else {
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
         }
         contentBlocks.push({
           type: 'image',
-          source: { type: 'base64', media_type: mediaType, data: base64Image },
+          source: { type: 'base64', media_type: mediaType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp', data: base64Image },
         });
       }
     }
