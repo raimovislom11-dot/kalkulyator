@@ -1,9 +1,23 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest } from 'next/server';
 
+export const maxDuration = 60; // 1-minute timeout for Vercel
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
-    const anthropic = new Anthropic();
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: "Anthropic API kaliti (ANTHROPIC_API_KEY) .env faylida o'rnatilmagan!" }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const anthropic = new Anthropic({
+      apiKey: apiKey,
+    });
 
     const formData = await req.formData();
     const message = formData.get('message') as string;
@@ -66,7 +80,7 @@ export async function POST(req: NextRequest) {
       async start(controller) {
         try {
           const claudeStream = await anthropic.messages.stream({
-            model: "claude-sonnet-5",
+            model: "claude-sonnet-5", // To'g'ri model nomi
             max_tokens: 4096,
             temperature: 1,
             system: `Siz XAU/USD (oltin) savdo kalkulyatori uchun mutaxassis moliyaviy tahlilchisiz. 
