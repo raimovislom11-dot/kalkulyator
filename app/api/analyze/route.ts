@@ -35,8 +35,10 @@ export async function POST(req: NextRequest) {
         if (!imgFile) continue;
         const imageBuffer = await imgFile.arrayBuffer();
         const base64Image = Buffer.from(imageBuffer).toString('base64');
-        const mediaType = (imgFile.type || 'image/png') as
-          | 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
+        let mediaType = (imgFile.type || 'image/jpeg') as string;
+        if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(mediaType)) {
+          mediaType = 'image/jpeg'; // iOS HEIC or other types should be treated as jpeg if accept attribute forces conversion, otherwise API will reject it anyway, but we must send a valid enum value
+        }
 
         // Agar bir nechta rasm bo'lsa — har birining oldiga label qo'shamiz
         if (imageCount > 1) {
@@ -53,8 +55,10 @@ export async function POST(req: NextRequest) {
       if (imageFile) {
         const imageBuffer = await imageFile.arrayBuffer();
         const base64Image = Buffer.from(imageBuffer).toString('base64');
-        const mediaType = (imageFile.type || 'image/png') as
-          | 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
+        let mediaType = (imageFile.type || 'image/jpeg') as string;
+        if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(mediaType)) {
+          mediaType = 'image/jpeg';
+        }
         contentBlocks.push({
           type: 'image',
           source: { type: 'base64', media_type: mediaType, data: base64Image },
