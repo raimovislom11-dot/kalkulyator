@@ -1,12 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest } from 'next/server';
 
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
-
 export async function POST(req: NextRequest) {
   try {
+    const anthropic = new Anthropic();
+
     const formData = await req.formData();
     const message = formData.get('message') as string;
     const context = formData.get('context') as string;
@@ -67,9 +65,10 @@ export async function POST(req: NextRequest) {
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          const claudeStream = await client.messages.stream({
-            model: 'claude-sonnet-4-5',
+          const claudeStream = await anthropic.messages.stream({
+            model: "claude-sonnet-5",
             max_tokens: 4096,
+            temperature: 1,
             system: `Siz XAU/USD (oltin) savdo kalkulyatori uchun mutaxassis moliyaviy tahlilchisiz. 
 Foydalanuvchi savdo grafiklari, skreenshotlar va narx ma'lumotlarini yuboradi. 
 Siz quyidagilarni tahlil qilasiz:
@@ -88,15 +87,16 @@ Agar rasm yuborilgan bo'lsa, uni diqqat bilan ko'rib tahlil qiling.`,
                 content: contentBlocks,
               },
             ],
+            thinking: { type: "disabled" }
           });
 
-          for await (const event of claudeStream) {
+          for await (const chunk of claudeStream) {
             if (
-              event.type === 'content_block_delta' &&
-              event.delta.type === 'text_delta'
+              chunk.type === 'content_block_delta' &&
+              chunk.delta.type === 'text_delta'
             ) {
-              const chunk = `data: ${JSON.stringify({ text: event.delta.text })}\n\n`;
-              controller.enqueue(encoder.encode(chunk));
+              const dataChunk = `data: ${JSON.stringify({ text: chunk.delta.text })}\n\n`;
+              controller.enqueue(encoder.encode(dataChunk));
             }
           }
 
