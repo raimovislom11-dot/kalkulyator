@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 
-type Preset = 'Elif trading' | 'AB TRADE' | '2.6 STRATEGY' | 'ORDER BLOCK' | 'IFVG' | 'SNR_ICT' | 'SMT';
+type Preset = 'Elif trading' | 'AB TRADE' | '2.6 STRATEGY' | 'ORDER BLOCK' | 'IFVG' | 'SNR_ICT' | 'SMT' | 'FIBONACCI';
 type CandleType = 'bullish_engulfing' | 'hammer' | 'bullish_pinbar' | 'bearish_engulfing' | 'shooting_star' | 'bearish_pinbar';
 type Timeframe = '1m' | '5m' | '15m' | '1h' | '4h' | '1d';
 type OBType = 'bullish' | 'bearish';
@@ -41,16 +41,166 @@ const calcRR = (entry: number, sl: number, tp: number): string => {
 // AI TAHLIL PANELI
 interface ImageItem { file: File; preview: string; }
 
+// --- Signal parser ---
+function parseSignal(text: string) {
+  // Minglik vergulni olib tashlash: 4,378 -> 4378
+  const cleaned = text.replace(/(\d{1,3}),(\d{3})(?!\d)/g, '$1$2');
+
+  const NUM = '(\\d{3,6}(?:\\.\\d{1,2})?)';
+
+  const find = (patterns: RegExp[]): string => {
+    for (const re of patterns) {
+      const m = cleaned.match(re);
+      if (m?.[1]) return m[1].split(/[-\u2013]/)[0].trim();
+    }
+    return '';
+  };
+
+  const entry = find([
+    new RegExp('\\*?[Ee]ntry\\*?[\\s\\*\\:]*' + NUM, 'i'),
+    new RegExp('Kirish(?:\\s*narxi?)?[\\s\\*\\:]*' + NUM, 'i'),
+  ]);
+  const sl = find([
+    new RegExp('\\*?Stop[\\s\\-]*Loss\\*?[\\s\\*\\:]*' + NUM, 'i'),
+    new RegExp('\\bSL\\b[\\s\\*\\:]*' + NUM),
+    new RegExp("To\'xtatish[\\s\\*\\:]*" + NUM, 'i'),
+  ]);
+  const tp1 = find([
+    new RegExp('\\*?TP[\\s\\-]?1\\*?[\\s\\*\\:]*' + NUM, 'i'),
+    new RegExp('\\*?TP1\\*?[\\s\\*\\:]*' + NUM, 'i'),
+    new RegExp('Take\\s*Profit\\s*1[\\s\\*\\:]*' + NUM, 'i'),
+    new RegExp('Foyda\\s*1[\\s\\*\\:]*' + NUM, 'i'),
+  ]);
+  const tp2 = find([
+    new RegExp('\\*?TP[\\s\\-]?2\\*?[\\s\\*\\:]*' + NUM, 'i'),
+    new RegExp('\\*?TP2\\*?[\\s\\*\\:]*' + NUM, 'i'),
+    new RegExp('Take\\s*Profit\\s*2[\\s\\*\\:]*' + NUM, 'i'),
+    new RegExp('Foyda\\s*2[\\s\\*\\:]*' + NUM, 'i'),
+  ]);
+  const tp3 = find([
+    new RegExp('\\*?TP[\\s\\-]?3\\*?[\\s\\*\\:]*' + NUM, 'i'),
+    new RegExp('\\*?TP3\\*?[\\s\\*\\:]*' + NUM, 'i'),
+    new RegExp('Take\\s*Profit\\s*3[\\s\\*\\:]*' + NUM, 'i'),
+    new RegExp('Foyda\\s*3[\\s\\*\\:]*' + NUM, 'i'),
+  ]);
+
+  return { entry, sl, tp1, tp2, tp3 };
+}
+
+function SignalCard({ text, accentColor = 'amber' }: { text: string; accentColor?: 'amber' | 'violet' }) {
+  const parsed = parseSignal(text);
+  const [vals, setVals] = useState({ entry: '', sl: '', tp1: '', tp2: '', tp3: '' });
+  const [copied, setCopied] = useState(false);
+
+  // Tahlil yangilanganda avtomatik to'ldirish
+  useEffect(() => {
+    if (text) {
+      const p = parseSignal(text);
+      setVals(prev => ({
+        entry: p.entry || prev.entry,
+        sl: p.sl || prev.sl,
+        tp1: p.tp1 || prev.tp1,
+        tp2: p.tp2 || prev.tp2,
+        tp3: p.tp3 || prev.tp3,
+      }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text]);
+
+  const copyText =
+    'Entry: ' + (vals.entry || '—') + '\n' +
+    'Stop Loss: ' + (vals.sl || '—') + '\n' +
+    'TP1: ' + (vals.tp1 || '—') + '\n' +
+    'TP2: ' + (vals.tp2 || '—') + '\n' +
+    'TP3: ' + (vals.tp3 || '—');
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(copyText).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const isAmber = accentColor === 'amber';
+  const border = isAmber ? 'border-amber-500/50' : 'border-violet-500/50';
+  const bg = isAmber ? 'from-amber-950/60 to-orange-950/40' : 'from-violet-950/60 to-indigo-950/40';
+  const titleColor = isAmber ? 'text-amber-300' : 'text-violet-300';
+  const btnBg = isAmber
+    ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600'
+    : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700';
+
+  const autoFilled = parsed.entry || parsed.sl || parsed.tp1;
+
+  const fields = [
+    { key: 'entry' as const, label: 'Entry', placeholder: '3245.50', color: 'text-green-300', border: 'border-green-700/50 focus:border-green-400' },
+    { key: 'sl' as const, label: 'Stop Loss', placeholder: '3220.00', color: 'text-red-300', border: 'border-red-700/50 focus:border-red-400' },
+    { key: 'tp1' as const, label: 'TP1', placeholder: '3270.00', color: 'text-blue-300', border: 'border-blue-700/50 focus:border-blue-400' },
+    { key: 'tp2' as const, label: 'TP2', placeholder: '3295.00', color: 'text-blue-200', border: 'border-blue-700/40 focus:border-blue-300' },
+    { key: 'tp3' as const, label: 'TP3', placeholder: '3320.00', color: 'text-sky-200', border: 'border-sky-700/40 focus:border-sky-300' },
+  ];
+
+  return (
+    <div className={`mt-3 bg-gradient-to-br ${bg} border ${border} rounded-xl p-4`}
+      style={{ boxShadow: isAmber ? '0 0 20px rgba(245,158,11,0.1)' : '0 0 20px rgba(139,92,246,0.1)' }}>
+      {/* Sarlavha */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">📍</span>
+          <span className={`${titleColor} font-bold text-sm`}>Signal Natijalari</span>
+          {autoFilled && (
+            <span className="text-xs px-1.5 py-0.5 bg-green-900/40 text-green-400 rounded-full font-bold">✓ auto</span>
+          )}
+        </div>
+        <button
+          onClick={handleCopy}
+          className={`flex items-center gap-1.5 px-3 py-1.5 ${btnBg} text-white text-xs font-bold rounded-lg transition-all active:scale-95 shadow-md`}
+        >
+          {copied ? (
+            <><span className="text-green-200">✓</span><span>Nusxalandi!</span></>
+          ) : (
+            <><span>📋</span><span>Nusxalash</span></>
+          )}
+        </button>
+      </div>
+
+      {/* Maydonlar */}
+      <div className="space-y-2">
+        {fields.map(({ key, label, placeholder, color, border: fBorder }) => (
+          <div key={key} className="flex items-center gap-3 bg-slate-900/60 rounded-lg px-3 py-2">
+            <span className="text-slate-400 text-xs font-bold w-20 flex-shrink-0">{label}:</span>
+            <input
+              type="text"
+              value={vals[key]}
+              onChange={(e) => setVals(prev => ({ ...prev, [key]: e.target.value }))}
+              placeholder={placeholder}
+              className={`flex-1 bg-transparent border-b ${fBorder} ${color} text-sm font-bold font-mono focus:outline-none placeholder-slate-700 transition-colors`}
+            />
+          </div>
+        ))}
+      </div>
+
+      <p className="text-slate-600 text-xs mt-2 text-center">
+        {autoFilled ? 'Qiymatlar avtomatik aniqlandi — oʼgartirish mumkin' : 'Qiymatlarni qoʼlda kiriting yoki tahlildan koʼchiring'}
+      </p>
+    </div>
+  );
+}
+
 function AIAnalysisPanel({ calcContext }: { calcContext: string }) {
   const [message, setMessage] = useState('');
   const [response, setResponse] = useState('');
+  const [marketResponse, setMarketResponse] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isMarketLoading, setIsMarketLoading] = useState(false);
   const [images, setImages] = useState<ImageItem[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [marketError, setMarketError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'chat' | 'market'>('market');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const responseRef = useRef<HTMLDivElement>(null);
+  const marketResponseRef = useRef<HTMLDivElement>(null);
 
   const addImages = useCallback((files: FileList | File[]) => {
     const arr = Array.from(files).filter(f => f.type.startsWith('image/'));
@@ -76,6 +226,55 @@ function AIAnalysisPanel({ calcContext }: { calcContext: string }) {
     setIsDragging(false);
     if (e.dataTransfer.files.length) addImages(e.dataTransfer.files);
   }, [addImages]);
+
+  // Bozor tahlili (qisqa + uzoq muddatli) — yangi tugma
+  const marketAnalyze = async () => {
+    setIsMarketLoading(true);
+    setMarketResponse('');
+    setMarketError(null);
+
+    const form = new FormData();
+    form.append('calcContext', calcContext);
+
+    try {
+      const res = await fetch('/api/market-analyze', { method: 'POST', body: form });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Server ${res.status}: ${text}`);
+      }
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let done = false;
+
+      while (!done) {
+        const { done: streamDone, value } = await reader.read();
+        if (streamDone) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const payload = line.slice(6).trim();
+          if (payload === '[DONE]') { done = true; break; }
+          try {
+            const parsed = JSON.parse(payload);
+            if (parsed.text) {
+              setMarketResponse(prev => prev + parsed.text);
+              setTimeout(() => {
+                marketResponseRef.current?.scrollTo({ top: marketResponseRef.current.scrollHeight, behavior: 'smooth' });
+              }, 10);
+            }
+            if (parsed.error) { setMarketError(parsed.error); done = true; break; }
+          } catch { /* skip */ }
+        }
+      }
+    } catch (err) {
+      setMarketError(err instanceof Error ? err.message : 'Ulanishda xatolik yuz berdi');
+    } finally {
+      setIsMarketLoading(false);
+    }
+  };
 
   const analyze = async () => {
     if (!message.trim() && images.length === 0) return;
@@ -140,9 +339,9 @@ function AIAnalysisPanel({ calcContext }: { calcContext: string }) {
           }`}
       >
         <span className="text-xl">{isOpen ? '🔮' : '🤖'}</span>
-        {isOpen ? 'AI Tahlilni yopish' : 'AI Tahlil — Claude bilan tahlil qil'}
+        {isOpen ? 'Sun\u02bciy Intellektni yopish' : 'Sun\u02bciy Intellekt — AI Tahlil'}
         <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${isOpen ? 'bg-violet-900/50 text-violet-300' : 'bg-violet-900/40 text-violet-400'
-          }`}>BETA</span>
+          }`}>AI</span>
       </button>
 
       {/* Panel */}
@@ -155,7 +354,7 @@ function AIAnalysisPanel({ calcContext }: { calcContext: string }) {
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-xl">🔮</div>
             <div>
               <div className="text-violet-300 font-bold text-sm">Claude AI Tahlilchi</div>
-              <div className="text-slate-500 text-xs">XAU/USD savdo grafiglarini tahlil qiladi</div>
+              <div className="text-slate-500 text-xs">XAU/USD · COMEX:GC1! bozor tahlili</div>
             </div>
             <div className="ml-auto flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
@@ -163,159 +362,291 @@ function AIAnalysisPanel({ calcContext }: { calcContext: string }) {
             </div>
           </div>
 
-          {/* Kontekst */}
-          {calcContext && (
-            <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-3">
-              <div className="text-slate-500 text-xs font-bold mb-1">📊 Kalkulyator natijalari avtomatik qo&apos;shiladi</div>
-              <div className="text-slate-400 text-xs font-mono leading-relaxed line-clamp-3">{calcContext}</div>
-            </div>
-          )}
-
-          {/* Rasm yuklash zonasi */}
-          <div
-            onDrop={onDrop}
-            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-            onDragLeave={() => setIsDragging(false)}
-            onClick={() => fileInputRef.current?.click()}
-            className={`relative rounded-xl border-2 border-dashed transition-all cursor-pointer p-4 ${isDragging
-                ? 'border-violet-400 bg-violet-900/30'
-                : 'border-slate-600 bg-slate-800/30 hover:border-violet-600/60 hover:bg-violet-900/10'
+          {/* Tab tanlash */}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setActiveTab('market')}
+              className={`py-2.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
+                activeTab === 'market'
+                  ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-lg shadow-amber-500/30'
+                  : 'bg-slate-800/60 border border-slate-700/50 text-slate-400 hover:bg-slate-700/60'
               }`}
-          >
-            <div className="text-center">
-              <div className="text-3xl mb-1">{isDragging ? '📥' : '📸'}</div>
-              <div className="text-slate-400 text-sm font-bold">
-                {isDragging ? 'Qo&apos;yib yuboring...' : 'Rasmlarni tashlang yoki bosing'}
-              </div>
-              <div className="text-slate-600 text-xs mt-0.5">
-                Istalgancha rasm qo&apos;shishingiz mumkin · PNG, JPG, WebP
-              </div>
-            </div>
+            >
+              📊 AI Analiz
+            </button>
+            <button
+              onClick={() => setActiveTab('chat')}
+              className={`py-2.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
+                activeTab === 'chat'
+                  ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/30'
+                  : 'bg-slate-800/60 border border-slate-700/50 text-slate-400 hover:bg-slate-700/60'
+              }`}
+            >
+              🔮 Rasm & Chat
+            </button>
           </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg, image/png, image/webp, image/gif"
-            multiple
-            className="hidden"
-            onChange={(e) => e.target.files && addImages(e.target.files)}
-          />
 
-          {/* Rasmlar grid preview */}
-          {images.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400 text-xs font-bold">
-                  📎 {images.length} ta rasm yuklandi
-                </span>
-                <button
-                  onClick={() => setImages([])}
-                  className="text-xs text-red-400 hover:text-red-300 font-bold transition-colors"
-                >
-                  Hammasini o&apos;chirish
-                </button>
-              </div>
-              <div className={`grid gap-2 ${images.length === 1 ? 'grid-cols-1' : images.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-                {images.map((im, idx) => (
-                  <div key={idx} className="relative group rounded-xl overflow-hidden border border-slate-700/50 bg-slate-800/40">
-                    <img
-                      src={im.preview}
-                      alt={`rasm-${idx + 1}`}
-                      className="w-full h-24 object-cover"
-                    />
-                    {/* Overlay */}
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); removeImage(idx); }}
-                        className="opacity-0 group-hover:opacity-100 w-7 h-7 bg-red-600 hover:bg-red-700 rounded-full flex items-center justify-center text-white text-sm font-bold transition-all"
-                      >✕</button>
+          {/* ═══════ AI ANALIZ TAB ═══════ */}
+          {activeTab === 'market' && (
+            <div className="space-y-4">
+              {/* Info karta */}
+              <div className="bg-gradient-to-br from-amber-900/30 to-orange-900/20 border border-amber-600/30 rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <div className="text-3xl">📈</div>
+                  <div className="flex-1">
+                    <div className="text-amber-300 font-bold text-sm mb-1">COMEX:GC1! — Oltin Tahlili</div>
+                    <div className="text-slate-400 text-xs leading-relaxed">
+                      Real soatlik (1H) ma&apos;lumotlar asosida:
                     </div>
-                    {/* Rasm nomeri */}
-                    <div className="absolute top-1 left-1 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded font-bold">
-                      {idx + 1}
+                    <div className="mt-2 space-y-1">
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0"></span>
+                        <span className="text-blue-300 font-bold">Qisqa muddatli</span>
+                        <span className="text-slate-500">— 1-4 soat (scalping/intraday)</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="w-1.5 h-1.5 rounded-full bg-purple-400 flex-shrink-0"></span>
+                        <span className="text-purple-300 font-bold">Uzoq muddatli</span>
+                        <span className="text-slate-500">— 4-24 soat (swing/position)</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs mt-1">
+                        <span className="text-amber-600">🔗</span>
+                        <a
+                          href="https://www.tradingview.com/chart/mmKqMW9C/?symbol=COMEX%3AGC1%21"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-amber-500 hover:text-amber-300 underline underline-offset-2 transition-colors"
+                        >
+                          TradingView grafigini ko&apos;rish →
+                        </a>
+                      </div>
                     </div>
-                  </div>
-                ))}
-                {/* "Yana qo'shish" tile */}
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="h-24 rounded-xl border-2 border-dashed border-slate-600 bg-slate-800/20 hover:border-violet-500/60 hover:bg-violet-900/10 flex items-center justify-center cursor-pointer transition-all"
-                >
-                  <div className="text-center">
-                    <div className="text-slate-500 text-xl">+</div>
-                    <div className="text-slate-600 text-xs">Qo&apos;shish</div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* Matn kiritish */}
-          <div className="relative">
-            <textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) analyze();
-              }}
-              placeholder="Savol yoki tahlil so&apos;rovi kiriting... (Ctrl+Enter — yuborish)"
-              rows={3}
-              className="w-full px-4 py-3 bg-slate-800/60 border border-slate-600 rounded-xl text-white text-sm placeholder-slate-500 focus:border-violet-500 focus:outline-none resize-none transition-colors"
-            />
-          </div>
-
-          {/* Yuborish tugma */}
-          <button
-            onClick={analyze}
-            disabled={isLoading || (!message.trim() && images.length === 0)}
-            className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${isLoading
-                ? 'bg-violet-900/50 text-violet-400 cursor-wait'
-                : (!message.trim() && images.length === 0)
-                  ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-lg shadow-violet-500/20 active:scale-95'
-              }`}
-          >
-            {isLoading ? (
-              <>
-                <span className="inline-block w-4 h-4 border-2 border-violet-400 border-t-transparent rounded-full animate-spin"></span>
-                Claude tahlil qilmoqda...
-              </>
-            ) : (
-              <>🔮 Tahlil qil {images.length > 0 && `(${images.length} rasm)`} {message.trim() ? '' : images.length === 0 ? '' : ''}</>
-            )}
-          </button>
-
-          {/* Xatolik */}
-          {errorMsg && (
-            <div className="bg-red-900/30 border border-red-600/50 rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-lg">❌</span>
-                <span className="text-red-300 font-bold text-sm">Xatolik yuz berdi</span>
-              </div>
-              <div className="text-red-200 text-sm font-mono leading-relaxed whitespace-pre-wrap break-all">
-                {errorMsg}
-              </div>
-            </div>
-          )}
-
-          {/* Javob */}
-          {response && (
-            <div className="bg-slate-800/60 border border-violet-700/30 rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-lg">🔮</span>
-                <span className="text-violet-300 font-bold text-sm">Claude javobi</span>
-                {isLoading && (
-                  <span className="w-2 h-2 rounded-full bg-violet-400 animate-pulse ml-1"></span>
-                )}
-              </div>
-              <div
-                ref={responseRef}
-                className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap max-h-80 overflow-y-auto pr-2"
-                style={{ scrollbarWidth: 'thin', scrollbarColor: '#4c1d95 transparent' }}
+              {/* AI Analiz tugmasi */}
+              <button
+                onClick={marketAnalyze}
+                disabled={isMarketLoading}
+                className={`w-full py-4 rounded-xl font-bold text-base transition-all flex items-center justify-center gap-3 ${
+                  isMarketLoading
+                    ? 'bg-amber-900/40 text-amber-400 cursor-wait border border-amber-700/50'
+                    : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-lg shadow-amber-500/30 active:scale-95'
+                }`}
               >
-                {response}
-                {isLoading && <span className="inline-block w-1.5 h-4 bg-violet-400 animate-pulse ml-0.5 align-middle" />}
+                {isMarketLoading ? (
+                  <>
+                    <span className="inline-block w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></span>
+                    <span>Bozor tahlil qilinmoqda...</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-xl">📊</span>
+                    <span>AI Analiz — Qisqa & Uzoq Muddatli</span>
+                  </>
+                )}
+              </button>
+
+              {/* Market xatolik */}
+              {marketError && (
+                <div className="bg-red-900/30 border border-red-600/50 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-lg">❌</span>
+                    <span className="text-red-300 font-bold text-sm">Xatolik yuz berdi</span>
+                  </div>
+                  <div className="text-red-200 text-sm font-mono leading-relaxed whitespace-pre-wrap break-all">
+                    {marketError}
+                  </div>
+                </div>
+              )}
+
+              {/* Market javob */}
+              {marketResponse && (
+                <div className="bg-slate-800/60 border border-amber-700/30 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-lg">📊</span>
+                    <span className="text-amber-300 font-bold text-sm">AI Tahlil Natijasi</span>
+                    <span className="ml-auto text-xs text-slate-500">COMEX:GC1!</span>
+                    {isMarketLoading && (
+                      <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse ml-1"></span>
+                    )}
+                  </div>
+                  <div
+                    ref={marketResponseRef}
+                    className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap overflow-y-auto pr-2"
+                    style={{ maxHeight: '480px', scrollbarWidth: 'thin', scrollbarColor: '#92400e transparent' }}
+                  >
+                    {marketResponse}
+                    {isMarketLoading && <span className="inline-block w-1.5 h-4 bg-amber-400 animate-pulse ml-0.5 align-middle" />}
+                  </div>
+                  {/* Signal kartochkasi — tahlil tugagandan so'ng */}
+                  {!isMarketLoading && <SignalCard text={marketResponse} accentColor="amber" />}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ═══════ RASM & CHAT TAB ═══════ */}
+          {activeTab === 'chat' && (
+            <div className="space-y-4">
+              {/* Kontekst */}
+              {calcContext && (
+                <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-3">
+                  <div className="text-slate-500 text-xs font-bold mb-1">📊 Kalkulyator natijalari avtomatik qo&apos;shiladi</div>
+                  <div className="text-slate-400 text-xs font-mono leading-relaxed line-clamp-3">{calcContext}</div>
+                </div>
+              )}
+
+              {/* Rasm yuklash zonasi */}
+              <div
+                onDrop={onDrop}
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onClick={() => fileInputRef.current?.click()}
+                className={`relative rounded-xl border-2 border-dashed transition-all cursor-pointer p-4 ${isDragging
+                    ? 'border-violet-400 bg-violet-900/30'
+                    : 'border-slate-600 bg-slate-800/30 hover:border-violet-600/60 hover:bg-violet-900/10'
+                  }`}
+              >
+                <div className="text-center">
+                  <div className="text-3xl mb-1">{isDragging ? '📥' : '📸'}</div>
+                  <div className="text-slate-400 text-sm font-bold">
+                    {isDragging ? 'Qo&apos;yib yuboring...' : 'Rasmlarni tashlang yoki bosing'}
+                  </div>
+                  <div className="text-slate-600 text-xs mt-0.5">
+                    Istalgancha rasm qo&apos;shishingiz mumkin · PNG, JPG, WebP
+                  </div>
+                </div>
               </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg, image/png, image/webp, image/gif"
+                multiple
+                className="hidden"
+                onChange={(e) => e.target.files && addImages(e.target.files)}
+              />
+
+              {/* Rasmlar grid preview */}
+              {images.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400 text-xs font-bold">
+                      📎 {images.length} ta rasm yuklandi
+                    </span>
+                    <button
+                      onClick={() => setImages([])}
+                      className="text-xs text-red-400 hover:text-red-300 font-bold transition-colors"
+                    >
+                      Hammasini o&apos;chirish
+                    </button>
+                  </div>
+                  <div className={`grid gap-2 ${images.length === 1 ? 'grid-cols-1' : images.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                    {images.map((im, idx) => (
+                      <div key={idx} className="relative group rounded-xl overflow-hidden border border-slate-700/50 bg-slate-800/40">
+                        <img
+                          src={im.preview}
+                          alt={`rasm-${idx + 1}`}
+                          className="w-full h-24 object-cover"
+                        />
+                        {/* Overlay */}
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); removeImage(idx); }}
+                            className="opacity-0 group-hover:opacity-100 w-7 h-7 bg-red-600 hover:bg-red-700 rounded-full flex items-center justify-center text-white text-sm font-bold transition-all"
+                          >✕</button>
+                        </div>
+                        {/* Rasm nomeri */}
+                        <div className="absolute top-1 left-1 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded font-bold">
+                          {idx + 1}
+                        </div>
+                      </div>
+                    ))}
+                    {/* "Yana qo'shish" tile */}
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      className="h-24 rounded-xl border-2 border-dashed border-slate-600 bg-slate-800/20 hover:border-violet-500/60 hover:bg-violet-900/10 flex items-center justify-center cursor-pointer transition-all"
+                    >
+                      <div className="text-center">
+                        <div className="text-slate-500 text-xl">+</div>
+                        <div className="text-slate-600 text-xs">Qo&apos;shish</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Matn kiritish */}
+              <div className="relative">
+                <textarea
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) analyze();
+                  }}
+                  placeholder="Savol yoki tahlil so&apos;rovi kiriting... (Ctrl+Enter — yuborish)"
+                  rows={3}
+                  className="w-full px-4 py-3 bg-slate-800/60 border border-slate-600 rounded-xl text-white text-sm placeholder-slate-500 focus:border-violet-500 focus:outline-none resize-none transition-colors"
+                />
+              </div>
+
+              {/* Yuborish tugma */}
+              <button
+                onClick={analyze}
+                disabled={isLoading || (!message.trim() && images.length === 0)}
+                className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${isLoading
+                    ? 'bg-violet-900/50 text-violet-400 cursor-wait'
+                    : (!message.trim() && images.length === 0)
+                      ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-lg shadow-violet-500/20 active:scale-95'
+                  }`}
+              >
+                {isLoading ? (
+                  <>
+                    <span className="inline-block w-4 h-4 border-2 border-violet-400 border-t-transparent rounded-full animate-spin"></span>
+                    Claude tahlil qilmoqda...
+                  </>
+                ) : (
+                  <>🔮 Tahlil qil {images.length > 0 && `(${images.length} rasm)`} {message.trim() ? '' : images.length === 0 ? '' : ''}</>
+                )}
+              </button>
+
+              {/* Xatolik */}
+              {errorMsg && (
+                <div className="bg-red-900/30 border border-red-600/50 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-lg">❌</span>
+                    <span className="text-red-300 font-bold text-sm">Xatolik yuz berdi</span>
+                  </div>
+                  <div className="text-red-200 text-sm font-mono leading-relaxed whitespace-pre-wrap break-all">
+                    {errorMsg}
+                  </div>
+                </div>
+              )}
+
+              {/* Javob */}
+              {response && (
+                <div className="bg-slate-800/60 border border-violet-700/30 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-lg">🔮</span>
+                    <span className="text-violet-300 font-bold text-sm">Claude javobi</span>
+                    {isLoading && (
+                      <span className="w-2 h-2 rounded-full bg-violet-400 animate-pulse ml-1"></span>
+                    )}
+                  </div>
+                  <div
+                    ref={responseRef}
+                    className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap max-h-80 overflow-y-auto pr-2"
+                    style={{ scrollbarWidth: 'thin', scrollbarColor: '#4c1d95 transparent' }}
+                  >
+                    {response}
+                    {isLoading && <span className="inline-block w-1.5 h-4 bg-violet-400 animate-pulse ml-0.5 align-middle" />}
+                  </div>
+                  {/* Signal kartochkasi — tahlil tugagandan so'ng */}
+                  {!isLoading && <SignalCard text={response} accentColor="violet" />}
+                </div>
+              )}
             </div>
           )}
 
@@ -434,6 +765,12 @@ function CalculatorContent() {
   const [smtEntry, setSmtEntry] = useState(''); // Entry narx
   const [smtSL, setSmtSL] = useState(''); // Stop Loss narx
   const [smtType, setSmtType] = useState<OBType>('bullish');
+
+  // FIBONACCI
+  const [fibHigh, setFibHigh] = useState('');
+  const [fibLow, setFibLow] = useState('');
+  const [fibDirection, setFibDirection] = useState<'auto' | 'bullish' | 'bearish'>('auto');
+  const [fibEntryLevel, setFibEntryLevel] = useState<'0.5' | '0.618' | '0.705' | '0.786'>('0.618');
 
   const calculations = useMemo(() => {
     const high = parseFloat(effectiveHigh) || 0;
@@ -612,6 +949,85 @@ function CalculatorContent() {
       };
     }
 
+    // ── FIBONACCI (Retracement & OTE) ─────────────────────────
+    if (preset === 'FIBONACCI') {
+      const sH = parseFloat(fibHigh) || high;
+      const sL = parseFloat(fibLow) || low;
+      if (isNaN(sH) || isNaN(sL) || sH <= sL) return null;
+
+      const diff = sH - sL;
+      const midpoint = (sH + sL) / 2;
+
+      let isBuy: boolean;
+      let directionReason = '';
+
+      if (fibDirection === 'bullish') {
+        isBuy = true;
+        directionReason = "Qo'lda tanlangan: Bullish (BUY Setup)";
+      } else if (fibDirection === 'bearish') {
+        isBuy = false;
+        directionReason = "Qo'lda tanlangan: Bearish (SELL Setup)";
+      } else {
+        // Avtomatik aniqlash:
+        if (current > 0) {
+          isBuy = current < midpoint;
+          directionReason = isBuy
+            ? `Avtomatik: Narx (${fmt(current)}) 50% muvozanatdan (${fmt(midpoint)}) pastda (Discount) → BUY`
+            : `Avtomatik: Narx (${fmt(current)}) 50% muvozanatdan (${fmt(midpoint)}) yuqorida (Premium) → SELL`;
+        } else if (candleAnalysis) {
+          isBuy = candleAnalysis.isBullish;
+          directionReason = isBuy ? "Avtomatik: Shamol Bullish → BUY" : "Avtomatik: Shamol Bearish → SELL";
+        } else {
+          isBuy = true;
+          directionReason = "Avtomatik: Standart BUY";
+        }
+      }
+
+      // Retracement levels:
+      // Bullish (Pullback down to BUY): Level = High - diff * ratio
+      // Bearish (Pullback up to SELL): Level = Low + diff * ratio
+      const f0 = isBuy ? sH : sL;
+      const f236 = isBuy ? sH - diff * 0.236 : sL + diff * 0.236;
+      const f382 = isBuy ? sH - diff * 0.382 : sL + diff * 0.382;
+      const f500 = isBuy ? sH - diff * 0.500 : sL + diff * 0.500;
+      const f618 = isBuy ? sH - diff * 0.618 : sL + diff * 0.618;
+      const f705 = isBuy ? sH - diff * 0.705 : sL + diff * 0.705;
+      const f786 = isBuy ? sH - diff * 0.786 : sL + diff * 0.786;
+      const f886 = isBuy ? sH - diff * 0.886 : sL + diff * 0.886;
+      const f100 = isBuy ? sL : sH;
+
+      const entryRatio = parseFloat(fibEntryLevel);
+      const entry = isBuy ? sH - diff * entryRatio : sL + diff * entryRatio;
+      const sl = isBuy ? sL - buf : sH + buf;
+
+      // Take Profits:
+      // TP1 = 0% Retracement (Swing High / Swing Low qaytishi)
+      // TP2 = 1.272 Extension (Fibonacci Target 1)
+      // TP3 = 1.618 Extension (Golden Target 2)
+      const tp1 = isBuy ? sH : sL;
+      const tp2 = isBuy ? sH + diff * 0.272 : sL - diff * 0.272;
+      const tp3 = isBuy ? sH + diff * 0.618 : sL - diff * 0.618;
+
+      const ref = current || entry;
+      const gRes = checkGann(isBuy, Math.min(sl, entry) - buf, Math.max(sl, entry) + buf, 'FIB ');
+
+      return {
+        preset: 'FIBONACCI' as const, isBuy,
+        directionReason, fibDirection,
+        swingHigh: fmt(sH), swingLow: fmt(sL), diff: fmt(diff),
+        f0: fmt(f0), f236: fmt(f236), f382: fmt(f382), f500: fmt(f500),
+        f618: fmt(f618), f705: fmt(f705), f786: fmt(f786), f886: fmt(f886), f100: fmt(f100),
+        entryLevel: fibEntryLevel,
+        entry: fmt(entry), entryPct: pct(entry, ref),
+        stopLoss: fmt(sl), slPct: pct(sl, ref),
+        tp1: fmt(tp1), tp1Pct: pct(tp1, ref), rr1: calcRR(entry, sl, tp1),
+        tp2: fmt(tp2), tp2Pct: pct(tp2, ref), rr2: calcRR(entry, sl, tp2),
+        tp3: fmt(tp3), tp3Pct: pct(tp3, ref), rr3: calcRR(entry, sl, tp3),
+        rangeVal: fmt(diff), gann: gFmt,
+        gannConfluence: gRes.text, isStrongSignal: gRes.strong, pipBuffer: buf,
+      };
+    }
+
     // ── Elif trading / AB TRADE / 2.6 ──────────────────────────────
     if (rangeVal <= 0) return null;
     const config = presetConfigs[preset];
@@ -691,7 +1107,7 @@ function CalculatorContent() {
       gannConfluence: gRes.text, isStrongSignal: gRes.strong,
       liquidityInfo, pipBuffer: buf,
     };
-  }, [effectiveHigh, effectiveLow, effectiveCurrent, preset, timeframe, hhPrice, llPrice, obHigh, obLow, obType, fvgHigh, fvgLow, fvgType, snrEntry, snrSL, snrType, candleType, smtEntry, smtSL, smtType]);
+  }, [effectiveHigh, effectiveLow, effectiveCurrent, preset, timeframe, hhPrice, llPrice, obHigh, obLow, obType, fvgHigh, fvgLow, fvgType, snrEntry, snrSL, snrType, candleType, smtEntry, smtSL, smtType, fibHigh, fibLow, fibDirection, fibEntryLevel]);
 
   const isBuy = calculations?.isBuy ?? false;
   const rangeVal = parseFloat(effectiveHigh) - parseFloat(effectiveLow);
@@ -930,6 +1346,7 @@ function CalculatorContent() {
               <option value="IFVG">IFVG (Inverse FVG)</option>
               <option value="SNR_ICT">SNR + ICT + Yolg&apos;iz Sham</option>
               <option value="SMT">SMT (Smart Money Technique)</option>
+              <option value="FIBONACCI">FIBONACCI (Retracement & OTE)</option>
             </select>
           </div>
 
@@ -1058,6 +1475,73 @@ function CalculatorContent() {
               </div>
             </div>
           )}
+
+          {/* FIBONACCI */}
+          {preset === 'FIBONACCI' && (
+            <div className="mt-4 p-4 bg-amber-950/40 border border-amber-500/40 rounded-xl space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">📐</span>
+                  <div>
+                    <p className="text-amber-400 text-xs font-bold tracking-widest">FIBONACCI RETRACEMENT & OTE</p>
+                    <p className="text-slate-400 text-xs mt-0.5">Swing High/Low orqali BUY yoki SELL signali avtomatik aniqlanadi</p>
+                  </div>
+                </div>
+                <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border ${isBuy ? 'bg-green-500/20 border-green-500/40 text-green-400' : 'bg-red-500/20 border-red-500/40 text-red-400'}`}>
+                  {isBuy ? '▲ BUY' : '▼ SELL'}
+                </span>
+              </div>
+
+              {/* BUY / SELL rejimi tanlovi */}
+              <div>
+                <label className="text-slate-400 text-xs font-bold mb-1.5 block">SIGNALLAR REJIMI</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button type="button" onClick={() => setFibDirection('auto')}
+                    className={`py-2 px-2 rounded-lg text-xs font-bold transition-all ${fibDirection === 'auto' ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/30' : 'bg-slate-700/80 text-slate-400 hover:bg-slate-600'}`}>
+                    ⚡ Avtomatik ({isBuy ? 'BUY' : 'SELL'})
+                  </button>
+                  <button type="button" onClick={() => setFibDirection('bullish')}
+                    className={`py-2 px-2 rounded-lg text-xs font-bold transition-all ${fibDirection === 'bullish' ? 'bg-green-600 text-white shadow-lg shadow-green-600/30' : 'bg-slate-700/80 text-slate-400 hover:bg-slate-600'}`}>
+                    ▲ BUY Setup
+                  </button>
+                  <button type="button" onClick={() => setFibDirection('bearish')}
+                    className={`py-2 px-2 rounded-lg text-xs font-bold transition-all ${fibDirection === 'bearish' ? 'bg-red-600 text-white shadow-lg shadow-red-600/30' : 'bg-slate-700/80 text-slate-400 hover:bg-slate-600'}`}>
+                    ▼ SELL Setup
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-amber-300 text-xs font-bold mb-1 block">SWING HIGH</label>
+                  <input type="number" value={fibHigh} onChange={e => setFibHigh(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-700/80 border border-amber-600/50 rounded-lg text-white text-lg font-bold focus:border-amber-400 focus:outline-none" step="0.01" placeholder={effectiveHigh || "High narx"} />
+                </div>
+                <div>
+                  <label className="text-amber-300 text-xs font-bold mb-1 block">SWING LOW</label>
+                  <input type="number" value={fibLow} onChange={e => setFibLow(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-700/80 border border-amber-600/50 rounded-lg text-white text-lg font-bold focus:border-amber-400 focus:outline-none" step="0.01" placeholder={effectiveLow || "Low narx"} />
+                </div>
+              </div>
+              <div>
+                <label className="text-slate-400 text-xs font-bold mb-1 block">ENTRY UCHUN ASOSIY FIB DARAJASI</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { key: '0.5', label: '50.0%', desc: 'Equilibrium' },
+                    { key: '0.618', label: '61.8%', desc: 'Golden Ratio' },
+                    { key: '0.705', label: '70.5%', desc: 'ICT OTE' },
+                    { key: '0.786', label: '78.6%', desc: 'Deep' },
+                  ].map(item => (
+                    <button key={item.key} type="button" onClick={() => setFibEntryLevel(item.key as any)}
+                      className={`py-2 px-1 rounded-lg text-center transition-all ${fibEntryLevel === item.key ? 'bg-amber-500 text-slate-950 font-black shadow-lg shadow-amber-500/20' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>
+                      <div className="text-xs font-bold">{item.label}</div>
+                      <div className="text-[10px] opacity-75">{item.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
 
@@ -1124,6 +1608,100 @@ function CalculatorContent() {
                     <div className="text-3xl font-bold text-red-500">{calculations.stopLoss}</div>
                     <div className="text-sm font-bold text-slate-400">({calculations.slPct}%)</div>
                   </div>
+                </div>
+              </>
+            )}
+
+            {/* FIBONACCI natijalar */}
+            {calculations.preset === 'FIBONACCI' && (
+              <>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-amber-400 text-xs font-bold tracking-widest">
+                    📐 FIBONACCI — {timeframe} | {isBuy ? 'BUY SETUP' : 'SELL SETUP'}
+                  </h3>
+                  <span className={`text-xs font-black px-2.5 py-1 rounded-lg border ${isBuy ? 'bg-green-500/20 border-green-500/40 text-green-400' : 'bg-red-500/20 border-red-500/40 text-red-400'}`}>
+                    {isBuy ? '▲ BUY SIGNAL' : '▼ SELL SIGNAL'}
+                  </span>
+                </div>
+
+                {/* Avtomatik tahlil izohi */}
+                {calculations.directionReason && (
+                  <div className="bg-slate-900/85 border border-amber-600/40 rounded-xl p-3 text-xs text-slate-300 flex items-center gap-2">
+                    <span className="text-lg">{isBuy ? '🟢' : '🔴'}</span>
+                    <div>
+                      <div className="font-bold text-white">{isBuy ? 'BUY (Sotib olish signali)' : 'SELL (Sotish signali)'}</div>
+                      <div className="text-slate-400 text-[11px] mt-0.5">{calculations.directionReason}</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* OTE / Golden Pocket Zone Info */}
+                <div className="bg-amber-950/30 border border-amber-500/50 rounded-2xl p-4 backdrop-blur">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-amber-400 font-bold text-sm">✨ OTE (Optimal Trade Entry) / Golden Pocket</span>
+                    <span className="text-xs font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300">61.8% — 78.6%</span>
+                  </div>
+                  <p className="text-xs text-slate-300">
+                    {isBuy
+                      ? 'Narx Swing High dan pastga OTE zonasiga korreksiya berganda BUY ochish tavsiya etiladi.'
+                      : 'Narx Swing Low dan yuqoriga OTE zonasiga korreksiya berganda SELL ochish tavsiya etiladi.'}
+                  </p>
+                  <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-amber-500/20 text-center">
+                    <div>
+                      <div className="text-[11px] text-slate-400">61.8% (Golden)</div>
+                      <div className="text-sm font-bold text-amber-300 font-mono">{calculations.f618}</div>
+                    </div>
+                    <div>
+                      <div className="text-[11px] text-slate-400">70.5% (Sweet Spot)</div>
+                      <div className="text-sm font-bold text-yellow-400 font-mono">{calculations.f705}</div>
+                    </div>
+                    <div>
+                      <div className="text-[11px] text-slate-400">78.6% (Deep)</div>
+                      <div className="text-sm font-bold text-orange-400 font-mono">{calculations.f786}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Barcha Fib darajalari jadvali */}
+                <div className="bg-slate-900/85 border border-slate-700/80 rounded-2xl p-4 backdrop-blur">
+                  <div className="text-slate-400 text-xs font-bold tracking-widest mb-3">FIBONACCI RETRACEMENT DARAJALARI</div>
+                  <div className="space-y-1.5 text-xs font-mono">
+                    {[
+                      { label: isBuy ? '0.0% (Swing High)' : '0.0% (Swing Low)', val: calculations.f0, highlight: false },
+                      { label: '23.6%', val: calculations.f236, highlight: false },
+                      { label: '38.2%', val: calculations.f382, highlight: false },
+                      { label: '50.0% (Equilibrium)', val: calculations.f500, highlight: calculations.entryLevel === '0.5' },
+                      { label: '61.8% (Golden Ratio)', val: calculations.f618, highlight: calculations.entryLevel === '0.618' },
+                      { label: '70.5% (ICT OTE)', val: calculations.f705, highlight: calculations.entryLevel === '0.705' },
+                      { label: '78.6%', val: calculations.f786, highlight: calculations.entryLevel === '0.786' },
+                      { label: '88.6%', val: calculations.f886, highlight: false },
+                      { label: isBuy ? '100.0% (Swing Low)' : '100.0% (Swing High)', val: calculations.f100, highlight: false },
+                    ].map((item, idx) => (
+                      <div key={idx} className={`flex items-center justify-between px-3 py-1.5 rounded-lg ${item.highlight ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold' : 'text-slate-300 hover:bg-slate-800/50'}`}>
+                        <span>{item.label}</span>
+                        <span>{item.val}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Entry */}
+                <div className="bg-slate-900/85 border-2 border-cyan-600/50 rounded-2xl p-5 backdrop-blur">
+                  <div className="text-slate-400 text-xs font-bold tracking-widest mb-2">ENTRY ({calculations.entryLevel ? `${(parseFloat(calculations.entryLevel) * 100).toFixed(1)}% Fib` : 'Fib'})</div>
+                  <div className="text-3xl font-bold text-cyan-400">{calculations.entry}</div>
+                  <div className="text-xs text-slate-500 mt-1">
+                    {isBuy ? 'Bullish Retracement — BUY' : 'Bearish Retracement — SELL'} | Masofa: {calculations.entryPct}%
+                  </div>
+                </div>
+
+                {/* SL */}
+                <div className="bg-slate-900/85 border-2 border-red-600/50 rounded-2xl p-5 backdrop-blur">
+                  <div className="text-red-400 text-xs font-bold tracking-widest mb-2">STOP LOSS</div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-3xl font-bold text-red-500">{calculations.stopLoss}</div>
+                    <div className="text-sm font-bold text-slate-400">({calculations.slPct}%)</div>
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1">Swing {isBuy ? 'Low dan' : 'High dan'} {calculations.pipBuffer} pip narida</div>
                 </div>
               </>
             )}

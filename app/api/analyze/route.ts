@@ -93,6 +93,7 @@ Siz quyidagilarni tahlil qilasiz:
 - Narx harakati va trend
 - Support/Resistance darajalari  
 - Order Block va FVG (Fair Value Gap) zonalari
+- Fibonacci Retracement va OTE darajalari (0.618, 0.705, 0.786)
 - Gann kvadrat darajalari bilan moslik
 - Entry, Stop Loss va Take Profit tavsiyalari
 - Umumiy bozor holati
