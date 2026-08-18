@@ -201,7 +201,7 @@ export async function POST(req: NextRequest) {
       async start(controller) {
         try {
           const claudeStream = await anthropic.messages.stream({
-            model: 'claude-sonnet-5',
+            model: 'claude-opus-4-5',
             max_tokens: 4096,
             temperature: 1,
             system: systemPrompt,

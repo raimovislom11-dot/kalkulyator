@@ -545,7 +545,7 @@ function AIAnalysisPanel({
             <div className="flex items-center gap-2">
               <span className="text-white font-bold text-sm">SUN&apos;IY INTELLEKT TAHLIL PANELI</span>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-900/60 text-violet-300 border border-violet-600/40 font-mono font-bold">
-                Claude 3.5 Sonnet
+                Claude Opus 4.5
               </span>
             </div>
             <p className="text-slate-400 text-xs mt-0.5">Qisqa (1-15m Scalp) & Uzoq (1-4h Intraday) muddatli jonli tahlil</p>

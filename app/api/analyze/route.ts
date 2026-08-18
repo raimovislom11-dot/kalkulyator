@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
       async start(controller) {
         try {
           const claudeStream = await anthropic.messages.stream({
-            model: "claude-sonnet-5", // To'g'ri model nomi
+            model: "claude-opus-4-5",
             max_tokens: 4096,
             temperature: 1,
             system: `Siz XAU/USD (oltin) savdo kalkulyatori uchun mutaxassis moliyaviy tahlilchisiz. 
