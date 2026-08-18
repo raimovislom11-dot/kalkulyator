@@ -112,6 +112,7 @@ export async function POST(req: NextRequest) {
 
     const formData = await req.formData();
     const calcContext = (formData.get('calcContext') as string) || '';
+    const termMode = (formData.get('termMode') as string) || 'short'; // 'short' | 'long' | 'both'
 
     const goldData = await fetchGoldData();
 
@@ -141,38 +142,59 @@ export async function POST(req: NextRequest) {
     }
 
     if (calcContext) {
-      marketDataText += '\n\n📋 KALKULYATOR NATIJALARI:\n' + calcContext;
+      marketDataText += '\n\n📋 JORIY INSTRUMENT VA KALKULYATOR NATIJALARI:\n' + calcContext;
     }
 
-    const systemPrompt =
-      "Siz COMEX oltini (XAU/USD, GC1!) bo'yicha professional moliyaviy tahlilchisiz.\n" +
-      'TradingView grafigi: https://www.tradingview.com/chart/mmKqMW9C/?symbol=COMEX%3AGC1%21\n\n' +
-      "1️⃣ QISQA MUDDATLI TAHLIL (1-4 soat, scalping/intraday):\n" +
-      '- Hozirgi 1H trend va momentum\n' +
-      "- So'nggi 4 soatlik narx harakati (SMA20 asosida)\n" +
-      '- RSI14 — overbought (>70) yoki oversold (<30) holati\n' +
-      '- Eng yaqin 1-4 soatlik support va resistance darajalari\n' +
-      '- Aniq kirish nuqtasi (Entry), Stop Loss (SL), Take Profit (TP1, TP2)\n' +
-      "- Hozirgi signal: BUY / SELL / WAIT (sababini tushuntiring)\n\n" +
-      "2️⃣ UZOQ MUDDATLI TAHLIL (4-24 soat, swing/position):\n" +
-      "- Kunlik trend yo'nalishi (SMA50 asosida)\n" +
-      '- Bugungi muhim support va resistance zonalari\n' +
-      '- Psixologik narx darajalari (round numbers)\n' +
-      '- 24 soatlik maqsad narxlar (TP1, TP2)\n' +
-      '- Asosiy risk omillari (xabarlar, foiz stavkalar, dollar indeksi)\n\n' +
-      "3️⃣ XULOSA:\n" +
-      "- Umumiy bozor baholash (bullish/bearish/neytral)\n" +
-      "- Eng kuchli signal qaysi vaqt oralig'ida\n" +
-      "- Qisqa va uzoq muddat uchun tavsiya\n\n" +
-      "Javoblarni O'ZBEK TILIDA bering. ANIQ NARXLARNI ko'rsating (masalan: Entry: 3245.50).\n" +
-      "Format: emoji va bo'lim sarlavhalaridan foydalaning. Har bir qism uchun alohida ro'yxat ishlating.";
+    let systemPrompt = '';
+    let userMessage = '';
 
-    const userMessage =
-      marketDataText +
-      "\n\nYuqoridagi 1H soatlik ma'lumotlar asosida COMEX oltin (XAU/USD, GC1!) uchun:\n" +
-      '- QISQA MUDDATLI (1-4 soat) tahlil\n' +
-      '- UZOQ MUDDATLI (4-24 soat) tahlil\n' +
-      'bering.';
+    if (termMode === 'short') {
+      systemPrompt =
+        "Siz professional SCALPER treydersiz (SMC, ICT, Price Action mutaxassisi).\n" +
+        "Sizning vazifangiz — FAQAT QISQA MUDDATLI (1 — 15 DAQIQA: 1m, 5m, 15m oraliqlari) bo'yicha aniq, o'ta tezkor va yuqori ehtimolli SCALP savdo signalini berish.\n\n" +
+        "QISQA MUDDATLI (1-15m) TAHLIL TALABLARI:\n" +
+        "1. ⚡ 1m, 5m va 15m oraliqlaridagi joriy momentum, mikro-trend va narx reaksiyasi\n" +
+        "2. 🧲 Eng yaqin likvidlik olinishi (Liquidity Sweep) va 1-15m FVG / Order Block zonalari\n" +
+        "3. 🎯 ANIQ TEZKOR KIRISH REJASI (O'zbek tilida):\n" +
+        "   - Yo'nalish: BUY yoki SELL\n" +
+        "   - Entry (Kirish narxi): aniq raqam (masalan: Entry: 2652.40)\n" +
+        "   - Stop Loss (SL): qisqa va qat'iy scalping SL (masalan: Stop Loss: 2647.50)\n" +
+        "   - Take Profit 1 (TP1): 1-15 daqiqalik tezkor birinchi maqsad\n" +
+        "   - Take Profit 2 (TP2): asosiy qisqa muddatli maqsad\n" +
+        "   - Take Profit 3 (TP3): kengaytirilgan scalp maqsad\n" +
+        "   - R:R nisbati va 1-15m bo'yicha kirish sababi\n" +
+        "4. ⚠️ 1-15 daqiqalik tezkor risklar va spread e'tibori\n\n" +
+        "Javobni aniq, qisqa va tushunarli qilib O'ZBEK TILIDA bering. Aniq narxlarni ko'rsating!";
+
+      userMessage =
+        marketDataText +
+        "\n\nIltimos, ushbu ma'lumotlar asosida FAQAT QISQA MUDDATLI (1 — 15 daqiqa: 1m-15m) scalping signali va tahlilini bering.";
+    } else if (termMode === 'long') {
+      systemPrompt =
+        "Siz professional INTRADAY va DAY TRADING treydersiz (1 — 4 soatlik oraliqlar tahlilchisi).\n" +
+        "Sizning vazifangiz — FAQAT UZOQ MUDDATLI (1 — 4 SOAT: 1h, 4h oraliqlari) bo'yicha mustahkam oraliq tahlili va kunlik maqsadlarni aniqlash.\n\n" +
+        "UZOQ MUDDATLI (1-4 SOAT) TAHLIL TALABLARI:\n" +
+        "1. 📈 1 Soatlik (1H) va 4 Soatlik (4H) asosiy trend yo'nalishi (Bullish / Bearish)\n" +
+        "2. 🏛️ 1-4 soatlik kuchli Support va Resistance zonalari, Psixologik narx darajalari\n" +
+        "3. 🎯 ANIQ 1-4 SOATLIK REJA (O'zbek tilida):\n" +
+        "   - Yo'nalish: BUY yoki SELL\n" +
+        "   - Entry (Kirish zonasi): aniq narx (masalan: Entry: 2642.00)\n" +
+        "   - Stop Loss (SL): 1-4 soatlik himoyalangan SL (masalan: Stop Loss: 2628.00)\n" +
+        "   - Take Profit 1 (TP1): 1-4 soatlik 1-asosiy maqsad\n" +
+        "   - Take Profit 2 (TP2): kengaytirilgan kunlik maqsad\n" +
+        "   - Take Profit 3 (TP3): 4 soatlik maksimal maqsad\n" +
+        "4. 🌍 1-4 soatlik sessiyalar (London/NY) va iqtisodiy yangiliklar ta'siri\n\n" +
+        "Javobni O'ZBEK TILIDA, aniq narx darajalari va batafsil tushuntirish bilan bering!";
+
+      userMessage =
+        marketDataText +
+        "\n\nIltimos, ushbu ma'lumotlar asosida FAQAT UZOQ MUDDATLI (1 — 4 soat: 1h-4h) strategiya va maqsadli signallarni bering.";
+    } else {
+      systemPrompt =
+        "Siz COMEX oltini va moliyaviy bozorlar bo'yicha professional tahlilchisiz.\n" +
+        "Qisqa (1-15m) va Uzoq (1-4 soat) muddatli tahlilni O'ZBEK TILIDA bering. Aniq Entry, Stop Loss, TP1, TP2, TP3 darajalarini ko'rsating.";
+      userMessage = marketDataText + "\n\nQisqa (1-15m) va uzoq (1-4 soat) muddatli bozor tahlilini bering.";
+    }
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({

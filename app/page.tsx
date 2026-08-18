@@ -1,6 +1,13 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import MultiAssetSelector, { ASSET_LIST, AssetConfig } from './components/MultiAssetSelector';
+import RiskCalculator from './components/RiskCalculator';
+import TradingViewWidget from './components/TradingViewChart';
+import KillzonesWidget from './components/KillzonesWidget';
+import TradingJournal, { saveTradeToJournalStorage } from './components/TradingJournal';
+import EconomicCalendar from './components/EconomicCalendar';
+import TelegramShareModal, { sendDirectTelegramMessage } from './components/TelegramShareModal';
 
 type Preset = 'Elif trading' | 'AB TRADE' | '2.6 STRATEGY' | 'ORDER BLOCK' | 'IFVG' | 'SNR_ICT' | 'SMT' | 'FIBONACCI';
 type CandleType = 'bullish_engulfing' | 'hammer' | 'bullish_pinbar' | 'bearish_engulfing' | 'shooting_star' | 'bearish_pinbar';
@@ -43,10 +50,8 @@ interface ImageItem { file: File; preview: string; }
 
 // --- Signal parser ---
 function parseSignal(text: string) {
-  // Minglik vergulni olib tashlash: 4,378 -> 4378
   const cleaned = text.replace(/(\d{1,3}),(\d{3})(?!\d)/g, '$1$2');
-
-  const NUM = '(\\d{3,6}(?:\\.\\d{1,2})?)';
+  const NUM = '(\\d{1,7}(?:\\.\\d{1,5})?)';
 
   const find = (patterns: RegExp[]): string => {
     for (const re of patterns) {
@@ -87,12 +92,26 @@ function parseSignal(text: string) {
   return { entry, sl, tp1, tp2, tp3 };
 }
 
-function SignalCard({ text, accentColor = 'amber' }: { text: string; accentColor?: 'amber' | 'violet' }) {
+function SignalCard({
+  text,
+  accentColor = 'amber',
+  asset,
+  onOpenTelegram,
+  onSaveToJournal,
+}: {
+  text: string;
+  accentColor?: 'amber' | 'violet';
+  asset: AssetConfig;
+  onOpenTelegram?: (data: any) => void;
+  onSaveToJournal?: (data: any) => void;
+}) {
   const parsed = parseSignal(text);
   const [vals, setVals] = useState({ entry: '', sl: '', tp1: '', tp2: '', tp3: '' });
   const [copied, setCopied] = useState(false);
+  const [savedJournal, setSavedJournal] = useState(false);
+  const [sendingDirectTg, setSendingDirectTg] = useState(false);
+  const [sentDirectTg, setSentDirectTg] = useState(false);
 
-  // Tahlil yangilanganda avtomatik to'ldirish
   useEffect(() => {
     if (text) {
       const p = parseSignal(text);
@@ -104,10 +123,10 @@ function SignalCard({ text, accentColor = 'amber' }: { text: string; accentColor
         tp3: p.tp3 || prev.tp3,
       }));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text]);
 
   const copyText =
+    `Instrument: ${asset.name}\n` +
     'Entry: ' + (vals.entry || '—') + '\n' +
     'Stop Loss: ' + (vals.sl || '—') + '\n' +
     'TP1: ' + (vals.tp1 || '—') + '\n' +
@@ -118,6 +137,73 @@ function SignalCard({ text, accentColor = 'amber' }: { text: string; accentColor
     navigator.clipboard.writeText(copyText).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const handleSave = () => {
+    if (!vals.entry || !vals.sl) {
+      alert("Entry va Stop Loss bo'sh bo'lmasligi kerak");
+      return;
+    }
+    const isBuy = parseFloat(vals.tp1) > parseFloat(vals.entry) || parseFloat(vals.entry) > parseFloat(vals.sl);
+    const ok = saveTradeToJournalStorage({
+      asset: asset.symbol,
+      strategy: 'AI Claude Tahlili',
+      direction: isBuy ? 'BUY' : 'SELL',
+      entry: vals.entry,
+      sl: vals.sl,
+      tp1: vals.tp1 || '—',
+      tp2: vals.tp2 || '—',
+      tp3: vals.tp3 || '—',
+      notes: 'AI tahlilidan saqlangan',
+    });
+    if (ok) {
+      setSavedJournal(true);
+      setTimeout(() => setSavedJournal(false), 2500);
+    }
+  };
+
+  const handleSendDirectTg = async () => {
+    if (!vals.entry || !vals.sl) {
+      alert("Entry va Stop Loss bo'sh bo'lmasligi kerak");
+      return;
+    }
+    const isBuy = parseFloat(vals.tp1) > parseFloat(vals.entry) || parseFloat(vals.entry) > parseFloat(vals.sl);
+    setSendingDirectTg(true);
+    const res = await sendDirectTelegramMessage({
+      asset: asset.symbol,
+      strategy: 'AI Claude Tahlili',
+      direction: isBuy ? 'BUY' : 'SELL',
+      entry: vals.entry,
+      sl: vals.sl,
+      tp1: vals.tp1 || '—',
+      tp2: vals.tp2 || '—',
+      tp3: vals.tp3 || '—',
+    });
+    setSendingDirectTg(false);
+    if (res.ok) {
+      setSentDirectTg(true);
+      setTimeout(() => setSentDirectTg(false), 3000);
+    } else {
+      alert("Telegram bot orqali xabar yuborishda xatolik yuz berdi");
+    }
+  };
+
+  const handleTg = () => {
+    if (!vals.entry || !vals.sl) {
+      alert("Entry va Stop Loss bo'sh bo'lmasligi kerak");
+      return;
+    }
+    const isBuy = parseFloat(vals.tp1) > parseFloat(vals.entry) || parseFloat(vals.entry) > parseFloat(vals.sl);
+    onOpenTelegram?.({
+      asset: asset.symbol,
+      strategy: 'AI Claude Tahlili',
+      direction: isBuy ? 'BUY' : 'SELL',
+      entry: vals.entry,
+      sl: vals.sl,
+      tp1: vals.tp1 || '—',
+      tp2: vals.tp2 || '—',
+      tp3: vals.tp3 || '—',
     });
   };
 
@@ -143,7 +229,7 @@ function SignalCard({ text, accentColor = 'amber' }: { text: string; accentColor
     <div className={`mt-3 bg-gradient-to-br ${bg} border ${border} rounded-xl p-4`}
       style={{ boxShadow: isAmber ? '0 0 20px rgba(245,158,11,0.1)' : '0 0 20px rgba(139,92,246,0.1)' }}>
       {/* Sarlavha */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2">
           <span className="text-lg">📍</span>
           <span className={`${titleColor} font-bold text-sm`}>Signal Natijalari</span>
@@ -151,16 +237,50 @@ function SignalCard({ text, accentColor = 'amber' }: { text: string; accentColor
             <span className="text-xs px-1.5 py-0.5 bg-green-900/40 text-green-400 rounded-full font-bold">✓ auto</span>
           )}
         </div>
-        <button
-          onClick={handleCopy}
-          className={`flex items-center gap-1.5 px-3 py-1.5 ${btnBg} text-white text-xs font-bold rounded-lg transition-all active:scale-95 shadow-md`}
-        >
-          {copied ? (
-            <><span className="text-green-200">✓</span><span>Nusxalandi!</span></>
-          ) : (
-            <><span>📋</span><span>Nusxalash</span></>
-          )}
-        </button>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            onClick={handleSendDirectTg}
+            disabled={sendingDirectTg}
+            className={`flex items-center gap-1 px-3 py-1.5 text-white text-xs font-bold rounded-lg transition-all active:scale-95 shadow-md ${
+              sentDirectTg
+                ? 'bg-emerald-600'
+                : 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700'
+            }`}
+          >
+            {sendingDirectTg ? (
+              <span>Yuborilmoqda...</span>
+            ) : sentDirectTg ? (
+              <><span>✓</span><span>Botga yuborildi!</span></>
+            ) : (
+              <><span>🚀</span><span>Botga yuborish</span></>
+            )}
+          </button>
+          <button
+            onClick={handleSave}
+            className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-700/80 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg transition-all active:scale-95 shadow"
+          >
+            <span>{savedJournal ? '✓' : '📓'}</span>
+            <span>{savedJournal ? 'Saqlandi!' : 'Jurnalga'}</span>
+          </button>
+          <button
+            onClick={handleTg}
+            className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-sky-500/40 text-sky-300 text-xs font-bold rounded-lg transition-all active:scale-95 shadow"
+          >
+            <span>📱</span>
+            <span>Sozlama</span>
+          </button>
+          <button
+            onClick={handleCopy}
+            className={`flex items-center gap-1 px-2.5 py-1.5 ${btnBg} text-white text-xs font-bold rounded-lg transition-all active:scale-95 shadow-md`}
+          >
+            {copied ? (
+              <><span className="text-green-200">✓</span><span>Nusxalandi!</span></>
+            ) : (
+              <><span>📋</span><span>Nusxalash</span></>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Maydonlar */}
@@ -186,7 +306,17 @@ function SignalCard({ text, accentColor = 'amber' }: { text: string; accentColor
   );
 }
 
-function AIAnalysisPanel({ calcContext }: { calcContext: string }) {
+function AIAnalysisPanel({
+  calcContext,
+  asset,
+  timeframe,
+  onOpenTelegram,
+}: {
+  calcContext: string;
+  asset: AssetConfig;
+  timeframe: string;
+  onOpenTelegram?: (data: any) => void;
+}) {
   const [message, setMessage] = useState('');
   const [response, setResponse] = useState('');
   const [marketResponse, setMarketResponse] = useState('');
@@ -194,10 +324,12 @@ function AIAnalysisPanel({ calcContext }: { calcContext: string }) {
   const [isMarketLoading, setIsMarketLoading] = useState(false);
   const [images, setImages] = useState<ImageItem[]>([]);
   const [isDragging, setIsDragging] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [marketError, setMarketError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'chat' | 'market'>('market');
+  const [activeTab, setActiveTab] = useState<'live_chart' | 'market' | 'chat'>('live_chart');
+  const [showTermModal, setShowTermModal] = useState(false);
+  const [currentTermMode, setCurrentTermMode] = useState<'short' | 'long'>('short');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const responseRef = useRef<HTMLDivElement>(null);
   const marketResponseRef = useRef<HTMLDivElement>(null);
@@ -208,7 +340,6 @@ function AIAnalysisPanel({ calcContext }: { calcContext: string }) {
       const reader = new FileReader();
       reader.onload = (e) => {
         setImages(prev => {
-          // Dublikat oldini olish (fayl nomi + hajm bo'yicha)
           const exists = prev.some(im => im.file.name === file.name && im.file.size === file.size);
           if (exists) return prev;
           return [...prev, { file, preview: e.target?.result as string }];
@@ -227,14 +358,21 @@ function AIAnalysisPanel({ calcContext }: { calcContext: string }) {
     if (e.dataTransfer.files.length) addImages(e.dataTransfer.files);
   }, [addImages]);
 
-  // Bozor tahlili (qisqa + uzoq muddatli) — yangi tugma
-  const marketAnalyze = async () => {
+  const marketAnalyze = async (term: 'short' | 'long' = 'short') => {
+    setShowTermModal(false);
+    setCurrentTermMode(term);
     setIsMarketLoading(true);
     setMarketResponse('');
     setMarketError(null);
 
     const form = new FormData();
-    form.append('calcContext', calcContext);
+    form.append(
+      'calcContext',
+      `Instrument: ${asset.name} (${asset.symbol})\nVaqt oralig'i: ${timeframe}\nTahlil turi: ${
+        term === 'short' ? 'Qisqa muddatli (Scalp: 1-15 daqiqa)' : 'Uzoq muddatli (Intraday: 1-4 soat)'
+      }\n` + calcContext
+    );
+    form.append('termMode', term);
 
     try {
       const res = await fetch('/api/market-analyze', { method: 'POST', body: form });
@@ -283,8 +421,8 @@ function AIAnalysisPanel({ calcContext }: { calcContext: string }) {
     setErrorMsg(null);
 
     const form = new FormData();
-    form.append('message', message || 'Bu rasimlarni tahlil qilib bering.');
-    form.append('context', calcContext);
+    form.append('message', message || 'Ushbu rasmlarni tahlil qilib bering.');
+    form.append('context', `Instrument: ${asset.name} (${asset.symbol})\nVaqt oralig'i: ${timeframe}\n` + calcContext);
     images.forEach((im, i) => form.append(`image_${i}`, im.file));
     form.append('imageCount', String(images.length));
 
@@ -329,278 +467,402 @@ function AIAnalysisPanel({ calcContext }: { calcContext: string }) {
   };
 
   return (
-    <div className="mb-4">
-      {/* Toggle tugma */}
-      <button
-        onClick={() => setIsOpen(o => !o)}
-        className={`w-full py-4 rounded-2xl font-bold text-base transition-all flex items-center justify-center gap-3 ${isOpen
-            ? 'bg-gradient-to-r from-violet-700 to-indigo-700 text-white shadow-lg shadow-violet-500/30'
-            : 'bg-slate-900/85 border border-violet-700/60 text-violet-300 hover:bg-violet-900/40 backdrop-blur'
-          }`}
-      >
-        <span className="text-xl">{isOpen ? '🔮' : '🤖'}</span>
-        {isOpen ? 'Sun\u02bciy Intellektni yopish' : 'Sun\u02bciy Intellekt — AI Tahlil'}
-        <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${isOpen ? 'bg-violet-900/50 text-violet-300' : 'bg-violet-900/40 text-violet-400'
-          }`}>AI</span>
-      </button>
+    <div className="bg-slate-900/85 border border-violet-700/50 rounded-2xl p-4 sm:p-5 mb-4 backdrop-blur shadow-xl relative">
+      {/* Term Selection Modal (Qisqa yoki Uzoq muddatli tanlash) */}
+      {showTermModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-md bg-slate-900 border-2 border-indigo-500/60 rounded-3xl p-6 shadow-2xl relative text-center">
+            <button
+              onClick={() => setShowTermModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white text-lg p-1"
+            >
+              ✕
+            </button>
 
-      {/* Panel */}
-      {isOpen && (
-        <div className="mt-3 bg-slate-900/90 border border-violet-700/40 rounded-2xl p-5 backdrop-blur space-y-4"
-          style={{ boxShadow: '0 0 40px rgba(139,92,246,0.15)' }}>
-
-          {/* Sarlavha */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-xl">🔮</div>
-            <div>
-              <div className="text-violet-300 font-bold text-sm">Claude AI Tahlilchi</div>
-              <div className="text-slate-500 text-xs">XAU/USD · COMEX:GC1! bozor tahlili</div>
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-3xl mx-auto mb-3 shadow-lg shadow-indigo-500/30">
+              🤖
             </div>
-            <div className="ml-auto flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-              <span className="text-green-400 text-xs font-bold">Tayyor</span>
+
+            <h3 className="text-white text-lg font-black tracking-wide mb-1">TAHLIL TURINI TANLANG</h3>
+            <p className="text-slate-400 text-xs mb-5">
+              <strong className="text-amber-400">{asset.name}</strong> bo&apos;yicha qaysi oraliqda signal olmoqchisiz?
+            </p>
+
+            <div className="space-y-3">
+              {/* Qisqa Muddatli */}
+              <button
+                onClick={() => marketAnalyze('short')}
+                className="w-full p-4 rounded-2xl bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/10 border-2 border-amber-500/60 hover:border-amber-400 hover:scale-[1.02] text-left transition-all group"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">⚡</span>
+                    <div>
+                      <div className="text-amber-300 font-black text-sm group-hover:text-amber-200">
+                        QISQA MUDDATLI (Scalp / 1-15m)
+                      </div>
+                      <div className="text-slate-400 text-xs mt-0.5">
+                        1m, 5m, 15m • Tezkor kirish, qisqa SL, yaqin TP
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-amber-400 font-bold text-lg">➔</span>
+                </div>
+              </button>
+
+              {/* Uzoq Muddatli */}
+              <button
+                onClick={() => marketAnalyze('long')}
+                className="w-full p-4 rounded-2xl bg-gradient-to-r from-blue-500/20 via-indigo-500/20 to-violet-500/10 border-2 border-indigo-500/60 hover:border-indigo-400 hover:scale-[1.02] text-left transition-all group"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">📈</span>
+                    <div>
+                      <div className="text-indigo-300 font-black text-sm group-hover:text-indigo-200">
+                        UZOQ MUDDATLI (Intraday / 1-4 Soat)
+                      </div>
+                      <div className="text-slate-400 text-xs mt-0.5">
+                        1h, 4h • Kuchli trend, mustahkam zonalar, katta TP maqsadlar
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-indigo-400 font-bold text-lg">➔</span>
+                </div>
+              </button>
             </div>
           </div>
+        </div>
+      )}
 
-          {/* Tab tanlash */}
-          <div className="grid grid-cols-2 gap-2">
+      {/* Sarlavha / Ochish tugmasi */}
+      <div className="flex items-center justify-between cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-lg shadow-lg shadow-violet-500/30">
+            🤖
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-white font-bold text-sm">SUN&apos;IY INTELLEKT TAHLIL PANELI</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-900/60 text-violet-300 border border-violet-600/40 font-mono font-bold">
+                Claude 3.5 Sonnet
+              </span>
+            </div>
+            <p className="text-slate-400 text-xs mt-0.5">Qisqa (1-15m Scalp) & Uzoq (1-4h Intraday) muddatli jonli tahlil</p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
+          className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+        >
+          {isOpen ? '▲' : '▼'}
+        </button>
+      </div>
+
+      {isOpen && (
+        <div className="mt-4 pt-4 border-t border-slate-700/60 space-y-4">
+          {/* Tab almashtirish */}
+          <div className="grid grid-cols-3 gap-1.5 bg-slate-800/80 p-1.5 rounded-xl">
             <button
-              onClick={() => setActiveTab('market')}
-              className={`py-2.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
-                activeTab === 'market'
-                  ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-lg shadow-amber-500/30'
-                  : 'bg-slate-800/60 border border-slate-700/50 text-slate-400 hover:bg-slate-700/60'
+              onClick={() => setActiveTab('live_chart')}
+              className={`py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                activeTab === 'live_chart'
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md font-black'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
-              📊 AI Analiz
+              <span>📈</span>
+              <span className="truncate">Jonli Grafik & AI</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('market')}
+              className={`py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                activeTab === 'market'
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-md font-black'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <span>📊</span>
+              <span className="truncate">Bozor Tahlili</span>
             </button>
             <button
               onClick={() => setActiveTab('chat')}
-              className={`py-2.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
+              className={`py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                 activeTab === 'chat'
-                  ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/30'
-                  : 'bg-slate-800/60 border border-slate-700/50 text-slate-400 hover:bg-slate-700/60'
+                  ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
-              🔮 Rasm & Chat
+              <span>🖼️</span>
+              <span className="truncate">Skrinshot Tahlil</span>
             </button>
           </div>
 
-          {/* ═══════ AI ANALIZ TAB ═══════ */}
-          {activeTab === 'market' && (
-            <div className="space-y-4">
-              {/* Info karta */}
-              <div className="bg-gradient-to-br from-amber-900/30 to-orange-900/20 border border-amber-600/30 rounded-xl p-4">
-                <div className="flex items-start gap-3">
-                  <div className="text-3xl">📈</div>
-                  <div className="flex-1">
-                    <div className="text-amber-300 font-bold text-sm mb-1">COMEX:GC1! — Oltin Tahlili</div>
-                    <div className="text-slate-400 text-xs leading-relaxed">
-                      Real soatlik (1H) ma&apos;lumotlar asosida:
-                    </div>
-                    <div className="mt-2 space-y-1">
-                      <div className="flex items-center gap-2 text-xs">
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0"></span>
-                        <span className="text-blue-300 font-bold">Qisqa muddatli</span>
-                        <span className="text-slate-500">— 1-4 soat (scalping/intraday)</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs">
-                        <span className="w-1.5 h-1.5 rounded-full bg-purple-400 flex-shrink-0"></span>
-                        <span className="text-purple-300 font-bold">Uzoq muddatli</span>
-                        <span className="text-slate-500">— 4-24 soat (swing/position)</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs mt-1">
-                        <span className="text-amber-600">🔗</span>
-                        <a
-                          href="https://www.tradingview.com/chart/mmKqMW9C/?symbol=COMEX%3AGC1%21"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-amber-500 hover:text-amber-300 underline underline-offset-2 transition-colors"
-                        >
-                          TradingView grafigini ko&apos;rish →
-                        </a>
-                      </div>
-                    </div>
-                  </div>
+          {/* 1-TAB: JONLI GRAFIK & AVTO AI TAHLIL */}
+          {activeTab === 'live_chart' && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between bg-slate-800/60 px-3 py-2 rounded-xl border border-slate-700/60 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="text-emerald-400 font-bold">● Jonli Grafik:</span>
+                  <span className="text-white font-bold font-mono">{asset.name} ({asset.symbol})</span>
+                  <span className="text-orange-400 font-bold font-mono">• {timeframe}</span>
                 </div>
+                <span className="text-slate-400 text-[11px]">Real-Time TradingView</span>
               </div>
 
-              {/* AI Analiz tugmasi */}
-              <button
-                onClick={marketAnalyze}
-                disabled={isMarketLoading}
-                className={`w-full py-4 rounded-xl font-bold text-base transition-all flex items-center justify-center gap-3 ${
-                  isMarketLoading
-                    ? 'bg-amber-900/40 text-amber-400 cursor-wait border border-amber-700/50'
-                    : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-lg shadow-amber-500/30 active:scale-95'
-                }`}
-              >
-                {isMarketLoading ? (
-                  <>
-                    <span className="inline-block w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></span>
-                    <span>Bozor tahlil qilinmoqda...</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="text-xl">📊</span>
-                    <span>AI Analiz — Qisqa & Uzoq Muddatli</span>
-                  </>
-                )}
-              </button>
+              {/* Directly Embedded TradingView Widget */}
+              <div className="rounded-xl overflow-hidden border border-slate-700 shadow-2xl">
+                <TradingViewWidget
+                  asset={asset}
+                  timeframe={timeframe}
+                  hideHeader={true}
+                  height={450}
+                />
+              </div>
 
-              {/* Market xatolik */}
+              {/* Tahlil Tugmalari (Qisqa va Uzoq muddatli) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  onClick={() => marketAnalyze('short')}
+                  disabled={isMarketLoading}
+                  className={`py-3.5 px-3 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 shadow-lg ${
+                    isMarketLoading
+                      ? 'bg-amber-950/60 text-amber-500 cursor-wait'
+                      : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 shadow-amber-500/20 active:scale-95'
+                  }`}
+                >
+                  {isMarketLoading && currentTermMode === 'short' ? (
+                    <>
+                      <span className="inline-block w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span>
+                      1-15m tahlil qilinmoqda...
+                    </>
+                  ) : (
+                    <>⚡ Qisqa Muddatli (1-15m Scalp)</>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => marketAnalyze('long')}
+                  disabled={isMarketLoading}
+                  className={`py-3.5 px-3 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 shadow-lg ${
+                    isMarketLoading
+                      ? 'bg-indigo-950/60 text-indigo-400 cursor-wait'
+                      : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-indigo-500/20 active:scale-95'
+                  }`}
+                >
+                  {isMarketLoading && currentTermMode === 'long' ? (
+                    <>
+                      <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                      1-4 soat tahlil qilinmoqda...
+                    </>
+                  ) : (
+                    <>📈 Uzoq Muddatli (1-4 Soat)</>
+                  )}
+                </button>
+              </div>
+
               {marketError && (
-                <div className="bg-red-900/30 border border-red-600/50 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-lg">❌</span>
-                    <span className="text-red-300 font-bold text-sm">Xatolik yuz berdi</span>
-                  </div>
-                  <div className="text-red-200 text-sm font-mono leading-relaxed whitespace-pre-wrap break-all">
-                    {marketError}
-                  </div>
+                <div className="bg-red-900/30 border border-red-600/50 rounded-xl p-4 text-xs text-red-200">
+                  {marketError}
                 </div>
               )}
 
-              {/* Market javob */}
+              {/* Streaming AI Analysis & Signal Card under chart */}
               {marketResponse && (
-                <div className="bg-slate-800/60 border border-amber-700/30 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-lg">📊</span>
-                    <span className="text-amber-300 font-bold text-sm">AI Tahlil Natijasi</span>
-                    <span className="ml-auto text-xs text-slate-500">COMEX:GC1!</span>
-                    {isMarketLoading && (
-                      <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse ml-1"></span>
-                    )}
+                <div className="bg-slate-800/60 border border-indigo-500/40 rounded-xl p-4 mt-3">
+                  <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-700/60">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">🔮</span>
+                      <span className="text-indigo-300 font-bold text-sm">
+                        {currentTermMode === 'short' ? '⚡ Qisqa Muddatli (1-15m) Natijasi' : '📈 Uzoq Muddatli (1-4 Soat) Natijasi'}
+                      </span>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                      currentTermMode === 'short'
+                        ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
+                        : 'bg-indigo-500/20 text-indigo-400 border-indigo-500/40'
+                    }`}>
+                      {currentTermMode === 'short' ? 'Scalping / 1-15m' : 'Intraday / 1-4 Soat'}
+                    </span>
                   </div>
                   <div
                     ref={marketResponseRef}
-                    className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap overflow-y-auto pr-2"
-                    style={{ maxHeight: '480px', scrollbarWidth: 'thin', scrollbarColor: '#92400e transparent' }}
+                    className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap max-h-80 overflow-y-auto pr-2 font-sans"
+                    style={{ scrollbarWidth: 'thin', scrollbarColor: '#6366f1 transparent' }}
                   >
                     {marketResponse}
-                    {isMarketLoading && <span className="inline-block w-1.5 h-4 bg-amber-400 animate-pulse ml-0.5 align-middle" />}
                   </div>
-                  {/* Signal kartochkasi — tahlil tugagandan so'ng */}
-                  {!isMarketLoading && <SignalCard text={marketResponse} accentColor="amber" />}
+                  {!isMarketLoading && (
+                    <SignalCard
+                      text={marketResponse}
+                      accentColor={currentTermMode === 'short' ? 'amber' : 'violet'}
+                      asset={asset}
+                      onOpenTelegram={onOpenTelegram}
+                    />
+                  )}
                 </div>
               )}
             </div>
           )}
 
-          {/* ═══════ RASM & CHAT TAB ═══════ */}
-          {activeTab === 'chat' && (
-            <div className="space-y-4">
-              {/* Kontekst */}
-              {calcContext && (
-                <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-3">
-                  <div className="text-slate-500 text-xs font-bold mb-1">📊 Kalkulyator natijalari avtomatik qo&apos;shiladi</div>
-                  <div className="text-slate-400 text-xs font-mono leading-relaxed line-clamp-3">{calcContext}</div>
+          {/* 2-TAB: BOZOR TAHLILI */}
+          {activeTab === 'market' && (
+            <div className="space-y-3">
+              <div className="bg-slate-800/40 rounded-xl p-3 border border-slate-700/60 text-xs text-slate-300">
+                <span className="text-amber-400 font-bold">💡 Tahlil turini tanlang: </span>
+                Tezkor operatsiyalar uchun <strong>1-15m Scalp</strong> yoki mustahkam reja uchun <strong>1-4 Soat</strong> tahlilni tanlang.
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  onClick={() => marketAnalyze('short')}
+                  disabled={isMarketLoading}
+                  className={`py-3.5 px-3 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 shadow-lg ${
+                    isMarketLoading
+                      ? 'bg-amber-950/60 text-amber-500 cursor-wait'
+                      : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 shadow-amber-500/20 active:scale-95'
+                  }`}
+                >
+                  {isMarketLoading && currentTermMode === 'short' ? (
+                    <>
+                      <span className="inline-block w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span>
+                      1-15m tahlil qilinmoqda...
+                    </>
+                  ) : (
+                    <>⚡ Qisqa Muddatli (1-15m Scalp)</>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => marketAnalyze('long')}
+                  disabled={isMarketLoading}
+                  className={`py-3.5 px-3 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 shadow-lg ${
+                    isMarketLoading
+                      ? 'bg-indigo-950/60 text-indigo-400 cursor-wait'
+                      : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-indigo-500/20 active:scale-95'
+                  }`}
+                >
+                  {isMarketLoading && currentTermMode === 'long' ? (
+                    <>
+                      <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                      1-4 soat tahlil qilinmoqda...
+                    </>
+                  ) : (
+                    <>📈 Uzoq Muddatli (1-4 Soat)</>
+                  )}
+                </button>
+              </div>
+
+              {marketError && (
+                <div className="bg-red-900/30 border border-red-600/50 rounded-xl p-4 text-xs text-red-200">
+                  {marketError}
                 </div>
               )}
 
-              {/* Rasm yuklash zonasi */}
+              {marketResponse && (
+                <div className="bg-slate-800/60 border border-amber-500/30 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-700/60">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">📊</span>
+                      <span className="text-amber-300 font-bold text-sm">
+                        {currentTermMode === 'short' ? '⚡ Qisqa Muddatli (1-15m) Natijasi' : '📈 Uzoq Muddatli (1-4 Soat) Natijasi'}
+                      </span>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                      currentTermMode === 'short'
+                        ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
+                        : 'bg-indigo-500/20 text-indigo-400 border-indigo-500/40'
+                    }`}>
+                      {currentTermMode === 'short' ? 'Scalping / 1-15m' : 'Intraday / 1-4 Soat'}
+                    </span>
+                  </div>
+                  <div
+                    ref={marketResponseRef}
+                    className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap max-h-80 overflow-y-auto pr-2"
+                    style={{ scrollbarWidth: 'thin', scrollbarColor: '#b45309 transparent' }}
+                  >
+                    {marketResponse}
+                  </div>
+                  {!isMarketLoading && (
+                    <SignalCard
+                      text={marketResponse}
+                      accentColor={currentTermMode === 'short' ? 'amber' : 'violet'}
+                      asset={asset}
+                      onOpenTelegram={onOpenTelegram}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 3-TAB: SKRINSHOT TAHLILI */}
+          {activeTab === 'chat' && (
+            <div className="space-y-3">
               <div
-                onDrop={onDrop}
                 onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                 onDragLeave={() => setIsDragging(false)}
+                onDrop={onDrop}
                 onClick={() => fileInputRef.current?.click()}
-                className={`relative rounded-xl border-2 border-dashed transition-all cursor-pointer p-4 ${isDragging
-                    ? 'border-violet-400 bg-violet-900/30'
-                    : 'border-slate-600 bg-slate-800/30 hover:border-violet-600/60 hover:bg-violet-900/10'
-                  }`}
+                className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all ${
+                  isDragging
+                    ? 'border-violet-400 bg-violet-950/30'
+                    : 'border-slate-600 hover:border-violet-500 bg-slate-800/40 hover:bg-slate-800/70'
+                }`}
               >
-                <div className="text-center">
-                  <div className="text-3xl mb-1">{isDragging ? '📥' : '📸'}</div>
-                  <div className="text-slate-400 text-sm font-bold">
-                    {isDragging ? 'Qo&apos;yib yuboring...' : 'Rasmlarni tashlang yoki bosing'}
-                  </div>
-                  <div className="text-slate-600 text-xs mt-0.5">
-                    Istalgancha rasm qo&apos;shishingiz mumkin · PNG, JPG, WebP
-                  </div>
-                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => { if (e.target.files?.length) addImages(e.target.files); }}
+                />
+                <span className="text-3xl block mb-2">📸</span>
+                <p className="text-slate-300 text-sm font-semibold">Grafik rasmlarini tashlang yoki bosing</p>
+                <p className="text-slate-500 text-xs mt-1">PNG, JPG, WEBP • Bir nechta rasm mumkin</p>
               </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg, image/png, image/webp, image/gif"
-                multiple
-                className="hidden"
-                onChange={(e) => e.target.files && addImages(e.target.files)}
-              />
 
-              {/* Rasmlar grid preview */}
+              {/* Rasm prevyulari */}
               {images.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-400 text-xs font-bold">
-                      📎 {images.length} ta rasm yuklandi
-                    </span>
-                    <button
-                      onClick={() => setImages([])}
-                      className="text-xs text-red-400 hover:text-red-300 font-bold transition-colors"
-                    >
-                      Hammasini o&apos;chirish
-                    </button>
-                  </div>
-                  <div className={`grid gap-2 ${images.length === 1 ? 'grid-cols-1' : images.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-                    {images.map((im, idx) => (
-                      <div key={idx} className="relative group rounded-xl overflow-hidden border border-slate-700/50 bg-slate-800/40">
-                        <img
-                          src={im.preview}
-                          alt={`rasm-${idx + 1}`}
-                          className="w-full h-24 object-cover"
-                        />
-                        {/* Overlay */}
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); removeImage(idx); }}
-                            className="opacity-0 group-hover:opacity-100 w-7 h-7 bg-red-600 hover:bg-red-700 rounded-full flex items-center justify-center text-white text-sm font-bold transition-all"
-                          >✕</button>
-                        </div>
-                        {/* Rasm nomeri */}
-                        <div className="absolute top-1 left-1 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded font-bold">
-                          {idx + 1}
-                        </div>
-                      </div>
-                    ))}
-                    {/* "Yana qo'shish" tile */}
-                    <div
-                      onClick={() => fileInputRef.current?.click()}
-                      className="h-24 rounded-xl border-2 border-dashed border-slate-600 bg-slate-800/20 hover:border-violet-500/60 hover:bg-violet-900/10 flex items-center justify-center cursor-pointer transition-all"
-                    >
-                      <div className="text-center">
-                        <div className="text-slate-500 text-xl">+</div>
-                        <div className="text-slate-600 text-xs">Qo&apos;shish</div>
-                      </div>
+                <div className="flex flex-wrap gap-2">
+                  {images.map((im, idx) => (
+                    <div key={idx} className="relative group rounded-lg overflow-hidden border border-slate-600 w-20 h-20 bg-slate-800">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={im.preview} alt={`upload-${idx}`} className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(idx)}
+                        className="absolute top-1 right-1 bg-red-600/90 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        ✕
+                      </button>
                     </div>
-                  </div>
+                  ))}
                 </div>
               )}
 
-              {/* Matn kiritish */}
-              <div className="relative">
-                <textarea
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) analyze();
-                  }}
-                  placeholder="Savol yoki tahlil so&apos;rovi kiriting... (Ctrl+Enter — yuborish)"
-                  rows={3}
-                  className="w-full px-4 py-3 bg-slate-800/60 border border-slate-600 rounded-xl text-white text-sm placeholder-slate-500 focus:border-violet-500 focus:outline-none resize-none transition-colors"
-                />
-              </div>
+              <textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) analyze(); }}
+                placeholder="Savol yoki tahlil so'rovi kiriting... (Ctrl+Enter — yuborish)"
+                rows={3}
+                className="w-full px-4 py-3 bg-slate-800/60 border border-slate-600 rounded-xl text-white text-sm placeholder-slate-500 focus:border-violet-500 focus:outline-none resize-none transition-colors"
+              />
 
-              {/* Yuborish tugma */}
               <button
                 onClick={analyze}
                 disabled={isLoading || (!message.trim() && images.length === 0)}
-                className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${isLoading
+                className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
+                  isLoading
                     ? 'bg-violet-900/50 text-violet-400 cursor-wait'
                     : (!message.trim() && images.length === 0)
-                      ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-lg shadow-violet-500/20 active:scale-95'
-                  }`}
+                    ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-lg shadow-violet-500/20 active:scale-95'
+                }`}
               >
                 {isLoading ? (
                   <>
@@ -608,32 +870,21 @@ function AIAnalysisPanel({ calcContext }: { calcContext: string }) {
                     Claude tahlil qilmoqda...
                   </>
                 ) : (
-                  <>🔮 Tahlil qil {images.length > 0 && `(${images.length} rasm)`} {message.trim() ? '' : images.length === 0 ? '' : ''}</>
+                  <>🔮 Tahlil qil {images.length > 0 && `(${images.length} rasm)`}</>
                 )}
               </button>
 
-              {/* Xatolik */}
               {errorMsg && (
-                <div className="bg-red-900/30 border border-red-600/50 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-lg">❌</span>
-                    <span className="text-red-300 font-bold text-sm">Xatolik yuz berdi</span>
-                  </div>
-                  <div className="text-red-200 text-sm font-mono leading-relaxed whitespace-pre-wrap break-all">
-                    {errorMsg}
-                  </div>
+                <div className="bg-red-900/30 border border-red-600/50 rounded-xl p-4 text-xs text-red-200">
+                  {errorMsg}
                 </div>
               )}
 
-              {/* Javob */}
               {response && (
                 <div className="bg-slate-800/60 border border-violet-700/30 rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-lg">🔮</span>
                     <span className="text-violet-300 font-bold text-sm">Claude javobi</span>
-                    {isLoading && (
-                      <span className="w-2 h-2 rounded-full bg-violet-400 animate-pulse ml-1"></span>
-                    )}
                   </div>
                   <div
                     ref={responseRef}
@@ -641,15 +892,19 @@ function AIAnalysisPanel({ calcContext }: { calcContext: string }) {
                     style={{ scrollbarWidth: 'thin', scrollbarColor: '#4c1d95 transparent' }}
                   >
                     {response}
-                    {isLoading && <span className="inline-block w-1.5 h-4 bg-violet-400 animate-pulse ml-0.5 align-middle" />}
                   </div>
-                  {/* Signal kartochkasi — tahlil tugagandan so'ng */}
-                  {!isLoading && <SignalCard text={response} accentColor="violet" />}
+                  {!isLoading && (
+                    <SignalCard
+                      text={response}
+                      accentColor="violet"
+                      asset={asset}
+                      onOpenTelegram={onOpenTelegram}
+                    />
+                  )}
                 </div>
               )}
             </div>
           )}
-
         </div>
       )}
     </div>
@@ -661,7 +916,6 @@ function PasswordScreen({ onAuthenticate }: { onAuthenticate: () => void }) {
   const [passwordInput, setPasswordInput] = useState('');
   const [currentTime, setCurrentTime] = useState('');
 
-  // FIX #5 — real-time soat yangilanadi
   useEffect(() => {
     setCurrentTime(getTimeBasedPassword());
     const id = setInterval(() => setCurrentTime(getTimeBasedPassword()), 10000);
@@ -670,27 +924,41 @@ function PasswordScreen({ onAuthenticate }: { onAuthenticate: () => void }) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (passwordInput === getTimeBasedPassword()) { onAuthenticate(); }
-    else { setPasswordInput(''); alert("Parol noto'g'ri!"); }
+    if (passwordInput === getTimeBasedPassword()) {
+      onAuthenticate();
+    } else {
+      setPasswordInput('');
+      alert("Parol noto'g'ri!");
+    }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4"
-      style={{ backgroundImage: "url('/image.png')", backgroundSize: 'cover', backgroundPosition: 'center' }}>
+    <div
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{ backgroundImage: "url('/image.png')", backgroundSize: 'cover', backgroundPosition: 'center' }}
+    >
       <div className="w-full max-w-md">
-        <div className="bg-slate-900/85 border border-slate-700 rounded-2xl p-8 backdrop-blur">
-          <h1 className="text-3xl font-bold text-white text-center mb-2">XAU Calculator</h1>
+        <div className="bg-slate-900/85 border border-slate-700 rounded-2xl p-8 backdrop-blur shadow-2xl">
+          <h1 className="text-3xl font-bold text-white text-center mb-2">Trading Terminal</h1>
           <p className="text-slate-400 text-center mb-8">Kirish uchun parol kiriting</p>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="text-slate-400 text-sm font-bold tracking-widest mb-2 block">PAROL</label>
-              <input type="password" value={passwordInput} onChange={e => setPasswordInput(e.target.value)}
+              <input
+                type="password"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
                 className="w-full px-4 py-4 bg-slate-700/80 border border-slate-600 rounded-xl text-white text-2xl font-bold text-center focus:border-orange-500 focus:outline-none tracking-widest"
-                placeholder="0000" maxLength={4} autoFocus />
+                placeholder="0000"
+                maxLength={4}
+                autoFocus
+              />
               <p className="text-slate-500 text-xs mt-2 text-center">Hozirgi soat: {currentTime}</p>
             </div>
-            <button type="submit"
-              className="w-full py-4 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 text-white font-bold rounded-xl transition-all active:scale-95">
+            <button
+              type="submit"
+              className="w-full py-4 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 text-white font-bold rounded-xl transition-all active:scale-95"
+            >
               KIRISH
             </button>
           </form>
@@ -702,22 +970,54 @@ function PasswordScreen({ onAuthenticate }: { onAuthenticate: () => void }) {
 
 // ─────────────────────────────────────────────
 function CalculatorContent() {
+  const [selectedAsset, setSelectedAsset] = useState<AssetConfig>(ASSET_LIST[0]);
+  const [activeMainTab, setActiveMainTab] = useState<'calc' | 'chart' | 'risk' | 'killzones' | 'journal' | 'calendar'>('calc');
+
+  // Input states
   const [dailyHigh, setDailyHigh] = useState('');
   const [dailyLow, setDailyLow] = useState('');
   const [currentPrice, setCurrentPrice] = useState('');
   const [preset, setPreset] = useState<Preset>('Elif trading');
   const [timeframe, setTimeframe] = useState<Timeframe>('1h');
-
-  // Input mode: qo'lda yoki shamoldan
   const [inputMode, setInputMode] = useState<'manual' | 'candle'>('manual');
 
-  // Shamol (Candle) OHLC
+  // Candle OHLC
   const [candleOpen, setCandleOpen] = useState('');
   const [candleHigh, setCandleHigh] = useState('');
   const [candleLow, setCandleLow] = useState('');
   const [candleClose, setCandleClose] = useState('');
 
-  // Shamoldan HIGH/LOW/Current avtomatik to'ldirish
+  // Strategy specific
+  const [hhPrice, setHhPrice] = useState('');
+  const [llPrice, setLlPrice] = useState('');
+  const [obHigh, setObHigh] = useState('');
+  const [obLow, setObLow] = useState('');
+  const [obType, setObType] = useState<OBType>('bullish');
+  const [fvgHigh, setFvgHigh] = useState('');
+  const [fvgLow, setFvgLow] = useState('');
+  const [fvgType, setFvgType] = useState<OBType>('bullish');
+  const [snrEntry, setSnrEntry] = useState('');
+  const [snrSL, setSnrSL] = useState('');
+  const [snrType, setSnrType] = useState<OBType>('bullish');
+  const [candleType, setCandleType] = useState<CandleType>('bullish_engulfing');
+  const [smtEntry, setSmtEntry] = useState('');
+  const [smtSL, setSmtSL] = useState('');
+  const [smtType, setSmtType] = useState<OBType>('bullish');
+  const [fibHigh, setFibHigh] = useState('');
+  const [fibLow, setFibLow] = useState('');
+  const [fibDirection, setFibDirection] = useState<'auto' | 'bullish' | 'bearish'>('auto');
+  const [fibEntryLevel, setFibEntryLevel] = useState<'0.5' | '0.618' | '0.705' | '0.786'>('0.618');
+
+  // Modals & notifications
+  const [telegramModalData, setTelegramModalData] = useState<any | null>(null);
+  const [isTelegramModalOpen, setIsTelegramModalOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 2500);
+  };
+
   const effectiveHigh = inputMode === 'candle' && candleHigh ? candleHigh : dailyHigh;
   const effectiveLow = inputMode === 'candle' && candleLow ? candleLow : dailyLow;
   const effectiveCurrent = inputMode === 'candle' && candleClose ? candleClose : currentPrice;
@@ -740,37 +1040,8 @@ function CalculatorContent() {
     const isBullish = c > o;
     const isDoji = bodySize < totalRange * 0.05;
     const type = isDoji ? 'Doji' : isBullish ? 'Bullish' : 'Bearish';
-    return { o, h, l, c, bodySize: bodySize.toFixed(2), upperWick: upperWick.toFixed(2), lowerWick: lowerWick.toFixed(2), bodyPct, type, isBullish, isDoji, totalRange: totalRange.toFixed(2) };
-  }, [candleOpen, candleHigh, candleLow, candleClose]);
-
-  // 2.6
-  const [hhPrice, setHhPrice] = useState('');
-  const [llPrice, setLlPrice] = useState('');
-  // OB — FIX #2: Bullish/Bearish tanlash
-  const [obHigh, setObHigh] = useState('');
-  const [obLow, setObLow] = useState('');
-  const [obType, setObType] = useState<OBType>('bullish');
-  // IFVG — FIX #3: Bullish/Bearish tanlash
-  const [fvgHigh, setFvgHigh] = useState('');
-  const [fvgLow, setFvgLow] = useState('');
-  const [fvgType, setFvgType] = useState<OBType>('bullish');
-
-  // SNR + ICT + Yolg'iz Sham — soddalashtirilgan
-  const [snrEntry, setSnrEntry] = useState(''); // Entry narx
-  const [snrSL, setSnrSL] = useState(''); // Stop Loss narx
-  const [snrType, setSnrType] = useState<OBType>('bullish');
-  const [candleType, setCandleType] = useState<CandleType>('bullish_engulfing');
-
-  // SMT — soddalashtirilgan
-  const [smtEntry, setSmtEntry] = useState(''); // Entry narx
-  const [smtSL, setSmtSL] = useState(''); // Stop Loss narx
-  const [smtType, setSmtType] = useState<OBType>('bullish');
-
-  // FIBONACCI
-  const [fibHigh, setFibHigh] = useState('');
-  const [fibLow, setFibLow] = useState('');
-  const [fibDirection, setFibDirection] = useState<'auto' | 'bullish' | 'bearish'>('auto');
-  const [fibEntryLevel, setFibEntryLevel] = useState<'0.5' | '0.618' | '0.705' | '0.786'>('0.618');
+    return { o, h, l, c, bodySize: bodySize.toFixed(selectedAsset.digits), upperWick: upperWick.toFixed(selectedAsset.digits), lowerWick: lowerWick.toFixed(selectedAsset.digits), bodyPct, type, isBullish, isDoji, totalRange: totalRange.toFixed(selectedAsset.digits) };
+  }, [candleOpen, candleHigh, candleLow, candleClose, selectedAsset.digits]);
 
   const calculations = useMemo(() => {
     const high = parseFloat(effectiveHigh) || 0;
@@ -778,14 +1049,13 @@ function CalculatorContent() {
     const current = parseFloat(effectiveCurrent) || 0;
     const rangeVal = high - low;
 
-    // FIX #3: dependency array dan tf olib tashlandi — faqat timeframe
     const tf = timeframeConfig[timeframe];
-    const buf = tf.pipBuffer;
-    const con = tf.consolOffset;
+    // Dynamic buffer according to asset pip size
+    const buf = tf.pipBuffer * selectedAsset.pipSize;
+    const con = tf.consolOffset * selectedAsset.pipSize;
 
     if (current === 0) return null;
 
-    // ── Gann helpers ───────────────────────────────────────────
     const sq = Math.sqrt(current);
     const gann = {
       S1: Math.pow(sq - 0.25, 2), S2: Math.pow(sq - 0.50, 2),
@@ -798,43 +1068,34 @@ function CalculatorContent() {
       if (isBuy) {
         const s = [{ l: 'S1', v: gann.S1 }, { l: 'S2', v: gann.S2 }, { l: 'S3', v: gann.S3 }, { l: 'S4', v: gann.S4 }];
         const c = s.find(x => x.v >= min && x.v <= max);
-        return c ? { text: `Gann ${c.l} (${c.v.toFixed(2)}) ${tag}bilan mos keldi!`, strong: true }
+        return c ? { text: `Gann ${c.l} (${c.v.toFixed(selectedAsset.digits)}) ${tag}bilan mos keldi!`, strong: true }
           : { text: "Gann bilan sinergiya yo'q", strong: false };
       } else {
         const r = [{ l: 'R1', v: gann.R1 }, { l: 'R2', v: gann.R2 }, { l: 'R3', v: gann.R3 }, { l: 'R4', v: gann.R4 }];
         const c = r.find(x => x.v >= min && x.v <= max);
-        return c ? { text: `Gann ${c.l} (${c.v.toFixed(2)}) ${tag}bilan mos keldi!`, strong: true }
+        return c ? { text: `Gann ${c.l} (${c.v.toFixed(selectedAsset.digits)}) ${tag}bilan mos keldi!`, strong: true }
           : { text: "Gann bilan sinergiya yo'q", strong: false };
       }
     };
 
     const pct = (a: number, b: number) => ((Math.abs(a - b) / b) * 100).toFixed(2);
-    const fmt = (n: number) => n.toFixed(2);
+    const fmt = (n: number) => n.toFixed(selectedAsset.digits);
     const gFmt = {
-      S1: gann.S1.toFixed(2), S2: gann.S2.toFixed(2), S3: gann.S3.toFixed(2), S4: gann.S4.toFixed(2),
-      R1: gann.R1.toFixed(2), R2: gann.R2.toFixed(2), R3: gann.R3.toFixed(2), R4: gann.R4.toFixed(2),
+      S1: gann.S1.toFixed(selectedAsset.digits), S2: gann.S2.toFixed(selectedAsset.digits), S3: gann.S3.toFixed(selectedAsset.digits), S4: gann.S4.toFixed(selectedAsset.digits),
+      R1: gann.R1.toFixed(selectedAsset.digits), R2: gann.R2.toFixed(selectedAsset.digits), R3: gann.R3.toFixed(selectedAsset.digits), R4: gann.R4.toFixed(selectedAsset.digits),
     };
 
-    // ── ORDER BLOCK ────────────────────────────────────────────
+    // ── ORDER BLOCK ──
     if (preset === 'ORDER BLOCK') {
       const obH = parseFloat(obHigh);
       const obL = parseFloat(obLow);
       if (isNaN(obH) || isNaN(obL) || obH <= obL) return null;
 
-      // FIX #1: isBuy — foydalanuvchi tanlagan OB turi
       const isBuy = obType === 'bullish';
       const obMid = (obH + obL) / 2;
       const obSize = obH - obL;
-
-      // Entry: narx OB ga qaytib kelganida
-      // Bullish OB → narx OB dan yuqoriga ketadi → entry = OB yuqori qismi (obH)
-      // Bearish OB → narx OB dan pastga ketadi   → entry = OB pastki qismi (obL)
       const entry = isBuy ? obH : obL;
-
-      // SL: OB ning qarama-qarshi tomonidan buf pip narida
       const sl = isBuy ? obL - buf : obH + buf;
-
-      // TP: entry + OB hajmi × 1,2,3
       const tp1 = isBuy ? entry + obSize * 1.0 : entry - obSize * 1.0;
       const tp2 = isBuy ? entry + obSize * 2.0 : entry - obSize * 2.0;
       const tp3 = isBuy ? entry + (rangeVal > 0 ? rangeVal : obSize * 3) : entry - (rangeVal > 0 ? rangeVal : obSize * 3);
@@ -857,7 +1118,7 @@ function CalculatorContent() {
       };
     }
 
-    // ── IFVG ──────────────────────────────────────────────────
+    // ── IFVG ──
     if (preset === 'IFVG') {
       const fvgH = parseFloat(fvgHigh);
       const fvgL = parseFloat(fvgLow);
@@ -888,7 +1149,7 @@ function CalculatorContent() {
       };
     }
 
-    // ── SNR + ICT + YOLG'IZ SHAM ──────────────────────────────
+    // ── SNR + ICT ──
     if (preset === 'SNR_ICT') {
       const entry = parseFloat(snrEntry);
       const sl = parseFloat(snrSL);
@@ -923,7 +1184,7 @@ function CalculatorContent() {
       };
     }
 
-    // ── SMT (Smart Money Technique) ────────────────────────────
+    // ── SMT ──
     if (preset === 'SMT') {
       const entry = parseFloat(smtEntry);
       const sl = parseFloat(smtSL);
@@ -949,7 +1210,7 @@ function CalculatorContent() {
       };
     }
 
-    // ── FIBONACCI (Retracement & OTE) ─────────────────────────
+    // ── FIBONACCI ──
     if (preset === 'FIBONACCI') {
       const sH = parseFloat(fibHigh) || high;
       const sL = parseFloat(fibLow) || low;
@@ -968,7 +1229,6 @@ function CalculatorContent() {
         isBuy = false;
         directionReason = "Qo'lda tanlangan: Bearish (SELL Setup)";
       } else {
-        // Avtomatik aniqlash:
         if (current > 0) {
           isBuy = current < midpoint;
           directionReason = isBuy
@@ -983,9 +1243,6 @@ function CalculatorContent() {
         }
       }
 
-      // Retracement levels:
-      // Bullish (Pullback down to BUY): Level = High - diff * ratio
-      // Bearish (Pullback up to SELL): Level = Low + diff * ratio
       const f0 = isBuy ? sH : sL;
       const f236 = isBuy ? sH - diff * 0.236 : sL + diff * 0.236;
       const f382 = isBuy ? sH - diff * 0.382 : sL + diff * 0.382;
@@ -1000,10 +1257,6 @@ function CalculatorContent() {
       const entry = isBuy ? sH - diff * entryRatio : sL + diff * entryRatio;
       const sl = isBuy ? sL - buf : sH + buf;
 
-      // Take Profits:
-      // TP1 = 0% Retracement (Swing High / Swing Low qaytishi)
-      // TP2 = 1.272 Extension (Fibonacci Target 1)
-      // TP3 = 1.618 Extension (Golden Target 2)
       const tp1 = isBuy ? sH : sL;
       const tp2 = isBuy ? sH + diff * 0.272 : sL - diff * 0.272;
       const tp3 = isBuy ? sH + diff * 0.618 : sL - diff * 0.618;
@@ -1028,7 +1281,7 @@ function CalculatorContent() {
       };
     }
 
-    // ── Elif trading / AB TRADE / 2.6 ──────────────────────────────
+    // ── Elif trading / AB TRADE / 2.6 ──
     if (rangeVal <= 0) return null;
     const config = presetConfigs[preset];
 
@@ -1036,19 +1289,14 @@ function CalculatorContent() {
     if (preset === '2.6 STRATEGY') {
       const hh = parseFloat(hhPrice);
       const ll = parseFloat(llPrice);
-      // HH/LL faqat current narx bilan bir xil oralikda bo'lsagina ishlatiladi.
-      // Agar HH/LL boshqa scale da bo'lsa (masalan HH=4275, current=64) —
-      // fallback: (HIGH+LOW)/2 o'rta nuqtasi ishlatiladi.
       const scaleTolerance = Math.max(rangeVal * 20, 100);
       const hhllValid = !isNaN(hh) && !isNaN(ll)
         && Math.abs(hh - current) < scaleTolerance
         && Math.abs(ll - current) < scaleTolerance;
 
       if (hhllValid) {
-        // Narx LL ga yaqin → BUY, HH ga yaqin → SELL
         isBuy = Math.abs(current - ll) < Math.abs(current - hh);
       } else {
-        // HH/LL kiritilmagan yoki noto'g'ri scale → midpoint
         isBuy = current < (high + low) / 2;
       }
     } else {
@@ -1059,7 +1307,6 @@ function CalculatorContent() {
     const correction = isBuy ? low + rangeVal * config.rCor : high - rangeVal * config.rCor;
     const consolidation = isBuy ? correction + con : correction - con;
 
-    // FIX #4: SL entry dan hisoblanadi (correction/reversal)
     let sl: number;
     let entry: number;
     if (preset === '2.6 STRATEGY') {
@@ -1070,7 +1317,6 @@ function CalculatorContent() {
       sl = isBuy ? Math.min(correction, consolidation) - buf : Math.max(correction, consolidation) + buf;
     }
 
-    // FIX #4: TP entry nuqtasidan emas, current dan hisoblash (narx hali entry ga yetmagan)
     const tp1 = isBuy ? current + rangeVal * 0.5 : current - rangeVal * 0.5;
     const tp2 = isBuy ? current + rangeVal : current - rangeVal;
     const tp3 = isBuy ? current + rangeVal * 1.5 : current - rangeVal * 1.5;
@@ -1107,7 +1353,7 @@ function CalculatorContent() {
       gannConfluence: gRes.text, isStrongSignal: gRes.strong,
       liquidityInfo, pipBuffer: buf,
     };
-  }, [effectiveHigh, effectiveLow, effectiveCurrent, preset, timeframe, hhPrice, llPrice, obHigh, obLow, obType, fvgHigh, fvgLow, fvgType, snrEntry, snrSL, snrType, candleType, smtEntry, smtSL, smtType, fibHigh, fibLow, fibDirection, fibEntryLevel]);
+  }, [effectiveHigh, effectiveLow, effectiveCurrent, preset, timeframe, hhPrice, llPrice, obHigh, obLow, obType, fvgHigh, fvgLow, fvgType, snrEntry, snrSL, snrType, candleType, smtEntry, smtSL, smtType, fibHigh, fibLow, fibDirection, fibEntryLevel, selectedAsset]);
 
   const isBuy = calculations?.isBuy ?? false;
   const rangeVal = parseFloat(effectiveHigh) - parseFloat(effectiveLow);
@@ -1116,7 +1362,6 @@ function CalculatorContent() {
   const rangeWarning = rangeVal > tf.maxRange;
   const TIMEFRAMES: Timeframe[] = ['1m', '5m', '15m', '1h', '4h', '1d'];
 
-  // ─── UI helpers ───────────────────────────────────────────
   const TypeToggle = ({ value, onChange, isBuyLabel = 'Bullish', isSellLabel = 'Bearish' }:
     { value: OBType; onChange: (v: OBType) => void; isBuyLabel?: string; isSellLabel?: string }) => (
     <div className="grid grid-cols-2 gap-2 mt-3">
@@ -1131,16 +1376,10 @@ function CalculatorContent() {
     </div>
   );
 
-  const RRBadge = ({ rr }: { rr: string }) => (
-    <span className="ml-2 px-2 py-0.5 bg-yellow-900/40 text-yellow-400 text-xs font-bold rounded">
-      R:R {rr}
-    </span>
-  );
-
-  // AI uchun kontekst matni
   const aiContext = useMemo(() => {
     if (!calculations) return '';
     const lines: string[] = [
+      `Instrument: ${selectedAsset.name} (${selectedAsset.symbol})`,
       `Strategiya: ${calculations.preset}`,
       `Yo'nalish: ${calculations.isBuy ? 'BUY (Sotib olish)' : 'SELL (Sotish)'}`,
       `Vaqt oralig'i: ${timeframe} (${tf.label})`,
@@ -1149,8 +1388,6 @@ function CalculatorContent() {
       `TP1: ${calculations.tp1} (R:R ${calculations.rr1})`,
       `TP2: ${calculations.tp2} (R:R ${calculations.rr2})`,
       `TP3: ${calculations.tp3} (R:R ${calculations.rr3})`,
-      `Gann R1: ${calculations.gann.R1}, R2: ${calculations.gann.R2}`,
-      `Gann S1: ${calculations.gann.S1}, S2: ${calculations.gann.S2}`,
       `Signal: ${calculations.isStrongSignal ? 'KUCHLI' : 'ODDIY'}`,
       `Gann: ${calculations.gannConfluence}`,
     ];
@@ -1158,744 +1395,774 @@ function CalculatorContent() {
       lines.push(`Range: HIGH=${effectiveHigh}, LOW=${effectiveLow}`);
     }
     return lines.join('\n');
-  }, [calculations, timeframe, tf, effectiveHigh, effectiveLow]);
+  }, [calculations, timeframe, tf, effectiveHigh, effectiveLow, selectedAsset]);
+
+  // Quick Action handlers for current strategy calculations
+  const handleSaveCalculationToJournal = () => {
+    if (!calculations) return;
+    const ok = saveTradeToJournalStorage({
+      asset: selectedAsset.symbol,
+      strategy: calculations.preset,
+      direction: calculations.isBuy ? 'BUY' : 'SELL',
+      entry: calculations.entry,
+      sl: calculations.stopLoss,
+      tp1: calculations.tp1,
+      tp2: calculations.tp2,
+      tp3: calculations.tp3,
+      notes: `${timeframe} timeframe, ${calculations.isStrongSignal ? 'Kuchli' : 'Oddiy'} signal`,
+    });
+    if (ok) showToast('✓ Savdo jurnali xotirasiga muvaffaqiyatli saqlandi!');
+  };
+
+  const handleOpenCalculationInTelegram = () => {
+    if (!calculations) return;
+    setTelegramModalData({
+      asset: selectedAsset.symbol,
+      strategy: calculations.preset,
+      direction: calculations.isBuy ? 'BUY' : 'SELL',
+      entry: calculations.entry,
+      sl: calculations.stopLoss,
+      tp1: calculations.tp1,
+      tp2: calculations.tp2,
+      tp3: calculations.tp3,
+      rr1: calculations.rr1,
+      rr2: calculations.rr2,
+      rr3: calculations.rr3,
+    });
+    setIsTelegramModalOpen(true);
+  };
 
   return (
-    <div className="min-h-screen p-4 md:p-8"
-      style={{ backgroundImage: "url('/image.png')", backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
-      <div className="max-w-2xl mx-auto">
-
-        {/* AI TAHLIL PANELI */}
-        <AIAnalysisPanel calcContext={aiContext} />
-
-        {/* TIMEFRAME */}
-        <div className="bg-slate-900/85 border border-slate-700 rounded-2xl p-4 mb-4 backdrop-blur">
-          <div className="text-slate-400 text-xs font-bold tracking-widest mb-3">VAQT ORALIG&apos;I</div>
-          <div className="grid grid-cols-6 gap-2">
-            {TIMEFRAMES.map(t => (
-              <button key={t} onClick={() => setTimeframe(t)}
-                className={`py-2 rounded-xl font-bold text-sm transition-all ${timeframe === t ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30 scale-105' : 'bg-slate-700/80 text-slate-400 hover:bg-slate-600/80'}`}>
-                {t}
-              </button>
-            ))}
-          </div>
-          <div className={`mt-3 text-xs font-bold text-center ${tf.color}`}>
-            {tf.label} &nbsp;|&nbsp; Max Range: {tf.maxRange} pip &nbsp;|&nbsp; SL Buffer: {tf.pipBuffer} pip
-          </div>
-        </div>
-
-        {/* BUY / SELL */}
-        {calculations && (
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div className={`p-4 rounded-2xl border-2 text-center font-bold text-2xl flex items-center justify-center transition-all duration-300 ${isBuy
-                ? 'bg-green-500/20 border-green-400 text-green-300 shadow-lg shadow-green-500/30 scale-105'
-                : 'bg-black/50 border-slate-800 text-slate-700 opacity-40'
-              }`}>
-              <span className="text-3xl mr-2">&#9650;</span>BUY
-            </div>
-            <div className={`p-4 rounded-2xl border-2 text-center font-bold text-2xl flex items-center justify-center transition-all duration-300 ${!isBuy
-                ? 'bg-red-500/20 border-red-400 text-red-300 shadow-lg shadow-red-500/30 scale-105'
-                : 'bg-black/50 border-slate-800 text-slate-700 opacity-40'
-              }`}>
-              <span className="text-3xl mr-2">&#9660;</span>SELL
-            </div>
+    <div
+      className="min-h-screen p-3 sm:p-5 md:p-8"
+      style={{ backgroundImage: "url('/image.png')", backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}
+    >
+      <div className="max-w-3xl mx-auto pb-12">
+        {/* Toast Alert */}
+        {toastMessage && (
+          <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white font-bold text-xs px-4 py-2.5 rounded-full shadow-2xl animate-bounce">
+            {toastMessage}
           </div>
         )}
 
-        {/* INPUT MODE TOGGLE */}
-        <div className="bg-slate-900/85 border border-slate-700 rounded-2xl p-3 mb-4 backdrop-blur">
-          <div className="grid grid-cols-2 gap-2">
-            <button onClick={() => setInputMode('manual')}
-              className={`py-2.5 rounded-xl font-bold text-sm transition-all ${inputMode === 'manual'
-                  ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30'
-                  : 'bg-slate-700/80 text-slate-400 hover:bg-slate-600'
-                }`}>
-              ✏️ Qo&apos;lda kiritish
-            </button>
-            <button onClick={() => setInputMode('candle')}
-              className={`py-2.5 rounded-xl font-bold text-sm transition-all ${inputMode === 'candle'
-                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/30'
-                  : 'bg-slate-700/80 text-slate-400 hover:bg-slate-600'
-                }`}>
-              🕯️ Shamoldan (OHLC)
-            </button>
+        {/* Telegram Share Modal */}
+        <TelegramShareModal
+          isOpen={isTelegramModalOpen}
+          onClose={() => setIsTelegramModalOpen(false)}
+          tradeData={telegramModalData}
+        />
+
+        {/* TOP NAVIGATION TABS */}
+        <div className="bg-slate-900/90 border border-slate-700/90 rounded-2xl p-2 mb-4 backdrop-blur shadow-2xl">
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 text-xs font-bold">
+            {[
+              { id: 'calc', icon: '🧮', label: 'Kalkulyator' },
+              { id: 'chart', icon: '📊', label: 'Jonli Grafik' },
+              { id: 'risk', icon: '🎯', label: 'Risk & Lot' },
+              { id: 'killzones', icon: '⏰', label: 'Killzones' },
+              { id: 'journal', icon: '📓', label: 'Jurnal' },
+              { id: 'calendar', icon: '📰', label: 'Taqvim' },
+            ].map((tab) => {
+              const isActive = activeMainTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveMainTab(tab.id as any)}
+                  className={`py-2.5 px-2 rounded-xl transition-all flex flex-col sm:flex-row items-center justify-center gap-1 text-center ${
+                    isActive
+                      ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 shadow-lg shadow-orange-500/25 font-black scale-[1.02]'
+                      : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700/80 hover:text-white'
+                  }`}
+                >
+                  <span className="text-base">{tab.icon}</span>
+                  <span className="truncate">{tab.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* OHLC CANDLE INPUT */}
-        {inputMode === 'candle' && (
-          <div className="bg-slate-900/85 border border-emerald-700/50 rounded-2xl p-5 mb-4 backdrop-blur">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-2xl">🕯️</span>
-              <div>
-                <div className="text-emerald-400 text-xs font-bold tracking-widest">TRADINGVIEW SHAMOL (CANDLE)</div>
-                <div className="text-slate-500 text-xs mt-0.5">Grafigingizdan shamolning O, H, L, C ni kiriting</div>
+        {/* MULTI ASSET SELECTOR */}
+        <MultiAssetSelector selectedAsset={selectedAsset} onSelectAsset={setSelectedAsset} />
+
+        {/* ── TAB 1: KALKULYATOR & SIGNALLAR ── */}
+        {activeMainTab === 'calc' && (
+          <>
+            {/* AI TAHLIL PANELI */}
+            <AIAnalysisPanel
+              calcContext={aiContext}
+              asset={selectedAsset}
+              timeframe={timeframe}
+              onOpenTelegram={(data) => {
+                setTelegramModalData(data);
+                setIsTelegramModalOpen(true);
+              }}
+            />
+
+            {/* TIMEFRAME */}
+            <div className="bg-slate-900/85 border border-slate-700 rounded-2xl p-4 mb-4 backdrop-blur">
+              <div className="text-slate-400 text-xs font-bold tracking-widest mb-3">VAQT ORALIG&apos;I</div>
+              <div className="grid grid-cols-6 gap-2">
+                {TIMEFRAMES.map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setTimeframe(t)}
+                    className={`py-2 rounded-xl font-bold text-sm transition-all ${
+                      timeframe === t
+                        ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30 scale-105'
+                        : 'bg-slate-700/80 text-slate-400 hover:bg-slate-600/80'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+              <div className={`mt-3 text-xs font-bold text-center ${tf.color}`}>
+                {tf.label} &nbsp;|&nbsp; Max Range: {tf.maxRange} pip &nbsp;|&nbsp; SL Buffer: {tf.pipBuffer} pip
               </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-3 mb-4">
-              <div>
-                <label className="text-slate-400 text-xs font-bold mb-1 block">OPEN</label>
-                <input type="number" value={candleOpen} onChange={e => setCandleOpen(e.target.value)}
-                  className="w-full px-3 py-3 bg-slate-700/80 border border-emerald-700/50 rounded-xl text-white text-lg font-bold focus:border-emerald-400 focus:outline-none" step="0.01" placeholder="O" />
-              </div>
-              <div>
-                <label className="text-red-400 text-xs font-bold mb-1 block">HIGH ↑</label>
-                <input type="number" value={candleHigh} onChange={e => setCandleHigh(e.target.value)}
-                  className="w-full px-3 py-3 bg-slate-700/80 border border-red-700/50 rounded-xl text-white text-lg font-bold focus:border-red-400 focus:outline-none" step="0.01" placeholder="H" />
-              </div>
-              <div>
-                <label className="text-green-400 text-xs font-bold mb-1 block">LOW ↓</label>
-                <input type="number" value={candleLow} onChange={e => setCandleLow(e.target.value)}
-                  className="w-full px-3 py-3 bg-slate-700/80 border border-green-700/50 rounded-xl text-white text-lg font-bold focus:border-green-400 focus:outline-none" step="0.01" placeholder="L" />
-              </div>
-              <div>
-                <label className="text-blue-400 text-xs font-bold mb-1 block">CLOSE</label>
-                <input type="number" value={candleClose} onChange={e => setCandleClose(e.target.value)}
-                  className="w-full px-3 py-3 bg-slate-700/80 border border-blue-700/50 rounded-xl text-white text-lg font-bold focus:border-blue-400 focus:outline-none" step="0.01" placeholder="C" />
-              </div>
-            </div>
-
-            {/* Shamol tahlil natijasi */}
-            {candleAnalysis && (
-              <div className={`rounded-xl p-4 border ${candleAnalysis.isDoji ? 'bg-yellow-900/20 border-yellow-600/40' :
-                  candleAnalysis.isBullish ? 'bg-green-900/20 border-green-600/40' :
-                    'bg-red-900/20 border-red-600/40'
-                }`}>
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="text-2xl">
-                    {candleAnalysis.isDoji ? '⚡' : candleAnalysis.isBullish ? '🟢' : '🔴'}
-                  </span>
-                  <span className={`font-bold text-lg ${candleAnalysis.isDoji ? 'text-yellow-400' :
-                      candleAnalysis.isBullish ? 'text-green-400' : 'text-red-400'
-                    }`}>
-                    {candleAnalysis.type} Shamol
-                  </span>
+            {/* BUY / SELL */}
+            {calculations && (
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div
+                  className={`p-4 rounded-2xl border-2 text-center font-bold text-2xl flex items-center justify-center transition-all duration-300 ${
+                    isBuy
+                      ? 'bg-green-500/20 border-green-400 text-green-300 shadow-lg shadow-green-500/30 scale-105'
+                      : 'bg-black/50 border-slate-800 text-slate-700 opacity-40'
+                  }`}
+                >
+                  <span className="text-3xl mr-2">&#9650;</span>BUY
                 </div>
-                <div className="grid grid-cols-3 gap-3 text-center text-xs">
-                  <div className="bg-slate-800/60 rounded-lg p-2">
-                    <div className="text-slate-400 mb-1">Yuqori Soya ↑</div>
-                    <div className="text-red-300 font-bold">{candleAnalysis.upperWick}</div>
-                  </div>
-                  <div className={`rounded-lg p-2 ${candleAnalysis.isBullish ? 'bg-green-900/40' : 'bg-red-900/40'
-                    }`}>
-                    <div className="text-slate-400 mb-1">Tana ({candleAnalysis.bodyPct}%)</div>
-                    <div className={`font-bold ${candleAnalysis.isBullish ? 'text-green-300' : 'text-red-300'}`}>
-                      {candleAnalysis.bodySize}
-                    </div>
-                  </div>
-                  <div className="bg-slate-800/60 rounded-lg p-2">
-                    <div className="text-slate-400 mb-1">Pastki Soya ↓</div>
-                    <div className="text-green-300 font-bold">{candleAnalysis.lowerWick}</div>
-                  </div>
-                </div>
-                <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-center">
-                  <div className="text-slate-500">HIGH → <span className="text-white font-bold">{candleAnalysis.h.toFixed(2)}</span></div>
-                  <div className="text-slate-500">Range: <span className="text-white font-bold">{candleAnalysis.totalRange}</span></div>
-                  <div className="text-slate-500">LOW → <span className="text-white font-bold">{candleAnalysis.l.toFixed(2)}</span></div>
-                </div>
-                <div className="mt-2 text-center text-xs text-emerald-400 font-bold">
-                  ✓ HIGH={candleAnalysis.h.toFixed(2)}, LOW={candleAnalysis.l.toFixed(2)}, Current={candleAnalysis.c.toFixed(2)} kalkulyatorga ulandi
+                <div
+                  className={`p-4 rounded-2xl border-2 text-center font-bold text-2xl flex items-center justify-center transition-all duration-300 ${
+                    !isBuy
+                      ? 'bg-red-500/20 border-red-400 text-red-300 shadow-lg shadow-red-500/30 scale-105'
+                      : 'bg-black/50 border-slate-800 text-slate-700 opacity-40'
+                  }`}
+                >
+                  <span className="text-3xl mr-2">&#9660;</span>SELL
                 </div>
               </div>
             )}
-          </div>
-        )}
 
-        <div className="bg-slate-900/85 border border-slate-700 rounded-2xl p-6 mb-6 backdrop-blur">
-          <h3 className="text-slate-400 text-xs font-bold tracking-widest mb-4">{tf.label.toUpperCase()} DIAPAZONI</h3>
-
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="text-slate-400 text-xs font-bold tracking-widest mb-2 block">HIGH (Liquidity)</label>
-              <input type="number" value={dailyHigh} onChange={e => setDailyHigh(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-700/80 border border-slate-600 rounded-xl text-white text-2xl font-bold focus:border-orange-500 focus:outline-none" step="0.01" />
-            </div>
-            <div>
-              <label className="text-slate-400 text-xs font-bold tracking-widest mb-2 block">LOW (Liquidity)</label>
-              <input type="number" value={dailyLow} onChange={e => setDailyLow(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-700/80 border border-slate-600 rounded-xl text-white text-2xl font-bold focus:border-orange-500 focus:outline-none" step="0.01" />
-            </div>
-          </div>
-
-          {rangeVal > 0 && (
-            <div className={`rounded-xl px-4 py-3 flex justify-between items-center text-sm mb-4 ${rangeWarning ? 'bg-red-900/40 border border-red-600/50' : rangeOk ? 'bg-green-900/20 border border-green-600/30' : 'bg-slate-700/80'}`}>
-              <span className={`font-bold ${rangeWarning ? 'text-red-400' : rangeOk ? 'text-green-400' : 'text-slate-400'}`}>
-                Range: {rangeVal.toFixed(2)} pip
-              </span>
-              <span className={`font-bold text-xs ${rangeWarning ? 'text-red-400' : rangeOk ? 'text-green-400' : 'text-slate-400'}`}>
-                {rangeWarning ? `⚠ Katta! Max: ${tf.maxRange}` : `✓ ${timeframe} uchun mos`}
-              </span>
-            </div>
-          )}
-
-          <div className="mb-4">
-            <label className="text-slate-400 text-xs font-bold tracking-widest mb-2 block">HOZIRGI NARX</label>
-            <input type="number" value={currentPrice} onChange={e => setCurrentPrice(e.target.value)}
-              className="w-full px-4 py-3 bg-slate-700/80 border border-slate-600 rounded-xl text-white text-2xl font-bold focus:border-orange-500 focus:outline-none" step="0.01" />
-          </div>
-
-          <div>
-            <label className="text-slate-400 text-xs font-bold tracking-widest mb-2 block">STRATEGIYA</label>
-            <select value={preset} onChange={e => setPreset(e.target.value as Preset)}
-              className="w-full px-4 py-3 bg-slate-700/80 border border-slate-600 rounded-xl text-white font-bold focus:border-orange-500 focus:outline-none">
-              <option value="Elif trading">Elif trading</option>
-              <option value="AB TRADE">AB TRADE</option>
-              <option value="2.6 STRATEGY">2.6 STRATEGY</option>
-              <option value="ORDER BLOCK">ORDER BLOCK</option>
-              <option value="IFVG">IFVG (Inverse FVG)</option>
-              <option value="SNR_ICT">SNR + ICT + Yolg&apos;iz Sham</option>
-              <option value="SMT">SMT (Smart Money Technique)</option>
-              <option value="FIBONACCI">FIBONACCI (Retracement & OTE)</option>
-            </select>
-          </div>
-
-          {/* 2.6 HH/LL */}
-          {preset === '2.6 STRATEGY' && (
-            <div className="mt-4 p-4 bg-amber-900/30 border border-amber-600/40 rounded-xl">
-              <p className="text-amber-400 text-xs font-bold tracking-widest mb-3">HH / LL</p>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-slate-400 text-xs font-bold mb-1 block">HH (Higher High)</label>
-                  <input type="number" value={hhPrice} onChange={e => setHhPrice(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-700/80 border border-amber-600/50 rounded-lg text-white text-lg font-bold focus:border-amber-400 focus:outline-none" step="0.01" placeholder="HH" />
-                </div>
-                <div>
-                  <label className="text-slate-400 text-xs font-bold mb-1 block">LL (Lower Low)</label>
-                  <input type="number" value={llPrice} onChange={e => setLlPrice(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-700/80 border border-amber-600/50 rounded-lg text-white text-lg font-bold focus:border-amber-400 focus:outline-none" step="0.01" placeholder="LL" />
-                </div>
+            {/* INPUT MODE TOGGLE */}
+            <div className="bg-slate-900/85 border border-slate-700 rounded-2xl p-3 mb-4 backdrop-blur">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setInputMode('manual')}
+                  className={`py-2.5 rounded-xl font-bold text-sm transition-all ${
+                    inputMode === 'manual'
+                      ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30'
+                      : 'bg-slate-700/80 text-slate-400 hover:bg-slate-600'
+                  }`}
+                >
+                  ✏️ Qo&apos;lda kiritish
+                </button>
+                <button
+                  onClick={() => setInputMode('candle')}
+                  className={`py-2.5 rounded-xl font-bold text-sm transition-all ${
+                    inputMode === 'candle'
+                      ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/30'
+                      : 'bg-slate-700/80 text-slate-400 hover:bg-slate-600'
+                  }`}
+                >
+                  🕯️ Shamoldan (OHLC)
+                </button>
               </div>
             </div>
-          )}
 
-          {/* ORDER BLOCK */}
-          {preset === 'ORDER BLOCK' && (
-            <div className="mt-4 p-4 bg-blue-900/30 border border-blue-600/40 rounded-xl">
-              <p className="text-blue-400 text-xs font-bold tracking-widest mb-1">ORDER BLOCK ZONE</p>
-              <p className="text-slate-500 text-xs mb-1">Oxirgi qarama-qarshi svechaning High va Low</p>
-              {/* FIX #7: OB turi tanlash */}
-              <TypeToggle value={obType} onChange={setObType} isBuyLabel="Bullish OB" isSellLabel="Bearish OB" />
-              <div className="grid grid-cols-2 gap-3 mt-3">
-                <div>
-                  <label className="text-slate-400 text-xs font-bold mb-1 block">OB HIGH</label>
-                  <input type="number" value={obHigh} onChange={e => setObHigh(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-700/80 border border-blue-600/50 rounded-lg text-white text-lg font-bold focus:border-blue-400 focus:outline-none" step="0.01" placeholder="Yuqori" />
-                </div>
-                <div>
-                  <label className="text-slate-400 text-xs font-bold mb-1 block">OB LOW</label>
-                  <input type="number" value={obLow} onChange={e => setObLow(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-700/80 border border-blue-600/50 rounded-lg text-white text-lg font-bold focus:border-blue-400 focus:outline-none" step="0.01" placeholder="Pastki" />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* IFVG */}
-          {preset === 'IFVG' && (
-            <div className="mt-4 p-4 bg-purple-900/30 border border-purple-600/40 rounded-xl">
-              <p className="text-purple-400 text-xs font-bold tracking-widest mb-1">IFVG ZONE</p>
-              <p className="text-slate-500 text-xs mb-1">Fair Value Gap ning tepa va pastki chegarasi</p>
-              <TypeToggle value={fvgType} onChange={setFvgType} isBuyLabel="Bullish IFVG" isSellLabel="Bearish IFVG" />
-              <div className="grid grid-cols-2 gap-3 mt-3">
-                <div>
-                  <label className="text-slate-400 text-xs font-bold mb-1 block">FVG HIGH</label>
-                  <input type="number" value={fvgHigh} onChange={e => setFvgHigh(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-700/80 border border-purple-600/50 rounded-lg text-white text-lg font-bold focus:border-purple-400 focus:outline-none" step="0.01" placeholder="Yuqori" />
-                </div>
-                <div>
-                  <label className="text-slate-400 text-xs font-bold mb-1 block">FVG LOW</label>
-                  <input type="number" value={fvgLow} onChange={e => setFvgLow(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-700/80 border border-purple-600/50 rounded-lg text-white text-lg font-bold focus:border-purple-400 focus:outline-none" step="0.01" placeholder="Pastki" />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* SNR + ICT + Yolg'iz Sham */}
-          {preset === 'SNR_ICT' && (
-            <div className="mt-4 p-4 bg-teal-900/30 border border-teal-600/40 rounded-xl space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">🕯️</span>
-                <div>
-                  <p className="text-teal-400 text-xs font-bold tracking-widest">SNR + ICT + YOLG&apos;IZ SHAM</p>
-                  <p className="text-slate-500 text-xs mt-0.5">Grafigdan Entry va Stop Loss ni kiritasiz → TP avtomatik</p>
-                </div>
-              </div>
-              <TypeToggle value={snrType} onChange={setSnrType} isBuyLabel="BUY Setup" isSellLabel="SELL Setup" />
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-cyan-400 text-xs font-bold mb-1 block">ENTRY NARX</label>
-                  <input type="number" value={snrEntry} onChange={e => setSnrEntry(e.target.value)}
-                    className="w-full px-3 py-3 bg-slate-700/80 border border-cyan-600/50 rounded-lg text-white text-xl font-bold focus:border-cyan-400 focus:outline-none" step="0.01" placeholder="Entry" />
-                </div>
-                <div>
-                  <label className="text-red-400 text-xs font-bold mb-1 block">STOP LOSS NARX</label>
-                  <input type="number" value={snrSL} onChange={e => setSnrSL(e.target.value)}
-                    className="w-full px-3 py-3 bg-slate-700/80 border border-red-700/50 rounded-lg text-white text-xl font-bold focus:border-red-400 focus:outline-none" step="0.01" placeholder="SL" />
-                </div>
-              </div>
-              <div>
-                <label className="text-slate-400 text-xs font-bold mb-1 block">YOLG&apos;IZ SHAM TURI (ma&apos;lumot uchun)</label>
-                <select value={candleType} onChange={e => setCandleType(e.target.value as CandleType)}
-                  className="w-full px-3 py-2 bg-slate-700/80 border border-teal-600/50 rounded-lg text-white font-bold focus:border-teal-400 focus:outline-none">
-                  <option value="bullish_engulfing">🟢 Bullish Engulfing</option>
-                  <option value="hammer">🔨 Hammer</option>
-                  <option value="bullish_pinbar">📌 Bullish Pin Bar</option>
-                  <option value="bearish_engulfing">🔴 Bearish Engulfing</option>
-                  <option value="shooting_star">⭐ Shooting Star</option>
-                  <option value="bearish_pinbar">📌 Bearish Pin Bar</option>
-                </select>
-              </div>
-            </div>
-          )}
-
-          {/* SMT */}
-          {preset === 'SMT' && (
-            <div className="mt-4 p-4 bg-rose-900/30 border border-rose-600/40 rounded-xl space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">🧲</span>
-                <div>
-                  <p className="text-rose-400 text-xs font-bold tracking-widest">SMT (Smart Money Technique)</p>
-                  <p className="text-slate-500 text-xs mt-0.5">Grafigdan Entry va Stop Loss ni kiritasiz → TP avtomatik</p>
-                </div>
-              </div>
-              <TypeToggle value={smtType} onChange={setSmtType} isBuyLabel="Bullish SMT" isSellLabel="Bearish SMT" />
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-cyan-400 text-xs font-bold mb-1 block">ENTRY NARX</label>
-                  <input type="number" value={smtEntry} onChange={e => setSmtEntry(e.target.value)}
-                    className="w-full px-3 py-3 bg-slate-700/80 border border-cyan-600/50 rounded-lg text-white text-xl font-bold focus:border-cyan-400 focus:outline-none" step="0.01" placeholder="Entry" />
-                </div>
-                <div>
-                  <label className="text-red-400 text-xs font-bold mb-1 block">STOP LOSS NARX</label>
-                  <input type="number" value={smtSL} onChange={e => setSmtSL(e.target.value)}
-                    className="w-full px-3 py-3 bg-slate-700/80 border border-red-700/50 rounded-lg text-white text-xl font-bold focus:border-red-400 focus:outline-none" step="0.01" placeholder="SL" />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* FIBONACCI */}
-          {preset === 'FIBONACCI' && (
-            <div className="mt-4 p-4 bg-amber-950/40 border border-amber-500/40 rounded-xl space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">📐</span>
+            {/* OHLC CANDLE INPUT */}
+            {inputMode === 'candle' && (
+              <div className="bg-slate-900/85 border border-emerald-700/50 rounded-2xl p-5 mb-4 backdrop-blur">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-2xl">🕯️</span>
                   <div>
-                    <p className="text-amber-400 text-xs font-bold tracking-widest">FIBONACCI RETRACEMENT & OTE</p>
-                    <p className="text-slate-400 text-xs mt-0.5">Swing High/Low orqali BUY yoki SELL signali avtomatik aniqlanadi</p>
-                  </div>
-                </div>
-                <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border ${isBuy ? 'bg-green-500/20 border-green-500/40 text-green-400' : 'bg-red-500/20 border-red-500/40 text-red-400'}`}>
-                  {isBuy ? '▲ BUY' : '▼ SELL'}
-                </span>
-              </div>
-
-              {/* BUY / SELL rejimi tanlovi */}
-              <div>
-                <label className="text-slate-400 text-xs font-bold mb-1.5 block">SIGNALLAR REJIMI</label>
-                <div className="grid grid-cols-3 gap-2">
-                  <button type="button" onClick={() => setFibDirection('auto')}
-                    className={`py-2 px-2 rounded-lg text-xs font-bold transition-all ${fibDirection === 'auto' ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/30' : 'bg-slate-700/80 text-slate-400 hover:bg-slate-600'}`}>
-                    ⚡ Avtomatik ({isBuy ? 'BUY' : 'SELL'})
-                  </button>
-                  <button type="button" onClick={() => setFibDirection('bullish')}
-                    className={`py-2 px-2 rounded-lg text-xs font-bold transition-all ${fibDirection === 'bullish' ? 'bg-green-600 text-white shadow-lg shadow-green-600/30' : 'bg-slate-700/80 text-slate-400 hover:bg-slate-600'}`}>
-                    ▲ BUY Setup
-                  </button>
-                  <button type="button" onClick={() => setFibDirection('bearish')}
-                    className={`py-2 px-2 rounded-lg text-xs font-bold transition-all ${fibDirection === 'bearish' ? 'bg-red-600 text-white shadow-lg shadow-red-600/30' : 'bg-slate-700/80 text-slate-400 hover:bg-slate-600'}`}>
-                    ▼ SELL Setup
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-amber-300 text-xs font-bold mb-1 block">SWING HIGH</label>
-                  <input type="number" value={fibHigh} onChange={e => setFibHigh(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-700/80 border border-amber-600/50 rounded-lg text-white text-lg font-bold focus:border-amber-400 focus:outline-none" step="0.01" placeholder={effectiveHigh || "High narx"} />
-                </div>
-                <div>
-                  <label className="text-amber-300 text-xs font-bold mb-1 block">SWING LOW</label>
-                  <input type="number" value={fibLow} onChange={e => setFibLow(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-700/80 border border-amber-600/50 rounded-lg text-white text-lg font-bold focus:border-amber-400 focus:outline-none" step="0.01" placeholder={effectiveLow || "Low narx"} />
-                </div>
-              </div>
-              <div>
-                <label className="text-slate-400 text-xs font-bold mb-1 block">ENTRY UCHUN ASOSIY FIB DARAJASI</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {[
-                    { key: '0.5', label: '50.0%', desc: 'Equilibrium' },
-                    { key: '0.618', label: '61.8%', desc: 'Golden Ratio' },
-                    { key: '0.705', label: '70.5%', desc: 'ICT OTE' },
-                    { key: '0.786', label: '78.6%', desc: 'Deep' },
-                  ].map(item => (
-                    <button key={item.key} type="button" onClick={() => setFibEntryLevel(item.key as any)}
-                      className={`py-2 px-1 rounded-lg text-center transition-all ${fibEntryLevel === item.key ? 'bg-amber-500 text-slate-950 font-black shadow-lg shadow-amber-500/20' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>
-                      <div className="text-xs font-bold">{item.label}</div>
-                      <div className="text-[10px] opacity-75">{item.desc}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-
-        {/* ─────── NATIJALAR ─────── */}
-        {calculations && (
-          <div className="space-y-4">
-
-            {/* SNR + ICT + Yolg'iz Sham natijalari */}
-            {calculations.preset === 'SNR_ICT' && (
-              <>
-                <h3 className="text-teal-400 text-xs font-bold tracking-widest mb-2">🕯️ SNR + ICT + YOLG&apos;IZ SHAM — {timeframe} | {snrType.toUpperCase()}</h3>
-                {/* Sham belgisi */}
-                <div className="bg-teal-900/20 border border-teal-600/50 rounded-2xl p-4 backdrop-blur flex items-center gap-4">
-                  <div className="text-4xl">{snrType === 'bullish' ? '🟢' : '🔴'}</div>
-                  <div>
-                    <div className="text-teal-300 font-bold text-sm">{calculations.candleLabel}</div>
-                    <div className="text-slate-400 text-xs mt-1">
-                      {isBuy ? 'SNR Support → Sweep → BoS → Bullish sham → BUY' : 'SNR Resistance → Sweep → BoS → Bearish sham → SELL'}
+                    <div className="text-emerald-400 text-xs font-bold tracking-widest">
+                      TRADINGVIEW SHAMOL (CANDLE) — {selectedAsset.symbol}
                     </div>
-                    <div className="text-slate-500 text-xs mt-1">Risk: <span className="text-white font-bold">{calculations.risk} pip</span></div>
+                    <div className="text-slate-500 text-xs mt-0.5">Grafigingizdan shamolning O, H, L, C ni kiriting</div>
                   </div>
                 </div>
-                {/* Entry */}
-                <div className="bg-slate-900/85 border-2 border-cyan-600/50 rounded-2xl p-5 backdrop-blur">
-                  <div className="text-slate-400 text-xs font-bold tracking-widest mb-2">ENTRY</div>
-                  <div className="text-3xl font-bold text-cyan-400">{calculations.entry}</div>
-                  <div className="text-xs text-slate-500 mt-1">Yolg&apos;iz sham yopilishidan keyin kirish</div>
-                </div>
-                {/* SL */}
-                <div className="bg-slate-900/85 border-2 border-red-600/50 rounded-2xl p-5 backdrop-blur">
-                  <div className="text-red-400 text-xs font-bold tracking-widest mb-2">STOP LOSS</div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-3xl font-bold text-red-500">{calculations.stopLoss}</div>
-                    <div className="text-sm font-bold text-slate-400">({calculations.slPct}%)</div>
-                  </div>
-                </div>
-              </>
-            )}
 
-            {/* SMT natijalari */}
-            {calculations.preset === 'SMT' && (
-              <>
-                <h3 className="text-rose-400 text-xs font-bold tracking-widest mb-2">🧲 SMT — {timeframe} | {smtType.toUpperCase()}</h3>
-                {/* SMT belgisi */}
-                <div className="bg-rose-900/20 border border-rose-600/50 rounded-2xl p-4 backdrop-blur flex items-center gap-4">
-                  <div className="text-4xl">{isBuy ? '🟢' : '🔴'}</div>
+                <div className="grid grid-cols-4 gap-3 mb-4">
                   <div>
-                    <div className="text-rose-300 font-bold text-sm">{isBuy ? 'Bullish SMT Divergence' : 'Bearish SMT Divergence'}</div>
-                    <div className="text-slate-400 text-xs mt-1">
-                      {isBuy ? 'Korrelyatsion juftlar mos kelmadi → BUY signal' : 'Korrelyatsion juftlar mos kelmadi → SELL signal'}
+                    <label className="text-slate-400 text-xs font-bold mb-1 block">OPEN</label>
+                    <input
+                      type="number"
+                      value={candleOpen}
+                      onChange={(e) => setCandleOpen(e.target.value)}
+                      className="w-full px-3 py-3 bg-slate-700/80 border border-emerald-700/50 rounded-xl text-white text-lg font-bold focus:border-emerald-400 focus:outline-none"
+                      step={selectedAsset.pipSize}
+                      placeholder="O"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-red-400 text-xs font-bold mb-1 block">HIGH ↑</label>
+                    <input
+                      type="number"
+                      value={candleHigh}
+                      onChange={(e) => setCandleHigh(e.target.value)}
+                      className="w-full px-3 py-3 bg-slate-700/80 border border-red-700/50 rounded-xl text-white text-lg font-bold focus:border-red-400 focus:outline-none"
+                      step={selectedAsset.pipSize}
+                      placeholder="H"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-green-400 text-xs font-bold mb-1 block">LOW ↓</label>
+                    <input
+                      type="number"
+                      value={candleLow}
+                      onChange={(e) => setCandleLow(e.target.value)}
+                      className="w-full px-3 py-3 bg-slate-700/80 border border-green-700/50 rounded-xl text-white text-lg font-bold focus:border-green-400 focus:outline-none"
+                      step={selectedAsset.pipSize}
+                      placeholder="L"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-blue-400 text-xs font-bold mb-1 block">CLOSE</label>
+                    <input
+                      type="number"
+                      value={candleClose}
+                      onChange={(e) => setCandleClose(e.target.value)}
+                      className="w-full px-3 py-3 bg-slate-700/80 border border-blue-700/50 rounded-xl text-white text-lg font-bold focus:border-blue-400 focus:outline-none"
+                      step={selectedAsset.pipSize}
+                      placeholder="C"
+                    />
+                  </div>
+                </div>
+
+                {candleAnalysis && (
+                  <div
+                    className={`rounded-xl p-4 border ${
+                      candleAnalysis.isDoji
+                        ? 'bg-yellow-900/20 border-yellow-600/40'
+                        : candleAnalysis.isBullish
+                        ? 'bg-green-900/20 border-green-600/40'
+                        : 'bg-red-900/20 border-red-600/40'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="text-2xl">
+                        {candleAnalysis.isDoji ? '⚡' : candleAnalysis.isBullish ? '🟢' : '🔴'}
+                      </span>
+                      <span
+                        className={`font-bold text-lg ${
+                          candleAnalysis.isDoji
+                            ? 'text-yellow-400'
+                            : candleAnalysis.isBullish
+                            ? 'text-green-400'
+                            : 'text-red-400'
+                        }`}
+                      >
+                        {candleAnalysis.type} Shamol
+                      </span>
                     </div>
-                    <div className="text-slate-500 text-xs mt-1">Risk: <span className="text-white font-bold">{calculations.risk} pip</span></div>
-                  </div>
-                </div>
-                {/* Entry */}
-                <div className="bg-slate-900/85 border-2 border-cyan-600/50 rounded-2xl p-5 backdrop-blur">
-                  <div className="text-slate-400 text-xs font-bold tracking-widest mb-2">ENTRY</div>
-                  <div className="text-3xl font-bold text-cyan-400">{calculations.entry}</div>
-                </div>
-                {/* SL */}
-                <div className="bg-slate-900/85 border-2 border-red-600/50 rounded-2xl p-5 backdrop-blur">
-                  <div className="text-red-400 text-xs font-bold tracking-widest mb-2">STOP LOSS</div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-3xl font-bold text-red-500">{calculations.stopLoss}</div>
-                    <div className="text-sm font-bold text-slate-400">({calculations.slPct}%)</div>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* FIBONACCI natijalar */}
-            {calculations.preset === 'FIBONACCI' && (
-              <>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-amber-400 text-xs font-bold tracking-widest">
-                    📐 FIBONACCI — {timeframe} | {isBuy ? 'BUY SETUP' : 'SELL SETUP'}
-                  </h3>
-                  <span className={`text-xs font-black px-2.5 py-1 rounded-lg border ${isBuy ? 'bg-green-500/20 border-green-500/40 text-green-400' : 'bg-red-500/20 border-red-500/40 text-red-400'}`}>
-                    {isBuy ? '▲ BUY SIGNAL' : '▼ SELL SIGNAL'}
-                  </span>
-                </div>
-
-                {/* Avtomatik tahlil izohi */}
-                {calculations.directionReason && (
-                  <div className="bg-slate-900/85 border border-amber-600/40 rounded-xl p-3 text-xs text-slate-300 flex items-center gap-2">
-                    <span className="text-lg">{isBuy ? '🟢' : '🔴'}</span>
-                    <div>
-                      <div className="font-bold text-white">{isBuy ? 'BUY (Sotib olish signali)' : 'SELL (Sotish signali)'}</div>
-                      <div className="text-slate-400 text-[11px] mt-0.5">{calculations.directionReason}</div>
+                    <div className="grid grid-cols-3 gap-3 text-center text-xs">
+                      <div className="bg-slate-800/60 rounded-lg p-2">
+                        <div className="text-slate-400 mb-1">Yuqori Soya ↑</div>
+                        <div className="text-red-300 font-bold">{candleAnalysis.upperWick}</div>
+                      </div>
+                      <div
+                        className={`rounded-lg p-2 ${
+                          candleAnalysis.isBullish ? 'bg-green-900/40' : 'bg-red-900/40'
+                        }`}
+                      >
+                        <div className="text-slate-400 mb-1">Tana ({candleAnalysis.bodyPct}%)</div>
+                        <div className={`font-bold ${candleAnalysis.isBullish ? 'text-green-300' : 'text-red-300'}`}>
+                          {candleAnalysis.bodySize}
+                        </div>
+                      </div>
+                      <div className="bg-slate-800/60 rounded-lg p-2">
+                        <div className="text-slate-400 mb-1">Pastki Soya ↓</div>
+                        <div className="text-green-300 font-bold">{candleAnalysis.lowerWick}</div>
+                      </div>
                     </div>
                   </div>
                 )}
+              </div>
+            )}
 
-                {/* OTE / Golden Pocket Zone Info */}
-                <div className="bg-amber-950/30 border border-amber-500/50 rounded-2xl p-4 backdrop-blur">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-amber-400 font-bold text-sm">✨ OTE (Optimal Trade Entry) / Golden Pocket</span>
-                    <span className="text-xs font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300">61.8% — 78.6%</span>
-                  </div>
-                  <p className="text-xs text-slate-300">
-                    {isBuy
-                      ? 'Narx Swing High dan pastga OTE zonasiga korreksiya berganda BUY ochish tavsiya etiladi.'
-                      : 'Narx Swing Low dan yuqoriga OTE zonasiga korreksiya berganda SELL ochish tavsiya etiladi.'}
-                  </p>
-                  <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-amber-500/20 text-center">
+            {/* MANUAL DIAPAZON */}
+            <div className="bg-slate-900/85 border border-slate-700 rounded-2xl p-6 mb-6 backdrop-blur">
+              <h3 className="text-slate-400 text-xs font-bold tracking-widest mb-4">
+                {selectedAsset.symbol} — {tf.label.toUpperCase()} DIAPAZONI
+              </h3>
+
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="text-slate-400 text-xs font-bold tracking-widest mb-2 block">HIGH (Liquidity)</label>
+                  <input
+                    type="number"
+                    value={dailyHigh}
+                    onChange={(e) => setDailyHigh(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-700/80 border border-slate-600 rounded-xl text-white text-2xl font-bold focus:border-orange-500 focus:outline-none"
+                    step={selectedAsset.pipSize}
+                  />
+                </div>
+                <div>
+                  <label className="text-slate-400 text-xs font-bold tracking-widest mb-2 block">LOW (Liquidity)</label>
+                  <input
+                    type="number"
+                    value={dailyLow}
+                    onChange={(e) => setDailyLow(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-700/80 border border-slate-600 rounded-xl text-white text-2xl font-bold focus:border-orange-500 focus:outline-none"
+                    step={selectedAsset.pipSize}
+                  />
+                </div>
+              </div>
+
+              {rangeVal > 0 && (
+                <div
+                  className={`rounded-xl px-4 py-3 flex justify-between items-center text-sm mb-4 ${
+                    rangeWarning
+                      ? 'bg-red-900/40 border border-red-600/50'
+                      : rangeOk
+                      ? 'bg-green-900/20 border border-green-600/30'
+                      : 'bg-slate-700/80'
+                  }`}
+                >
+                  <span
+                    className={`font-bold ${
+                      rangeWarning ? 'text-red-400' : rangeOk ? 'text-green-400' : 'text-slate-400'
+                    }`}
+                  >
+                    Range: {rangeVal.toFixed(selectedAsset.digits)} pip
+                  </span>
+                  <span
+                    className={`font-bold text-xs ${
+                      rangeWarning ? 'text-red-400' : rangeOk ? 'text-green-400' : 'text-slate-400'
+                    }`}
+                  >
+                    {rangeWarning ? `⚠ Katta! Max: ${tf.maxRange}` : `✓ ${timeframe} uchun mos`}
+                  </span>
+                </div>
+              )}
+
+              <div className="mb-4">
+                <label className="text-slate-400 text-xs font-bold tracking-widest mb-2 block">HOZIRGI NARX</label>
+                <input
+                  type="number"
+                  value={currentPrice}
+                  onChange={(e) => setCurrentPrice(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-700/80 border border-slate-600 rounded-xl text-white text-2xl font-bold focus:border-orange-500 focus:outline-none"
+                  step={selectedAsset.pipSize}
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-400 text-xs font-bold tracking-widest mb-2 block">STRATEGIYA</label>
+                <select
+                  value={preset}
+                  onChange={(e) => setPreset(e.target.value as Preset)}
+                  className="w-full px-4 py-3 bg-slate-700/80 border border-slate-600 rounded-xl text-white font-bold focus:border-orange-500 focus:outline-none"
+                >
+                  <option value="Elif trading">Elif trading</option>
+                  <option value="AB TRADE">AB TRADE</option>
+                  <option value="2.6 STRATEGY">2.6 STRATEGY</option>
+                  <option value="ORDER BLOCK">ORDER BLOCK</option>
+                  <option value="IFVG">IFVG (Inverse FVG)</option>
+                  <option value="SNR_ICT">SNR + ICT + Yolg&apos;iz Sham</option>
+                  <option value="SMT">SMT (Smart Money Technique)</option>
+                  <option value="FIBONACCI">FIBONACCI (Retracement & OTE)</option>
+                </select>
+              </div>
+
+              {/* 2.6 HH/LL */}
+              {preset === '2.6 STRATEGY' && (
+                <div className="mt-4 p-4 bg-amber-900/30 border border-amber-600/40 rounded-xl">
+                  <p className="text-amber-400 text-xs font-bold tracking-widest mb-3">HH / LL</p>
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <div className="text-[11px] text-slate-400">61.8% (Golden)</div>
-                      <div className="text-sm font-bold text-amber-300 font-mono">{calculations.f618}</div>
+                      <label className="text-slate-400 text-xs font-bold mb-1 block">HH (Higher High)</label>
+                      <input
+                        type="number"
+                        value={hhPrice}
+                        onChange={(e) => setHhPrice(e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-700/80 border border-amber-600/50 rounded-lg text-white text-lg font-bold focus:border-amber-400 focus:outline-none"
+                        step={selectedAsset.pipSize}
+                        placeholder="HH"
+                      />
                     </div>
                     <div>
-                      <div className="text-[11px] text-slate-400">70.5% (Sweet Spot)</div>
-                      <div className="text-sm font-bold text-yellow-400 font-mono">{calculations.f705}</div>
-                    </div>
-                    <div>
-                      <div className="text-[11px] text-slate-400">78.6% (Deep)</div>
-                      <div className="text-sm font-bold text-orange-400 font-mono">{calculations.f786}</div>
+                      <label className="text-slate-400 text-xs font-bold mb-1 block">LL (Lower Low)</label>
+                      <input
+                        type="number"
+                        value={llPrice}
+                        onChange={(e) => setLlPrice(e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-700/80 border border-amber-600/50 rounded-lg text-white text-lg font-bold focus:border-amber-400 focus:outline-none"
+                        step={selectedAsset.pipSize}
+                        placeholder="LL"
+                      />
                     </div>
                   </div>
                 </div>
+              )}
 
-                {/* Barcha Fib darajalari jadvali */}
-                <div className="bg-slate-900/85 border border-slate-700/80 rounded-2xl p-4 backdrop-blur">
-                  <div className="text-slate-400 text-xs font-bold tracking-widest mb-3">FIBONACCI RETRACEMENT DARAJALARI</div>
-                  <div className="space-y-1.5 text-xs font-mono">
+              {/* ORDER BLOCK */}
+              {preset === 'ORDER BLOCK' && (
+                <div className="mt-4 p-4 bg-blue-900/30 border border-blue-600/40 rounded-xl">
+                  <p className="text-blue-400 text-xs font-bold tracking-widest mb-1">ORDER BLOCK ZONE</p>
+                  <TypeToggle value={obType} onChange={setObType} isBuyLabel="Bullish OB" isSellLabel="Bearish OB" />
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    <div>
+                      <label className="text-slate-400 text-xs font-bold mb-1 block">OB HIGH</label>
+                      <input
+                        type="number"
+                        value={obHigh}
+                        onChange={(e) => setObHigh(e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-700/80 border border-blue-600/50 rounded-lg text-white text-lg font-bold focus:border-blue-400 focus:outline-none"
+                        step={selectedAsset.pipSize}
+                        placeholder="Yuqori"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-slate-400 text-xs font-bold mb-1 block">OB LOW</label>
+                      <input
+                        type="number"
+                        value={obLow}
+                        onChange={(e) => setObLow(e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-700/80 border border-blue-600/50 rounded-lg text-white text-lg font-bold focus:border-blue-400 focus:outline-none"
+                        step={selectedAsset.pipSize}
+                        placeholder="Pastki"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* IFVG */}
+              {preset === 'IFVG' && (
+                <div className="mt-4 p-4 bg-purple-900/30 border border-purple-600/40 rounded-xl">
+                  <p className="text-purple-400 text-xs font-bold tracking-widest mb-1">IFVG ZONE</p>
+                  <TypeToggle value={fvgType} onChange={setFvgType} isBuyLabel="Bullish IFVG" isSellLabel="Bearish IFVG" />
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    <div>
+                      <label className="text-slate-400 text-xs font-bold mb-1 block">FVG HIGH</label>
+                      <input
+                        type="number"
+                        value={fvgHigh}
+                        onChange={(e) => setFvgHigh(e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-700/80 border border-purple-600/50 rounded-lg text-white text-lg font-bold focus:border-purple-400 focus:outline-none"
+                        step={selectedAsset.pipSize}
+                        placeholder="Yuqori"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-slate-400 text-xs font-bold mb-1 block">FVG LOW</label>
+                      <input
+                        type="number"
+                        value={fvgLow}
+                        onChange={(e) => setFvgLow(e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-700/80 border border-purple-600/50 rounded-lg text-white text-lg font-bold focus:border-purple-400 focus:outline-none"
+                        step={selectedAsset.pipSize}
+                        placeholder="Pastki"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SNR + ICT */}
+              {preset === 'SNR_ICT' && (
+                <div className="mt-4 p-4 bg-teal-900/30 border border-teal-600/40 rounded-xl space-y-3">
+                  <TypeToggle value={snrType} onChange={setSnrType} isBuyLabel="BUY Setup" isSellLabel="SELL Setup" />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-cyan-400 text-xs font-bold mb-1 block">ENTRY NARX</label>
+                      <input
+                        type="number"
+                        value={snrEntry}
+                        onChange={(e) => setSnrEntry(e.target.value)}
+                        className="w-full px-3 py-3 bg-slate-700/80 border border-cyan-600/50 rounded-lg text-white text-xl font-bold focus:border-cyan-400 focus:outline-none"
+                        step={selectedAsset.pipSize}
+                        placeholder="Entry"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-red-400 text-xs font-bold mb-1 block">STOP LOSS NARX</label>
+                      <input
+                        type="number"
+                        value={snrSL}
+                        onChange={(e) => setSnrSL(e.target.value)}
+                        className="w-full px-3 py-3 bg-slate-700/80 border border-red-700/50 rounded-lg text-white text-xl font-bold focus:border-red-400 focus:outline-none"
+                        step={selectedAsset.pipSize}
+                        placeholder="SL"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-slate-400 text-xs font-bold mb-1 block">YOLG&apos;IZ SHAM TURI</label>
+                    <select
+                      value={candleType}
+                      onChange={(e) => setCandleType(e.target.value as CandleType)}
+                      className="w-full px-3 py-2 bg-slate-700/80 border border-teal-600/50 rounded-lg text-white font-bold focus:border-teal-400 focus:outline-none"
+                    >
+                      <option value="bullish_engulfing">🟢 Bullish Engulfing</option>
+                      <option value="hammer">🔨 Hammer</option>
+                      <option value="bullish_pinbar">📌 Bullish Pin Bar</option>
+                      <option value="bearish_engulfing">🔴 Bearish Engulfing</option>
+                      <option value="shooting_star">⭐ Shooting Star</option>
+                      <option value="bearish_pinbar">📌 Bearish Pin Bar</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* SMT */}
+              {preset === 'SMT' && (
+                <div className="mt-4 p-4 bg-rose-900/30 border border-rose-600/40 rounded-xl space-y-3">
+                  <TypeToggle value={smtType} onChange={setSmtType} isBuyLabel="Bullish SMT" isSellLabel="Bearish SMT" />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-cyan-400 text-xs font-bold mb-1 block">ENTRY NARX</label>
+                      <input
+                        type="number"
+                        value={smtEntry}
+                        onChange={(e) => setSmtEntry(e.target.value)}
+                        className="w-full px-3 py-3 bg-slate-700/80 border border-cyan-600/50 rounded-lg text-white text-xl font-bold focus:border-cyan-400 focus:outline-none"
+                        step={selectedAsset.pipSize}
+                        placeholder="Entry"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-red-400 text-xs font-bold mb-1 block">STOP LOSS NARX</label>
+                      <input
+                        type="number"
+                        value={smtSL}
+                        onChange={(e) => setSmtSL(e.target.value)}
+                        className="w-full px-3 py-3 bg-slate-700/80 border border-red-700/50 rounded-lg text-white text-xl font-bold focus:border-red-400 focus:outline-none"
+                        step={selectedAsset.pipSize}
+                        placeholder="SL"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* FIBONACCI */}
+              {preset === 'FIBONACCI' && (
+                <div className="mt-4 p-4 bg-amber-950/40 border border-amber-500/40 rounded-xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">📐</span>
+                      <p className="text-amber-400 text-xs font-bold tracking-widest">FIBONACCI RETRACEMENT & OTE</p>
+                    </div>
+                    <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border ${isBuy ? 'bg-green-500/20 border-green-500/40 text-green-400' : 'bg-red-500/20 border-red-500/40 text-red-400'}`}>
+                      {isBuy ? '▲ BUY' : '▼ SELL'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <button type="button" onClick={() => setFibDirection('auto')}
+                      className={`py-2 px-2 rounded-lg text-xs font-bold transition-all ${fibDirection === 'auto' ? 'bg-amber-500 text-slate-950' : 'bg-slate-700/80 text-slate-400'}`}>
+                      ⚡ Avto ({isBuy ? 'BUY' : 'SELL'})
+                    </button>
+                    <button type="button" onClick={() => setFibDirection('bullish')}
+                      className={`py-2 px-2 rounded-lg text-xs font-bold transition-all ${fibDirection === 'bullish' ? 'bg-green-600 text-white' : 'bg-slate-700/80 text-slate-400'}`}>
+                      ▲ BUY Setup
+                    </button>
+                    <button type="button" onClick={() => setFibDirection('bearish')}
+                      className={`py-2 px-2 rounded-lg text-xs font-bold transition-all ${fibDirection === 'bearish' ? 'bg-red-600 text-white' : 'bg-slate-700/80 text-slate-400'}`}>
+                      ▼ SELL Setup
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-amber-300 text-xs font-bold mb-1 block">SWING HIGH</label>
+                      <input type="number" value={fibHigh} onChange={e => setFibHigh(e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-700/80 border border-amber-600/50 rounded-lg text-white text-lg font-bold focus:border-amber-400 focus:outline-none" step={selectedAsset.pipSize} placeholder={effectiveHigh || "High narx"} />
+                    </div>
+                    <div>
+                      <label className="text-amber-300 text-xs font-bold mb-1 block">SWING LOW</label>
+                      <input type="number" value={fibLow} onChange={e => setFibLow(e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-700/80 border border-amber-600/50 rounded-lg text-white text-lg font-bold focus:border-amber-400 focus:outline-none" step={selectedAsset.pipSize} placeholder={effectiveLow || "Low narx"} />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-2">
                     {[
-                      { label: isBuy ? '0.0% (Swing High)' : '0.0% (Swing Low)', val: calculations.f0, highlight: false },
-                      { label: '23.6%', val: calculations.f236, highlight: false },
-                      { label: '38.2%', val: calculations.f382, highlight: false },
-                      { label: '50.0% (Equilibrium)', val: calculations.f500, highlight: calculations.entryLevel === '0.5' },
-                      { label: '61.8% (Golden Ratio)', val: calculations.f618, highlight: calculations.entryLevel === '0.618' },
-                      { label: '70.5% (ICT OTE)', val: calculations.f705, highlight: calculations.entryLevel === '0.705' },
-                      { label: '78.6%', val: calculations.f786, highlight: calculations.entryLevel === '0.786' },
-                      { label: '88.6%', val: calculations.f886, highlight: false },
-                      { label: isBuy ? '100.0% (Swing Low)' : '100.0% (Swing High)', val: calculations.f100, highlight: false },
-                    ].map((item, idx) => (
-                      <div key={idx} className={`flex items-center justify-between px-3 py-1.5 rounded-lg ${item.highlight ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold' : 'text-slate-300 hover:bg-slate-800/50'}`}>
-                        <span>{item.label}</span>
-                        <span>{item.val}</span>
-                      </div>
+                      { key: '0.5', label: '50.0%', desc: 'Equilibrium' },
+                      { key: '0.618', label: '61.8%', desc: 'Golden Ratio' },
+                      { key: '0.705', label: '70.5%', desc: 'ICT OTE' },
+                      { key: '0.786', label: '78.6%', desc: 'Deep' },
+                    ].map(item => (
+                      <button key={item.key} type="button" onClick={() => setFibEntryLevel(item.key as any)}
+                        className={`py-2 px-1 rounded-lg text-center transition-all ${fibEntryLevel === item.key ? 'bg-amber-500 text-slate-950 font-black shadow-lg' : 'bg-slate-800 text-slate-400'}`}>
+                        <div className="text-xs font-bold">{item.label}</div>
+                        <div className="text-[10px] opacity-75">{item.desc}</div>
+                      </button>
                     ))}
                   </div>
                 </div>
-
-                {/* Entry */}
-                <div className="bg-slate-900/85 border-2 border-cyan-600/50 rounded-2xl p-5 backdrop-blur">
-                  <div className="text-slate-400 text-xs font-bold tracking-widest mb-2">ENTRY ({calculations.entryLevel ? `${(parseFloat(calculations.entryLevel) * 100).toFixed(1)}% Fib` : 'Fib'})</div>
-                  <div className="text-3xl font-bold text-cyan-400">{calculations.entry}</div>
-                  <div className="text-xs text-slate-500 mt-1">
-                    {isBuy ? 'Bullish Retracement — BUY' : 'Bearish Retracement — SELL'} | Masofa: {calculations.entryPct}%
-                  </div>
-                </div>
-
-                {/* SL */}
-                <div className="bg-slate-900/85 border-2 border-red-600/50 rounded-2xl p-5 backdrop-blur">
-                  <div className="text-red-400 text-xs font-bold tracking-widest mb-2">STOP LOSS</div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-3xl font-bold text-red-500">{calculations.stopLoss}</div>
-                    <div className="text-sm font-bold text-slate-400">({calculations.slPct}%)</div>
-                  </div>
-                  <div className="text-xs text-slate-500 mt-1">Swing {isBuy ? 'Low dan' : 'High dan'} {calculations.pipBuffer} pip narida</div>
-                </div>
-              </>
-            )}
-
-            {/* ORDER BLOCK natijalar */}
-            {calculations.preset === 'ORDER BLOCK' && (
-              <>
-                <h3 className="text-blue-400 text-xs font-bold tracking-widest mb-2">&#9632; ORDER BLOCK — {timeframe} | {obType.toUpperCase()}</h3>
-                <div className="bg-blue-900/20 border border-blue-600/50 rounded-2xl p-5 backdrop-blur">
-                  <div className="text-blue-400 text-xs font-bold tracking-widest mb-3">OB ZONE</div>
-                  <div className="grid grid-cols-3 gap-3 text-center">
-                    <div><div className="text-slate-400 text-xs mb-1">OB HIGH</div><div className="text-xl font-bold text-red-400">{calculations.obHigh}</div></div>
-                    <div><div className="text-slate-400 text-xs mb-1">OB MID</div><div className="text-xl font-bold text-blue-400">{calculations.obMid}</div><div className="text-xs text-slate-500">{calculations.obMidPct}%</div></div>
-                    <div><div className="text-slate-400 text-xs mb-1">OB LOW</div><div className="text-xl font-bold text-green-400">{calculations.obLow}</div></div>
-                  </div>
-                  <div className="mt-3 text-center text-xs text-slate-500">OB hajmi: <span className="text-blue-300 font-bold">{calculations.obSize} pip</span></div>
-                </div>
-                <div className="bg-slate-900/85 border-2 border-cyan-600/50 rounded-2xl p-5 backdrop-blur">
-                  <div className="text-slate-400 text-xs font-bold tracking-widest mb-2">ENTRY</div>
-                  <div className="text-3xl font-bold text-cyan-400">{calculations.entry}</div>
-                  <div className="text-xs text-slate-500 mt-1">{isBuy ? 'Bullish OB — BUY (OB yuqori chegarasidan)' : 'Bearish OB — SELL (OB pastki chegarasidan)'} | {calculations.entryPct}%</div>
-                </div>
-                <div className="bg-slate-900/85 border-2 border-red-600/50 rounded-2xl p-5 backdrop-blur">
-                  <div className="text-red-400 text-xs font-bold tracking-widest mb-2">STOP LOSS</div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-3xl font-bold text-red-500">{calculations.stopLoss}</div>
-                    <div className="text-sm font-bold text-slate-400">({calculations.slPct}%)</div>
-                  </div>
-                  <div className="text-xs text-slate-500 mt-1">OB {isBuy ? 'LOW dan' : 'HIGH dan'} {calculations.pipBuffer} pip narida</div>
-                </div>
-              </>
-            )}
-
-            {/* IFVG natijalar */}
-            {calculations.preset === 'IFVG' && (
-              <>
-                <h3 className="text-purple-400 text-xs font-bold tracking-widest mb-2">&#9670; IFVG — {timeframe} | {fvgType.toUpperCase()}</h3>
-                <div className="bg-purple-900/20 border border-purple-600/50 rounded-2xl p-5 backdrop-blur">
-                  <div className="text-purple-400 text-xs font-bold tracking-widest mb-3">FVG ZONE</div>
-                  <div className="grid grid-cols-3 gap-3 text-center">
-                    <div><div className="text-slate-400 text-xs mb-1">FVG HIGH</div><div className="text-xl font-bold text-red-400">{calculations.fvgHigh}</div></div>
-                    <div><div className="text-slate-400 text-xs mb-1">FVG MID</div><div className="text-xl font-bold text-purple-400">{calculations.fvgMid}</div><div className="text-xs text-slate-500">{calculations.fvgMidPct}%</div></div>
-                    <div><div className="text-slate-400 text-xs mb-1">FVG LOW</div><div className="text-xl font-bold text-green-400">{calculations.fvgLow}</div></div>
-                  </div>
-                  <div className="mt-3 text-center text-xs text-slate-500">Gap: <span className="text-purple-300 font-bold">{calculations.fvgSize} pip</span></div>
-                </div>
-                <div className="bg-slate-900/85 border-2 border-cyan-600/50 rounded-2xl p-5 backdrop-blur">
-                  <div className="text-slate-400 text-xs font-bold tracking-widest mb-2">ENTRY</div>
-                  <div className="text-3xl font-bold text-cyan-400">{calculations.entry}</div>
-                  <div className="text-xs text-slate-500 mt-1">{isBuy ? 'FVG LOW — BUY' : 'FVG HIGH — SELL'} | {calculations.entryPct}%</div>
-                </div>
-                <div className="bg-slate-900/85 border-2 border-red-600/50 rounded-2xl p-5 backdrop-blur">
-                  <div className="text-red-400 text-xs font-bold tracking-widest mb-2">STOP LOSS</div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-3xl font-bold text-red-500">{calculations.stopLoss}</div>
-                    <div className="text-sm font-bold text-slate-400">({calculations.slPct}%)</div>
-                  </div>
-                  <div className="text-xs text-slate-500 mt-1">FVG {isBuy ? 'LOW dan' : 'HIGH dan'} {calculations.pipBuffer} pip narida</div>
-                </div>
-              </>
-            )}
-
-            {/* 778 / AB / 2.6 */}
-            {(calculations.preset === 'Elif trading' || calculations.preset === 'AB TRADE' || calculations.preset === '2.6 STRATEGY') && (
-              <>
-                <h3 className="text-slate-400 text-xs font-bold tracking-widest mb-2">KIRISH NUQTALARI — {timeframe}</h3>
-                <div className="bg-slate-900/85 border border-red-600/30 rounded-2xl p-5 backdrop-blur">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 flex-1">
-                      <div className="px-4 py-2 rounded-lg text-sm font-bold bg-red-900/30 text-red-400">
-                        {calculations.preset === '2.6 STRATEGY' ? 'Liquidity' : 'Qaytish'}
-                      </div>
-                      <div className="text-3xl font-bold text-red-400">{calculations.reversal}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-bold text-slate-400">{calculations.reversalPct}%</div>
-                      <div className={`text-xs font-bold px-2 py-1 rounded ${isBuy ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'}`}>{isBuy ? 'BUY' : 'SELL'}</div>
-                    </div>
-                  </div>
-                </div>
-
-                {calculations.preset !== '2.6 STRATEGY' && (
-                  <>
-                    <div className="bg-slate-900/85 border border-blue-600/30 rounded-2xl p-5 backdrop-blur">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3 flex-1">
-                          <div className="px-4 py-2 rounded-lg text-sm font-bold text-blue-400 border border-blue-600">Korreksiya</div>
-                          <div className="text-3xl font-bold text-cyan-400">{calculations.correction}</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm font-bold text-slate-400">{calculations.correctionPct}%</div>
-                          <div className="text-xs font-bold px-2 py-1 rounded bg-red-900/30 text-red-400">SELL</div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="bg-slate-900/85 border border-purple-600/30 rounded-2xl p-5 backdrop-blur">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3 flex-1">
-                          <div className="px-4 py-2 rounded-lg text-sm font-bold text-purple-400 border border-purple-600">Konsolidatsiya</div>
-                          <div className="text-3xl font-bold text-purple-300">{calculations.consolidation}</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm font-bold text-slate-400">{calculations.consolidationPct}%</div>
-                          <div className="text-xs font-bold px-2 py-1 rounded bg-red-900/30 text-red-400">SELL</div>
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                <h3 className="text-slate-400 text-xs font-bold tracking-widest mt-4 mb-3">SAVDO REJASI</h3>
-                {calculations.preset === '2.6 STRATEGY' && calculations.liquidityInfo && (
-                  <div className="bg-amber-900/20 border border-amber-600/30 rounded-2xl p-4 backdrop-blur mb-3">
-                    <div className="text-amber-400 text-xs font-bold tracking-widest mb-1">LIQUIDITY ANALIZI</div>
-                    <div className="text-sm text-amber-200 font-mono">{calculations.liquidityInfo}</div>
-                  </div>
-                )}
-                <div className="bg-slate-900/85 border-2 border-cyan-600/50 rounded-2xl p-5 backdrop-blur mb-3">
-                  <div className="text-slate-400 text-xs font-bold tracking-widest mb-2">ENTRY PRICE</div>
-                  <div className="text-3xl font-bold text-cyan-400">
-                    {calculations.preset === '2.6 STRATEGY' ? calculations.reversal : `${calculations.correction} — ${calculations.consolidation}`}
-                  </div>
-                  <div className={`text-xs font-bold mt-1 ${tf.color}`}>Buffer: {tf.pipBuffer} pip</div>
-                </div>
-                <div className="bg-slate-900/85 border-2 border-red-600/50 rounded-2xl p-5 backdrop-blur">
-                  <div className="text-red-400 text-xs font-bold tracking-widest mb-2">STOP LOSS</div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-3xl font-bold text-red-500">{calculations.stopLoss}</div>
-                    <div className="text-sm font-bold text-slate-400">({calculations.slPct}%)</div>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* TP1 / TP2 / TP3 — R:R bilan */}
-            <h3 className="text-slate-400 text-xs font-bold tracking-widest mt-6 mb-3">MAQSAD NARXLAR (TP)</h3>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { label: 'TP1', val: calculations.tp1, pct: calculations.tp1Pct, rr: calculations.rr1 },
-                { label: 'TP2', val: calculations.tp2, pct: calculations.tp2Pct, rr: calculations.rr2 },
-                { label: 'TP3', val: calculations.tp3, pct: calculations.tp3Pct, rr: calculations.rr3 },
-              ].map(tp => (
-                <div key={tp.label} className="bg-slate-900/85 border border-green-600/50 rounded-2xl p-4 backdrop-blur">
-                  <div className="text-green-400 font-bold text-sm mb-1">{tp.label}</div>
-                  <div className="text-xl font-bold text-green-400">{tp.val}</div>
-                  <div className="text-xs text-slate-400 mt-1">{tp.pct}%</div>
-                  {/* FIX #6: R:R badge */}
-                  <div className="text-xs font-bold text-yellow-400 mt-1">{tp.rr}</div>
-                </div>
-              ))}
+              )}
             </div>
 
-            {/* UMUMIY ANALIZ */}
-            <h3 className="text-slate-400 text-xs font-bold tracking-widest mt-6 mb-3">UMUMIY ANALIZ</h3>
-            <div className={`border-2 rounded-2xl p-5 backdrop-blur ${calculations.isStrongSignal ? 'bg-green-900/30 border-green-500/50' : 'bg-slate-900/85 border-slate-700/50'}`}>
-              <div className="flex flex-wrap items-center gap-2 mb-2">
-                <div className={`px-3 py-1 rounded text-xs font-bold ${calculations.isStrongSignal ? 'bg-green-500/20 text-green-400' : 'bg-slate-700/80 text-slate-400'}`}>
-                  {calculations.isStrongSignal ? 'KUCHLI SIGNAL' : 'ODDIY SIGNAL'}
-                </div>
-                <div className="px-3 py-1 rounded text-xs font-bold bg-slate-700/80 text-slate-400">{calculations.preset}</div>
-                <div className={`px-3 py-1 rounded text-xs font-bold bg-slate-700/80 ${tf.color}`}>{timeframe}</div>
-              </div>
-              <p className="text-lg font-bold text-white mb-1">
-                Yo&apos;nalish: <span className={isBuy ? 'text-green-400' : 'text-red-400'}>{isBuy ? '▲ BUY' : '▼ SELL'}</span>
-              </p>
-              <p className="text-sm text-slate-400">{calculations.gannConfluence}</p>
-            </div>
+            {/* ─────── NATIJALAR & QUICK ACTIONS ─────── */}
+            {calculations && (
+              <div className="space-y-4">
+                {/* QUICK ACTIONS BAR */}
+                <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border border-amber-500/40 rounded-2xl p-3 backdrop-blur shadow-xl flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">⚡</span>
+                    <span className="text-xs font-bold text-slate-300">Tezkor amallar:</span>
+                  </div>
 
-            {/* GANN */}
-            <h3 className="text-slate-400 text-xs font-bold tracking-widest mt-6 mb-3">GANN DARAJALARI</h3>
-            <div className="grid grid-cols-2 gap-4 pb-8">
-              <div className="bg-slate-900/85 border border-red-900/30 rounded-2xl p-4 backdrop-blur">
-                <div className="text-red-400 text-xs font-bold tracking-widest mb-3 text-center">RESISTANCE</div>
-                <div className="space-y-2">
-                  {(['R4', 'R3', 'R2', 'R1'] as const).map(k => (
-                    <div key={k} className="flex justify-between text-sm">
-                      <span className="text-slate-400">{k}:</span>
-                      <span className="text-red-300 font-bold">{calculations.gann[k]}</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={async () => {
+                        if (!calculations) return;
+                        const res = await sendDirectTelegramMessage({
+                          asset: selectedAsset.symbol,
+                          strategy: calculations.preset,
+                          direction: calculations.isBuy ? 'BUY' : 'SELL',
+                          entry: calculations.entry,
+                          sl: calculations.stopLoss,
+                          tp1: calculations.tp1,
+                          tp2: calculations.tp2,
+                          tp3: calculations.tp3,
+                          rr1: calculations.rr1,
+                          rr2: calculations.rr2,
+                          rr3: calculations.rr3,
+                        });
+                        if (res.ok) {
+                          showToast(`✓ Barcha (${res.sentCount || 1} ta) bot foydalanuvchilariga yuborildi!`);
+                        } else {
+                          showToast('❌ Telegramga yuborishda xatolik');
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-sky-500/20 transition-all active:scale-95 flex items-center gap-1.5"
+                    >
+                      <span>📢</span>
+                      <span>Barchaga yuborish</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveMainTab('risk')}
+                      className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow transition-all active:scale-95 flex items-center gap-1.5"
+                    >
+                      <span>🎯</span>
+                      <span>Lotni hisoblash</span>
+                    </button>
+                    <button
+                      onClick={handleSaveCalculationToJournal}
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow transition-all active:scale-95 flex items-center gap-1.5"
+                    >
+                      <span>📓</span>
+                      <span>Jurnalga saqlash</span>
+                    </button>
+                    <button
+                      onClick={handleOpenCalculationInTelegram}
+                      className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-sky-500/40 text-sky-300 font-bold text-xs rounded-xl shadow transition-all active:scale-95 flex items-center gap-1.5"
+                    >
+                      <span>📱</span>
+                      <span>Sozlama</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Main Results Container */}
+                <div className="bg-slate-900/85 border border-slate-700/80 rounded-2xl p-5 backdrop-blur shadow-xl space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-700/60">
+                    <div>
+                      <div className="text-slate-400 text-xs font-bold tracking-widest">{calculations.preset}</div>
+                      <div className="text-xl font-bold text-white mt-0.5">{selectedAsset.name} ({timeframe})</div>
                     </div>
-                  ))}
+                    <div className={`px-4 py-2 rounded-xl text-base font-black border ${isBuy ? 'bg-green-500/20 text-green-400 border-green-500/50' : 'bg-red-500/20 text-red-400 border-red-500/50'}`}>
+                      {isBuy ? '▲ BUY SETUP' : '▼ SELL SETUP'}
+                    </div>
+                  </div>
+
+                  {/* Entry & SL */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="bg-slate-800/80 border-2 border-cyan-500/50 rounded-xl p-4">
+                      <div className="text-cyan-400 text-xs font-bold tracking-wider mb-1">ENTRY (KIRISH)</div>
+                      <div className="text-3xl font-black text-cyan-300 font-mono">{calculations.entry}</div>
+                    </div>
+
+                    <div className="bg-slate-800/80 border-2 border-red-500/50 rounded-xl p-4">
+                      <div className="text-red-400 text-xs font-bold tracking-wider mb-1">STOP LOSS (TO&apos;XTATISH)</div>
+                      <div className="flex items-baseline gap-2">
+                        <div className="text-3xl font-black text-red-400 font-mono">{calculations.stopLoss}</div>
+                        <div className="text-xs text-slate-400 font-bold">({calculations.slPct}%)</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Targets TP1, TP2, TP3 */}
+                  <div>
+                    <div className="text-slate-400 text-xs font-bold tracking-widest mb-2">MAQSAD NARXLAR (TAKE PROFIT)</div>
+                    <div className="grid grid-cols-3 gap-2 text-center font-mono">
+                      {[
+                        { label: 'TP1', val: calculations.tp1, pct: calculations.tp1Pct, rr: calculations.rr1 },
+                        { label: 'TP2', val: calculations.tp2, pct: calculations.tp2Pct, rr: calculations.rr2 },
+                        { label: 'TP3', val: calculations.tp3, pct: calculations.tp3Pct, rr: calculations.rr3 },
+                      ].map(tp => (
+                        <div key={tp.label} className="bg-green-950/30 border border-green-700/40 rounded-xl p-3">
+                          <div className="text-green-400 font-bold text-xs mb-1">{tp.label}</div>
+                          <div className="text-lg sm:text-xl font-bold text-white">{tp.val}</div>
+                          <div className="text-xs font-bold text-yellow-400 mt-1">{tp.rr}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Gann Confluence Box */}
+                  <div className={`p-4 rounded-xl border ${calculations.isStrongSignal ? 'bg-green-950/40 border-green-500/50' : 'bg-slate-800/60 border-slate-700'}`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-lg">{calculations.isStrongSignal ? '⚡' : '📌'}</span>
+                      <span className="text-white font-bold text-xs">
+                        {calculations.isStrongSignal ? 'KUCHLI GANN SINERGIYASI' : 'UMUMIY TAHLIL'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-300">{calculations.gannConfluence}</p>
+                  </div>
                 </div>
               </div>
-              <div className="bg-slate-900/85 border border-green-900/30 rounded-2xl p-4 backdrop-blur">
-                <div className="text-green-400 text-xs font-bold tracking-widest mb-3 text-center">SUPPORT</div>
-                <div className="space-y-2">
-                  {(['S1', 'S2', 'S3', 'S4'] as const).map(k => (
-                    <div key={k} className="flex justify-between text-sm">
-                      <span className="text-slate-400">{k}:</span>
-                      <span className="text-green-300 font-bold">{calculations.gann[k]}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+            )}
+          </>
+        )}
+
+        {/* ── TAB 2: TRADINGVIEW GRAFIK ── */}
+        {activeMainTab === 'chart' && (
+          <div>
+            <TradingViewWidget asset={selectedAsset} timeframe={timeframe} />
+          </div>
+        )}
+
+        {/* ── TAB 3: RISK & LOT SIZE KALKULYATORI ── */}
+        {activeMainTab === 'risk' && (
+          <div>
+            <RiskCalculator
+              entryPrice={calculations?.entry || ''}
+              stopLossPrice={calculations?.stopLoss || ''}
+              tp1Price={calculations?.tp1 || ''}
+              tp2Price={calculations?.tp2 || ''}
+              tp3Price={calculations?.tp3 || ''}
+              isBuy={isBuy}
+              asset={selectedAsset}
+            />
+          </div>
+        )}
+
+        {/* ── TAB 4: ICT KILLZONES ── */}
+        {activeMainTab === 'killzones' && (
+          <div>
+            <KillzonesWidget />
+          </div>
+        )}
+
+        {/* ── TAB 5: TREYDING JURNALI ── */}
+        {activeMainTab === 'journal' && (
+          <div>
+            <TradingJournal />
+          </div>
+        )}
+
+        {/* ── TAB 6: IQTISODIY TAQVIM ── */}
+        {activeMainTab === 'calendar' && (
+          <div>
+            <EconomicCalendar />
           </div>
         )}
       </div>
