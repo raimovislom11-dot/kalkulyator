@@ -8,6 +8,8 @@ import KillzonesWidget from './components/KillzonesWidget';
 import TradingJournal, { saveTradeToJournalStorage } from './components/TradingJournal';
 import EconomicCalendar from './components/EconomicCalendar';
 import TelegramShareModal, { sendDirectTelegramMessage } from './components/TelegramShareModal';
+import AdminPanel from './components/AdminPanel';
+import { findUser, saveSession, loadSession, clearSession, updateUserLogin, addTokensUsed, addActiveMinutes, SessionData } from './lib/users';
 
 type Preset = 'Elif trading' | 'AB TRADE' | '2.6 STRATEGY' | 'ORDER BLOCK' | 'IFVG' | 'SNR_ICT' | 'SMT' | 'FIBONACCI';
 type CandleType = 'bullish_engulfing' | 'hammer' | 'bullish_pinbar' | 'bearish_engulfing' | 'shooting_star' | 'bearish_pinbar';
@@ -31,10 +33,7 @@ const presetConfigs: Record<string, RatioConfig> = {
   '2.6 STRATEGY': { rRev: 1 / 2.6, rCor: 0.0, rCons: 0.0 },
 };
 
-const getTimeBasedPassword = () => {
-  const now = new Date();
-  return `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
-};
+
 
 // RR hisobi
 const calcRR = (entry: number, sl: number, tp: number): string => {
@@ -98,12 +97,14 @@ function SignalCard({
   asset,
   onOpenTelegram,
   onSaveToJournal,
+  isAdmin = false,
 }: {
   text: string;
   accentColor?: 'amber' | 'violet';
   asset: AssetConfig;
   onOpenTelegram?: (data: any) => void;
   onSaveToJournal?: (data: any) => void;
+  isAdmin?: boolean;
 }) {
   const parsed = parseSignal(text);
   const [vals, setVals] = useState({ entry: '', sl: '', tp1: '', tp2: '', tp3: '' });
@@ -239,23 +240,25 @@ function SignalCard({
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
-          <button
-            onClick={handleSendDirectTg}
-            disabled={sendingDirectTg}
-            className={`flex items-center gap-1 px-3 py-1.5 text-white text-xs font-bold rounded-lg transition-all active:scale-95 shadow-md ${
-              sentDirectTg
-                ? 'bg-emerald-600'
-                : 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700'
-            }`}
-          >
-            {sendingDirectTg ? (
-              <span>Yuborilmoqda...</span>
-            ) : sentDirectTg ? (
-              <><span>✓</span><span>Botga yuborildi!</span></>
-            ) : (
-              <><span>🚀</span><span>Botga yuborish</span></>
-            )}
-          </button>
+          {isAdmin && (
+            <button
+              onClick={handleSendDirectTg}
+              disabled={sendingDirectTg}
+              className={`flex items-center gap-1 px-3 py-1.5 text-white text-xs font-bold rounded-lg transition-all active:scale-95 shadow-md ${
+                sentDirectTg
+                  ? 'bg-emerald-600'
+                  : 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700'
+              }`}
+            >
+              {sendingDirectTg ? (
+                <span>Yuborilmoqda...</span>
+              ) : sentDirectTg ? (
+                <><span>✓</span><span>Botga yuborildi!</span></>
+              ) : (
+                <><span>🚀</span><span>Botga yuborish</span></>
+              )}
+            </button>
+          )}
           <button
             onClick={handleSave}
             className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-700/80 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg transition-all active:scale-95 shadow"
@@ -263,13 +266,15 @@ function SignalCard({
             <span>{savedJournal ? '✓' : '📓'}</span>
             <span>{savedJournal ? 'Saqlandi!' : 'Jurnalga'}</span>
           </button>
-          <button
-            onClick={handleTg}
-            className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-sky-500/40 text-sky-300 text-xs font-bold rounded-lg transition-all active:scale-95 shadow"
-          >
-            <span>📱</span>
-            <span>Sozlama</span>
-          </button>
+          {isAdmin && (
+            <button
+              onClick={handleTg}
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-sky-500/40 text-sky-300 text-xs font-bold rounded-lg transition-all active:scale-95 shadow"
+            >
+              <span>📱</span>
+              <span>Sozlama</span>
+            </button>
+          )}
           <button
             onClick={handleCopy}
             className={`flex items-center gap-1 px-2.5 py-1.5 ${btnBg} text-white text-xs font-bold rounded-lg transition-all active:scale-95 shadow-md`}
@@ -311,11 +316,15 @@ function AIAnalysisPanel({
   asset,
   timeframe,
   onOpenTelegram,
+  isAdmin = false,
+  currentUsername = '',
 }: {
   calcContext: string;
   asset: AssetConfig;
   timeframe: string;
   onOpenTelegram?: (data: any) => void;
+  isAdmin?: boolean;
+  currentUsername?: string;
 }) {
   const [message, setMessage] = useState('');
   const [response, setResponse] = useState('');
@@ -700,6 +709,7 @@ function AIAnalysisPanel({
                       accentColor={currentTermMode === 'short' ? 'amber' : 'violet'}
                       asset={asset}
                       onOpenTelegram={onOpenTelegram}
+                      isAdmin={isAdmin}
                     />
                   )}
                 </div>
@@ -791,6 +801,7 @@ function AIAnalysisPanel({
                       accentColor={currentTermMode === 'short' ? 'amber' : 'violet'}
                       asset={asset}
                       onOpenTelegram={onOpenTelegram}
+                      isAdmin={isAdmin}
                     />
                   )}
                 </div>
@@ -899,6 +910,7 @@ function AIAnalysisPanel({
                       accentColor="violet"
                       asset={asset}
                       onOpenTelegram={onOpenTelegram}
+                      isAdmin={isAdmin}
                     />
                   )}
                 </div>
@@ -912,24 +924,32 @@ function AIAnalysisPanel({
 }
 
 // ─────────────────────────────────────────────
-function PasswordScreen({ onAuthenticate }: { onAuthenticate: () => void }) {
+function LoginScreen({ onAuthenticate }: { onAuthenticate: (session: SessionData) => void }) {
+  const [loginInput, setLoginInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
-  const [currentTime, setCurrentTime] = useState('');
-
-  useEffect(() => {
-    setCurrentTime(getTimeBasedPassword());
-    const id = setInterval(() => setCurrentTime(getTimeBasedPassword()), 10000);
-    return () => clearInterval(id);
-  }, []);
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (passwordInput === getTimeBasedPassword()) {
-      onAuthenticate();
-    } else {
-      setPasswordInput('');
-      alert("Parol noto'g'ri!");
+    setError('');
+    if (!loginInput.trim() || !passwordInput.trim()) {
+      setError("Login va parol bo'sh bo'lmasligi kerak!");
+      return;
     }
+    setIsLoading(true);
+    setTimeout(() => {
+      const user = findUser(loginInput.trim(), passwordInput.trim());
+      if (user) {
+        updateUserLogin(user.username);
+        saveSession(user);
+        onAuthenticate({ username: user.username, role: user.role, loginAt: new Date().toISOString() });
+      } else {
+        setError("Login yoki parol noto'g'ri!");
+        setPasswordInput('');
+      }
+      setIsLoading(false);
+    }, 400);
   };
 
   return (
@@ -938,28 +958,62 @@ function PasswordScreen({ onAuthenticate }: { onAuthenticate: () => void }) {
       style={{ backgroundImage: "url('/image.png')", backgroundSize: 'cover', backgroundPosition: 'center' }}
     >
       <div className="w-full max-w-md">
-        <div className="bg-slate-900/85 border border-slate-700 rounded-2xl p-8 backdrop-blur shadow-2xl">
-          <h1 className="text-3xl font-bold text-white text-center mb-2">Trading Terminal</h1>
-          <p className="text-slate-400 text-center mb-8">Kirish uchun parol kiriting</p>
+        {/* Logo/Title */}
+        <div className="text-center mb-8">
+          <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-4xl mx-auto mb-4 shadow-2xl shadow-orange-500/40">
+            📊
+          </div>
+          <h1 className="text-4xl font-black text-white tracking-tight">Trading Terminal</h1>
+          <p className="text-slate-400 mt-2 text-sm">Professional savdo platformasi</p>
+        </div>
+
+        <div className="bg-slate-900/90 border border-slate-700/80 rounded-3xl p-8 backdrop-blur shadow-2xl shadow-black/50">
+          <div className="text-center mb-6">
+            <h2 className="text-xl font-black text-white">Tizimga kirish</h2>
+            <p className="text-slate-500 text-xs mt-1">Login va parolingizni kiriting</p>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="text-slate-400 text-sm font-bold tracking-widest mb-2 block">PAROL</label>
+              <label className="text-slate-400 text-xs font-bold tracking-widest mb-2 block">LOGIN</label>
+              <input
+                type="text"
+                value={loginInput}
+                onChange={(e) => { setLoginInput(e.target.value); setError(''); }}
+                className="w-full px-4 py-3.5 bg-slate-800/80 border border-slate-600 rounded-xl text-white text-base font-bold focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500/30 transition-all placeholder-slate-600"
+                placeholder="loginni kiriting"
+                autoFocus
+                autoComplete="username"
+              />
+            </div>
+            <div>
+              <label className="text-slate-400 text-xs font-bold tracking-widest mb-2 block">PAROL</label>
               <input
                 type="password"
                 value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                className="w-full px-4 py-4 bg-slate-700/80 border border-slate-600 rounded-xl text-white text-2xl font-bold text-center focus:border-orange-500 focus:outline-none tracking-widest"
-                placeholder="0000"
-                maxLength={4}
-                autoFocus
+                onChange={(e) => { setPasswordInput(e.target.value); setError(''); }}
+                className="w-full px-4 py-3.5 bg-slate-800/80 border border-slate-600 rounded-xl text-white text-base font-bold focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500/30 transition-all placeholder-slate-600"
+                placeholder="••••••••"
+                autoComplete="current-password"
               />
-              <p className="text-slate-500 text-xs mt-2 text-center">Hozirgi soat: {currentTime}</p>
             </div>
+
+            {error && (
+              <div className="bg-red-900/30 border border-red-600/50 rounded-xl px-4 py-3 text-red-300 text-sm font-bold text-center">
+                ⚠️ {error}
+              </div>
+            )}
+
             <button
               type="submit"
-              className="w-full py-4 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 text-white font-bold rounded-xl transition-all active:scale-95"
+              disabled={isLoading}
+              className="w-full py-4 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:opacity-60 text-white font-black rounded-xl transition-all active:scale-95 shadow-lg shadow-orange-500/30 text-sm tracking-wide mt-2 flex items-center justify-center gap-2"
             >
-              KIRISH
+              {isLoading ? (
+                <><span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span><span>Tekshirilmoqda...</span></>
+              ) : (
+                <>🔐 KIRISH</>
+              )}
             </button>
           </form>
         </div>
@@ -969,9 +1023,9 @@ function PasswordScreen({ onAuthenticate }: { onAuthenticate: () => void }) {
 }
 
 // ─────────────────────────────────────────────
-function CalculatorContent() {
+function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: boolean; currentUsername: string; onLogout: () => void }) {
   const [selectedAsset, setSelectedAsset] = useState<AssetConfig>(ASSET_LIST[0]);
-  const [activeMainTab, setActiveMainTab] = useState<'calc' | 'chart' | 'risk' | 'killzones' | 'journal' | 'calendar'>('calc');
+  const [activeMainTab, setActiveMainTab] = useState<'calc' | 'chart' | 'risk' | 'killzones' | 'journal' | 'calendar' | 'admin'>('calc');
 
   // Input states
   const [dailyHigh, setDailyHigh] = useState('');
@@ -1454,7 +1508,26 @@ function CalculatorContent() {
 
         {/* TOP NAVIGATION TABS */}
         <div className="bg-slate-900/90 border border-slate-700/90 rounded-2xl p-2 mb-4 backdrop-blur shadow-2xl">
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 text-xs font-bold">
+          {/* User info bar */}
+          <div className="flex items-center justify-between px-2 pb-2 mb-1 border-b border-slate-800">
+            <div className="flex items-center gap-2">
+              <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black ${isAdmin ? 'bg-amber-500/20 text-amber-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                {currentUsername.charAt(0).toUpperCase()}
+              </div>
+              <span className="text-slate-400 text-xs">
+                <span className="text-white font-bold">{currentUsername}</span>
+                {isAdmin && <span className="ml-1.5 text-[10px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-full font-bold border border-amber-500/30">👑 Admin</span>}
+              </span>
+            </div>
+            <button
+              onClick={onLogout}
+              className="text-slate-500 hover:text-red-400 text-xs transition-colors flex items-center gap-1"
+            >
+              <span>🚪</span><span>Chiqish</span>
+            </button>
+          </div>
+
+          <div className="grid gap-1.5 text-xs font-bold" style={{ gridTemplateColumns: isAdmin ? 'repeat(7, 1fr)' : 'repeat(6, 1fr)' }}>
             {[
               { id: 'calc', icon: '🧮', label: 'Kalkulyator' },
               { id: 'chart', icon: '📊', label: 'Jonli Grafik' },
@@ -1462,20 +1535,23 @@ function CalculatorContent() {
               { id: 'killzones', icon: '⏰', label: 'Killzones' },
               { id: 'journal', icon: '📓', label: 'Jurnal' },
               { id: 'calendar', icon: '📰', label: 'Taqvim' },
+              ...(isAdmin ? [{ id: 'admin', icon: '🛡️', label: 'Admin' }] : []),
             ].map((tab) => {
               const isActive = activeMainTab === tab.id;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveMainTab(tab.id as any)}
-                  className={`py-2.5 px-2 rounded-xl transition-all flex flex-col sm:flex-row items-center justify-center gap-1 text-center ${
+                  className={`py-2.5 px-1 rounded-xl transition-all flex flex-col items-center justify-center gap-0.5 text-center ${
                     isActive
-                      ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 shadow-lg shadow-orange-500/25 font-black scale-[1.02]'
+                      ? tab.id === 'admin'
+                        ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25 font-black scale-[1.02]'
+                        : 'bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 shadow-lg shadow-orange-500/25 font-black scale-[1.02]'
                       : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700/80 hover:text-white'
                   }`}
                 >
                   <span className="text-base">{tab.icon}</span>
-                  <span className="truncate">{tab.label}</span>
+                  <span className="truncate text-[10px]">{tab.label}</span>
                 </button>
               );
             })}
@@ -1493,6 +1569,8 @@ function CalculatorContent() {
               calcContext={aiContext}
               asset={selectedAsset}
               timeframe={timeframe}
+              isAdmin={isAdmin}
+              currentUsername={currentUsername}
               onOpenTelegram={(data) => {
                 setTelegramModalData(data);
                 setIsTelegramModalOpen(true);
@@ -2010,33 +2088,35 @@ function CalculatorContent() {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      onClick={async () => {
-                        if (!calculations) return;
-                        const res = await sendDirectTelegramMessage({
-                          asset: selectedAsset.symbol,
-                          strategy: calculations.preset,
-                          direction: calculations.isBuy ? 'BUY' : 'SELL',
-                          entry: calculations.entry,
-                          sl: calculations.stopLoss,
-                          tp1: calculations.tp1,
-                          tp2: calculations.tp2,
-                          tp3: calculations.tp3,
-                          rr1: calculations.rr1,
-                          rr2: calculations.rr2,
-                          rr3: calculations.rr3,
-                        });
-                        if (res.ok) {
-                          showToast(`✓ Barcha (${res.sentCount || 1} ta) bot foydalanuvchilariga yuborildi!`);
-                        } else {
-                          showToast('❌ Telegramga yuborishda xatolik');
-                        }
-                      }}
-                      className="px-3 py-1.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-sky-500/20 transition-all active:scale-95 flex items-center gap-1.5"
-                    >
-                      <span>📢</span>
-                      <span>Barchaga yuborish</span>
-                    </button>
+                    {isAdmin && (
+                      <button
+                        onClick={async () => {
+                          if (!calculations) return;
+                          const res = await sendDirectTelegramMessage({
+                            asset: selectedAsset.symbol,
+                            strategy: calculations.preset,
+                            direction: calculations.isBuy ? 'BUY' : 'SELL',
+                            entry: calculations.entry,
+                            sl: calculations.stopLoss,
+                            tp1: calculations.tp1,
+                            tp2: calculations.tp2,
+                            tp3: calculations.tp3,
+                            rr1: calculations.rr1,
+                            rr2: calculations.rr2,
+                            rr3: calculations.rr3,
+                          });
+                          if (res.ok) {
+                            showToast(`✓ Barcha (${res.sentCount || 1} ta) bot foydalanuvchilariga yuborildi!`);
+                          } else {
+                            showToast('❌ Telegramga yuborishda xatolik');
+                          }
+                        }}
+                        className="px-3 py-1.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-sky-500/20 transition-all active:scale-95 flex items-center gap-1.5"
+                      >
+                        <span>📢</span>
+                        <span>Barchaga yuborish</span>
+                      </button>
+                    )}
                     <button
                       onClick={() => setActiveMainTab('risk')}
                       className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow transition-all active:scale-95 flex items-center gap-1.5"
@@ -2051,13 +2131,15 @@ function CalculatorContent() {
                       <span>📓</span>
                       <span>Jurnalga saqlash</span>
                     </button>
-                    <button
-                      onClick={handleOpenCalculationInTelegram}
-                      className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-sky-500/40 text-sky-300 font-bold text-xs rounded-xl shadow transition-all active:scale-95 flex items-center gap-1.5"
-                    >
-                      <span>📱</span>
-                      <span>Sozlama</span>
-                    </button>
+                    {isAdmin && (
+                      <button
+                        onClick={handleOpenCalculationInTelegram}
+                        className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-sky-500/40 text-sky-300 font-bold text-xs rounded-xl shadow transition-all active:scale-95 flex items-center gap-1.5"
+                      >
+                        <span>📱</span>
+                        <span>Sozlama</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -2165,13 +2247,65 @@ function CalculatorContent() {
             <EconomicCalendar />
           </div>
         )}
+
+        {/* ── TAB 7: ADMIN PANEL (faqat admin) ── */}
+        {activeMainTab === 'admin' && isAdmin && (
+          <div>
+            <div className="bg-gradient-to-r from-amber-950/60 to-orange-950/40 border border-amber-500/40 rounded-2xl p-4 mb-4 backdrop-blur">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-xl shadow-lg">
+                  🛡️
+                </div>
+                <div>
+                  <div className="text-amber-300 font-black text-base">Admin Panel</div>
+                  <div className="text-slate-400 text-xs">Foydalanuvchilar boshqaruvi va statistika</div>
+                </div>
+              </div>
+            </div>
+            <AdminPanel />
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 export default function XAUCalculator() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  if (!isAuthenticated) return <PasswordScreen onAuthenticate={() => setIsAuthenticated(true)} />;
-  return <CalculatorContent />;
+  const [session, setSession] = useState<SessionData | null>(null);
+  const [checked, setChecked] = useState(false);
+
+  // Active time tracker
+  useEffect(() => {
+    if (!session) return;
+    const id = setInterval(() => {
+      addActiveMinutes(session.username, 1);
+    }, 60000); // har daqiqada
+    return () => clearInterval(id);
+  }, [session]);
+
+  // Restore session on mount
+  useEffect(() => {
+    const saved = loadSession();
+    if (saved) setSession(saved);
+    setChecked(true);
+  }, []);
+
+  const handleLogout = () => {
+    clearSession();
+    setSession(null);
+  };
+
+  if (!checked) return null; // hydration wait
+
+  if (!session) {
+    return <LoginScreen onAuthenticate={(s) => setSession(s)} />;
+  }
+
+  return (
+    <CalculatorContent
+      isAdmin={session.role === 'admin'}
+      currentUsername={session.username}
+      onLogout={handleLogout}
+    />
+  );
 }
