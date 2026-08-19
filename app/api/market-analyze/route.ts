@@ -4,17 +4,34 @@ import { NextRequest } from 'next/server';
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
-// Yahoo Finance'dan COMEX Gold (GC=F) soatlik ma'lumotlarini olish
-async function fetchGoldData() {
+const YAHOO_SYMBOL_MAP: Record<string, string> = {
+  XAUUSD: 'GC=F',
+  EURUSD: 'EURUSD=X',
+  GBPUSD: 'GBPUSD=X',
+  BTCUSD: 'BTC-USD',
+  ETHUSD: 'ETH-USD',
+  US100: 'NQ=F',
+  US30: 'YM=F',
+};
+
+// Yahoo Finance'dan tanlangan instrument va interval bo'yicha ma'lumotlarni olish
+async function fetchMarketData(symbolKey: string = 'XAUUSD', termMode: string = 'short') {
   try {
-    // Yahoo Finance v8 API — 1 soatlik interval, so'nggi 5 kun
-    const quoteUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/GC%3DF?interval=1h&range=5d';
+    const yahooSymbol = YAHOO_SYMBOL_MAP[symbolKey.toUpperCase()] || 'GC=F';
+    const isShort = termMode === 'short';
+    const interval = isShort ? '5m' : '1h';
+    const range = isShort ? '1d' : '5d';
+
+    const quoteUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
+      yahooSymbol
+    )}?interval=${interval}&range=${range}`;
+
     const headers = {
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-      'Accept': 'application/json',
+      Accept: 'application/json',
     };
 
-    const res = await fetch(quoteUrl, { headers, next: { revalidate: 60 } });
+    const res = await fetch(quoteUrl, { headers, next: { revalidate: isShort ? 10 : 60 } });
     if (!res.ok) throw new Error('Yahoo Finance HTTP ' + res.status);
 
     const json = await res.json();
@@ -28,19 +45,19 @@ async function fetchGoldData() {
     if (!quotes || !timestamps) throw new Error("Narx ma'lumotlari topilmadi");
 
     const len = timestamps.length;
+    const candleCount = isShort ? 24 : 24; // 24 ta 5m (oxirgi 2 soat) yoki 24 ta 1h (oxirgi 24 soat)
 
-    // So'nggi 24 soatlik (1h) shamollar
-    const recentDays: { date: string; open: string; high: string; low: string; close: string }[] = [];
-    for (let i = Math.max(0, len - 24); i < len; i++) {
+    const recentCandles: { date: string; open: string; high: string; low: string; close: string }[] = [];
+    for (let i = Math.max(0, len - candleCount); i < len; i++) {
       if (quotes.close[i] == null) continue;
       const dt = new Date(timestamps[i] * 1000);
-      const dateStr = dt.toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
-      recentDays.push({
+      const dateStr = dt.toISOString().replace('T', ' ').slice(11, 16) + ' UTC';
+      recentCandles.push({
         date: dateStr,
-        open: (quotes.open[i] ?? 0).toFixed(2),
-        high: (quotes.high[i] ?? 0).toFixed(2),
-        low: (quotes.low[i] ?? 0).toFixed(2),
-        close: (quotes.close[i] ?? 0).toFixed(2),
+        open: Number(quotes.open[i] ?? 0).toFixed(meta.priceHint || 2),
+        high: Number(quotes.high[i] ?? 0).toFixed(meta.priceHint || 2),
+        low: Number(quotes.low[i] ?? 0).toFixed(meta.priceHint || 2),
+        close: Number(quotes.close[i] ?? 0).toFixed(meta.priceHint || 2),
       });
     }
 
@@ -48,20 +65,22 @@ async function fetchGoldData() {
     const highs = (quotes.high as (number | null)[]).filter((h) => h !== null) as number[];
     const lows = (quotes.low as (number | null)[]).filter((l) => l !== null) as number[];
 
-    const maxHigh = Math.max(...highs).toFixed(2);
-    const minLow = Math.min(...lows).toFixed(2);
+    const maxHigh = highs.length ? Math.max(...highs).toFixed(meta.priceHint || 2) : 'N/A';
+    const minLow = lows.length ? Math.min(...lows).toFixed(meta.priceHint || 2) : 'N/A';
 
-    // SMA20 — so'nggi 20 soatlik shamol
+    // SMA20
     const last20 = closes.slice(-20);
-    const sma20 = last20.length > 0
-      ? (last20.reduce((a, b) => a + b, 0) / last20.length).toFixed(2)
-      : null;
+    const sma20 =
+      last20.length > 0
+        ? (last20.reduce((a, b) => a + b, 0) / last20.length).toFixed(meta.priceHint || 2)
+        : null;
 
-    // SMA50 — so'nggi 50 soatlik shamol
+    // SMA50
     const last50 = closes.slice(-50);
-    const sma50 = last50.length >= 20
-      ? (last50.reduce((a, b) => a + b, 0) / last50.length).toFixed(2)
-      : null;
+    const sma50 =
+      last50.length >= 20
+        ? (last50.reduce((a, b) => a + b, 0) / last50.length).toFixed(meta.priceHint || 2)
+        : null;
 
     // RSI14
     let rsi14: string | null = null;
@@ -80,17 +99,18 @@ async function fetchGoldData() {
 
     return {
       symbol: meta.symbol,
-      currentPrice: meta.regularMarketPrice != null ? (meta.regularMarketPrice as number).toFixed(2) : 'N/A',
-      previousClose: meta.previousClose != null ? (meta.previousClose as number).toFixed(2) : 'N/A',
+      interval,
+      currentPrice: meta.regularMarketPrice != null ? Number(meta.regularMarketPrice).toFixed(meta.priceHint || 2) : 'N/A',
+      previousClose: meta.previousClose != null ? Number(meta.previousClose).toFixed(meta.priceHint || 2) : 'N/A',
       currency: meta.currency ?? 'USD',
-      regularMarketDayHigh: meta.regularMarketDayHigh != null ? (meta.regularMarketDayHigh as number).toFixed(2) : 'N/A',
-      regularMarketDayLow: meta.regularMarketDayLow != null ? (meta.regularMarketDayLow as number).toFixed(2) : 'N/A',
-      fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh != null ? (meta.fiftyTwoWeekHigh as number).toFixed(2) : maxHigh,
-      fiftyTwoWeekLow: meta.fiftyTwoWeekLow != null ? (meta.fiftyTwoWeekLow as number).toFixed(2) : minLow,
+      regularMarketDayHigh: meta.regularMarketDayHigh != null ? Number(meta.regularMarketDayHigh).toFixed(meta.priceHint || 2) : 'N/A',
+      regularMarketDayLow: meta.regularMarketDayLow != null ? Number(meta.regularMarketDayLow).toFixed(meta.priceHint || 2) : 'N/A',
+      periodHigh: maxHigh,
+      periodLow: minLow,
       sma20,
       sma50,
       rsi14,
-      recentDays,
+      recentCandles,
     };
   } catch (err) {
     console.error('Yahoo Finance xatolik:', err);
@@ -113,36 +133,40 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const calcContext = (formData.get('calcContext') as string) || '';
     const termMode = (formData.get('termMode') as string) || 'short'; // 'short' | 'long' | 'both'
+    const assetSymbol = (formData.get('assetSymbol') as string) || 'XAUUSD';
+    const assetName = (formData.get('assetName') as string) || 'Gold';
+    const timeframe = (formData.get('timeframe') as string) || (termMode === 'short' ? '5m' : '1h');
 
-    const goldData = await fetchGoldData();
+    const marketData = await fetchMarketData(assetSymbol, termMode);
 
     let marketDataText = '';
-    if (goldData) {
-      const recentTable = goldData.recentDays
+    if (marketData) {
+      const recentTable = marketData.recentCandles
         .map((d) => '  ' + d.date + ': O=' + d.open + ' H=' + d.high + ' L=' + d.low + ' C=' + d.close)
         .join('\n');
 
+      const intervalLabel = marketData.interval === '5m' ? '5 DAQIQALIK (5M)' : '1 SOATLIK (1H)';
+
       marketDataText =
-        "📊 COMEX OLTIN (GC=F / XAU/USD) - REAL SOATLIK MA'LUMOTLAR\n" +
-        'TradingView: https://www.tradingview.com/chart/mmKqMW9C/?symbol=COMEX%3AGC1%21\n' +
+        `📊 ${assetName.toUpperCase()} (${assetSymbol}) - REAL BAZAR MA'LUMOTLARI (${intervalLabel})\n` +
         '===========================================================\n' +
-        'Joriy narx      : ' + goldData.currentPrice + ' ' + goldData.currency + '\n' +
-        'Oldingi yopish  : ' + goldData.previousClose + '\n' +
-        'Kunlik HIGH     : ' + goldData.regularMarketDayHigh + '\n' +
-        'Kunlik LOW      : ' + goldData.regularMarketDayLow + '\n' +
-        '52h MAX         : ' + goldData.fiftyTwoWeekHigh + '\n' +
-        '52h MIN         : ' + goldData.fiftyTwoWeekLow + '\n' +
-        'SMA 20 (soatlik): ' + (goldData.sma20 ?? 'N/A') + '\n' +
-        'SMA 50 (soatlik): ' + (goldData.sma50 ?? 'N/A') + '\n' +
-        'RSI 14 (soatlik): ' + (goldData.rsi14 ?? 'N/A') + '\n\n' +
-        "So'nggi 24 soat (1H) OHLC shamollari:\n" +
+        'Joriy narx          : ' + marketData.currentPrice + ' ' + marketData.currency + '\n' +
+        'Oldingi yopilish    : ' + marketData.previousClose + '\n' +
+        'Kunlik HIGH         : ' + marketData.regularMarketDayHigh + '\n' +
+        'Kunlik LOW          : ' + marketData.regularMarketDayLow + '\n' +
+        `Oraliq MAX (${marketData.interval}) : ` + marketData.periodHigh + '\n' +
+        `Oraliq MIN (${marketData.interval}) : ` + marketData.periodLow + '\n' +
+        `SMA 20 (${marketData.interval})    : ` + (marketData.sma20 ?? 'N/A') + '\n' +
+        `SMA 50 (${marketData.interval})    : ` + (marketData.sma50 ?? 'N/A') + '\n' +
+        `RSI 14 (${marketData.interval})    : ` + (marketData.rsi14 ?? 'N/A') + '\n\n' +
+        `So'nggi ${marketData.recentCandles.length} ta (${marketData.interval}) OHLC shamollari:\n` +
         recentTable;
     } else {
-      marketDataText = "⚠️ Real bozor ma'lumotlari olinmadi. Umumiy tahlil amalga oshiriladi.";
+      marketDataText = `⚠️ Real bozor ma'lumotlari to'liq olinmadi. Instrument: ${assetName} (${assetSymbol}), Vaqt oralig'i: ${timeframe}.`;
     }
 
     if (calcContext) {
-      marketDataText += '\n\n📋 JORIY INSTRUMENT VA KALKULYATOR NATIJALARI:\n' + calcContext;
+      marketDataText += '\n\n📋 FOYDALANUVCHI SOZLAMALARI VA KALKULYATOR KONTEKSTI:\n' + calcContext;
     }
 
     let systemPrompt = '';
@@ -150,50 +174,58 @@ export async function POST(req: NextRequest) {
 
     if (termMode === 'short') {
       systemPrompt =
-        "Siz professional SCALPER treydersiz (SMC, ICT, Price Action mutaxassisi).\n" +
-        "Sizning vazifangiz — FAQAT QISQA MUDDATLI (1 — 15 DAQIQA: 1m, 5m, 15m oraliqlari) bo'yicha aniq, o'ta tezkor va yuqori ehtimolli SCALP savdo signalini berish.\n\n" +
-        "QISQA MUDDATLI (1-15m) TAHLIL TALABLARI:\n" +
-        "1. ⚡ 1m, 5m va 15m oraliqlaridagi joriy momentum, mikro-trend va narx reaksiyasi\n" +
-        "2. 🧲 Eng yaqin likvidlik olinishi (Liquidity Sweep) va 1-15m FVG / Order Block zonalari\n" +
-        "3. 🎯 ANIQ TEZKOR KIRISH REJASI (O'zbek tilida):\n" +
-        "   - Yo'nalish: BUY yoki SELL\n" +
-        "   - Entry (Kirish narxi): aniq raqam (masalan: Entry: 2652.40)\n" +
-        "   - Stop Loss (SL): qisqa va qat'iy scalping SL (masalan: Stop Loss: 2647.50)\n" +
-        "   - Take Profit 1 (TP1): 1-15 daqiqalik tezkor birinchi maqsad\n" +
-        "   - Take Profit 2 (TP2): asosiy qisqa muddatli maqsad\n" +
-        "   - Take Profit 3 (TP3): kengaytirilgan scalp maqsad\n" +
-        "   - R:R nisbati va 1-15m bo'yicha kirish sababi\n" +
-        "4. ⚠️ 1-15 daqiqalik tezkor risklar va spread e'tibori\n\n" +
-        "Javobni aniq, qisqa va tushunarli qilib O'ZBEK TILIDA bering. Aniq narxlarni ko'rsating!";
+        `Siz professional ULTRA-QISQA MUDDATLI SCALPER treydersiz (SMC, ICT, Liquidity Sweep, 1m-5m-15m Price Action mutaxassisi).\n` +
+        `Sizning vazifangiz — FAQAT QISQA MUDDATLI SCALPING (1 — 15 DAQIQA oralig'idagi tezkor kirish) bo'yicha signal berish.\n\n` +
+        `⚠️ O'TA MUHIM SCALPING QOIDALARI:\n` +
+        `1. STOP LOSS (SL) O'TA QISQA VA QAT'IY BO'LISHI SHART:\n` +
+        `   - Oltin (XAU/USD) uchun: SL maksimal 1.5$ - 3.5$ masofada bo'lsin (masalan: Entry 2650.00 bo'lsa, SL 2647.50 dan oshmasin). Hech qachon 10-30 dollarlik ulkan stop loss bermang!\n` +
+        `   - Valyutalar (EUR/USD, GBP/USD) uchun: SL maksimal 6 - 12 pip bo'lsin.\n` +
+        `   - Kripto (BTC, ETH) uchun: SL 0.3% - 0.7% dan oshmasin.\n` +
+        `   - Indekslar (US100, US30) uchun: SL 15 - 35 punkt bo'lsin.\n` +
+        `2. TAKE PROFIT (TP) TEZKOR MAQSADLAR:\n` +
+        `   - TP1: 1-5 daqiqalik tezkor birinchi scalp nishon (R:R 1:1 yoki 1:1.5)\n` +
+        `   - TP2: 5-15 daqiqalik asosiy scalp nishon (R:R 1:2 yoki 1:2.5)\n` +
+        `   - TP3: Mikro-likvidlik zonasigacha kengaytirilgan nishon (R:R 1:3)\n` +
+        `3. ENTRY (KIRISH):\n` +
+        `   - Joriy narx atrofida yoki eng yaqin 1m/5m FVG / Order Block / Sweep darajasida bo'lsin. Uzoq kutishni talab qiladigan daraja bo'lmasin!\n` +
+        `4. SIGNAL FORMATI (Qat'iy quyidagi formatda ko'rsatilsin):\n` +
+        `   Instrument: ${assetName} (${assetSymbol})\n` +
+        `   Yo'nalish: BUY yoki SELL\n` +
+        `   Entry: [aniq narx, masalan: 2650.20]\n` +
+        `   Stop Loss: [qisqa scalp SL, masalan: 2647.70]\n` +
+        `   TP1: [tezkor nishon]\n` +
+        `   TP2: [asosiy nishon]\n` +
+        `   TP3: [maksimal nishon]\n\n` +
+        `Tahlilni o'zbek tilida, qisqa, professional va tezkor harakatga yo'naltirilgan tarzda bering.`;
 
       userMessage =
         marketDataText +
-        "\n\nIltimos, ushbu ma'lumotlar asosida FAQAT QISQA MUDDATLI (1 — 15 daqiqa: 1m-15m) scalping signali va tahlilini bering.";
+        `\n\nIltimos, ushbu 5m ma'lumotlar va joriy mikro-struktura asosida FAQAT QISQA MUDDATLI (1 — 15 daqiqa: 1m/5m/15m) SCALPING signali va tezkor tahlilini bering. Stop Loss va TP larni scalping qoidalariga mos ravishda qisqa bering.`;
     } else if (termMode === 'long') {
       systemPrompt =
-        "Siz professional INTRADAY va DAY TRADING treydersiz (1 — 4 soatlik oraliqlar tahlilchisi).\n" +
-        "Sizning vazifangiz — FAQAT UZOQ MUDDATLI (1 — 4 SOAT: 1h, 4h oraliqlari) bo'yicha mustahkam oraliq tahlili va kunlik maqsadlarni aniqlash.\n\n" +
-        "UZOQ MUDDATLI (1-4 SOAT) TAHLIL TALABLARI:\n" +
-        "1. 📈 1 Soatlik (1H) va 4 Soatlik (4H) asosiy trend yo'nalishi (Bullish / Bearish)\n" +
-        "2. 🏛️ 1-4 soatlik kuchli Support va Resistance zonalari, Psixologik narx darajalari\n" +
-        "3. 🎯 ANIQ 1-4 SOATLIK REJA (O'zbek tilida):\n" +
-        "   - Yo'nalish: BUY yoki SELL\n" +
-        "   - Entry (Kirish zonasi): aniq narx (masalan: Entry: 2642.00)\n" +
-        "   - Stop Loss (SL): 1-4 soatlik himoyalangan SL (masalan: Stop Loss: 2628.00)\n" +
-        "   - Take Profit 1 (TP1): 1-4 soatlik 1-asosiy maqsad\n" +
-        "   - Take Profit 2 (TP2): kengaytirilgan kunlik maqsad\n" +
-        "   - Take Profit 3 (TP3): 4 soatlik maksimal maqsad\n" +
-        "4. 🌍 1-4 soatlik sessiyalar (London/NY) va iqtisodiy yangiliklar ta'siri\n\n" +
-        "Javobni O'ZBEK TILIDA, aniq narx darajalari va batafsil tushuntirish bilan bering!";
+        `Siz professional INTRADAY va SWING treydersiz (1 — 4 soatlik oraliqlar tahlilchisi).\n` +
+        `Sizning vazifangiz — UZOQ MUDDATLI (1 — 4 SOAT: 1h, 4h oraliqlari) bo'yicha mustahkam oraliq tahlili va kunlik maqsadlarni aniqlash.\n\n` +
+        `UZOQ MUDDATLI (1-4 SOAT) TAHLIL TALABLARI:\n` +
+        `1. 📈 1H va 4H asosiy trend yo'nalishi va struktura\n` +
+        `2. 🏛️ Katta H1/H4 Support va Resistance, Daily Liquidity zonalari\n` +
+        `3. 🎯 ANIQ 1-4 SOATLIK REJA:\n` +
+        `   - Yo'nalish: BUY yoki SELL\n` +
+        `   - Entry: [aniq narx]\n` +
+        `   - Stop Loss: [H1/H4 himoyalangan SL]\n` +
+        `   - TP1: [1-4 soatlik 1-maqsad]\n` +
+        `   - TP2: [kunlik asosiy maqsad]\n` +
+        `   - TP3: [kengaytirilgan 4h maqsad]\n` +
+        `4. London / New York sessiyalari ta'siri.\n\n` +
+        `Javobni O'ZBEK TILIDA, aniq narx darajalari bilan bering!`;
 
       userMessage =
         marketDataText +
-        "\n\nIltimos, ushbu ma'lumotlar asosida FAQAT UZOQ MUDDATLI (1 — 4 soat: 1h-4h) strategiya va maqsadli signallarni bering.";
+        `\n\nIltimos, ushbu 1H ma'lumotlar asosida FAQAT UZOQ MUDDATLI (1 — 4 soat: 1h-4h) strategiya va signallarni bering.`;
     } else {
       systemPrompt =
-        "Siz COMEX oltini va moliyaviy bozorlar bo'yicha professional tahlilchisiz.\n" +
-        "Qisqa (1-15m) va Uzoq (1-4 soat) muddatli tahlilni O'ZBEK TILIDA bering. Aniq Entry, Stop Loss, TP1, TP2, TP3 darajalarini ko'rsating.";
-      userMessage = marketDataText + "\n\nQisqa (1-15m) va uzoq (1-4 soat) muddatli bozor tahlilini bering.";
+        `Siz moliyaviy bozorlar bo'yicha professional tahlilchisiz.\n` +
+        `Qisqa (1-15m) va Uzoq (1-4 soat) muddatli tahlilni O'ZBEK TILIDA bering. Aniq Entry, Stop Loss, TP1, TP2, TP3 darajalarini ko'rsating.`;
+      userMessage = marketDataText + `\n\nQisqa (1-15m) va uzoq (1-4 soat) muddatli bozor tahlilini bering.`;
     }
 
     const encoder = new TextEncoder();
@@ -203,7 +235,7 @@ export async function POST(req: NextRequest) {
           const claudeStream = await anthropic.messages.stream({
             model: 'claude-opus-4-5',
             max_tokens: 4096,
-            temperature: 1,
+            temperature: 0.7,
             system: systemPrompt,
             messages: [{ role: 'user', content: userMessage }],
             thinking: { type: 'disabled' },
@@ -245,3 +277,4 @@ export async function POST(req: NextRequest) {
     });
   }
 }
+

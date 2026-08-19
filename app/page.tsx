@@ -375,13 +375,16 @@ function AIAnalysisPanel({
     setMarketError(null);
 
     const form = new FormData();
+    form.append('assetSymbol', asset.symbol || 'XAUUSD');
+    form.append('assetName', asset.name || 'Gold');
+    form.append('timeframe', timeframe || '5m');
+    form.append('termMode', term);
     form.append(
       'calcContext',
       `Instrument: ${asset.name} (${asset.symbol})\nVaqt oralig'i: ${timeframe}\nTahlil turi: ${
         term === 'short' ? 'Qisqa muddatli (Scalp: 1-15 daqiqa)' : 'Uzoq muddatli (Intraday: 1-4 soat)'
       }\n` + calcContext
     );
-    form.append('termMode', term);
 
     try {
       const res = await fetch('/api/market-analyze', { method: 'POST', body: form });
