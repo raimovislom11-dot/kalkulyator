@@ -4,44 +4,76 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { chatStore, tradesStore, computeAnalytics, settingsStore } from '../../lib/store';
 import type { ChatSession, ChatMessage, Trade } from '../../lib/types';
 
-// ─── Minimal markdown ─────────────────────────────────────────────────────────
+// ─── Markdown renderer ────────────────────────────────────────────────────────
 function MdText({ content }: { content: string }) {
   const html = content
-    .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em class="text-[#aaa]">$1</em>')
-    .replace(/`(.+?)`/g, '<code class="bg-[#111] text-[#ccc] px-1 py-0.5 rounded text-xs font-mono border border-[#1f1f1f]">$1</code>')
-    .replace(/^### (.+)$/gm, '<div class="text-white font-semibold text-sm mt-3 mb-1">$1</div>')
-    .replace(/^## (.+)$/gm, '<div class="text-white font-semibold mt-3 mb-1">$1</div>')
-    .replace(/^# (.+)$/gm, '<div class="text-white font-semibold text-base mt-3 mb-2">$1</div>')
-    .replace(/^- (.+)$/gm, '<div class="ml-3 text-[#888] text-sm">· $1</div>')
-    .replace(/\n\n/g, '<div class="h-3"></div>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong style="color:white;font-weight:600">$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em style="color:rgba(255,255,255,0.7)">$1</em>')
+    .replace(/`(.+?)`/g, '<code style="background:rgba(99,102,241,0.12);color:#a5b4fc;padding:1px 6px;border-radius:4px;font-size:12px;font-family:monospace;border:1px solid rgba(99,102,241,0.2)">$1</code>')
+    .replace(/^### (.+)$/gm, '<div style="color:white;font-weight:600;font-size:13px;margin-top:12px;margin-bottom:4px">$1</div>')
+    .replace(/^## (.+)$/gm, '<div style="color:white;font-weight:700;margin-top:12px;margin-bottom:4px">$1</div>')
+    .replace(/^# (.+)$/gm, '<div style="color:white;font-weight:700;font-size:15px;margin-top:16px;margin-bottom:6px">$1</div>')
+    .replace(/^- (.+)$/gm, '<div style="margin-left:12px;color:rgba(255,255,255,0.6);font-size:13px;line-height:1.6">· $1</div>')
+    .replace(/\n\n/g, '<div style="height:10px"></div>')
     .replace(/\n/g, '<br/>');
-  return <div className="text-[#888] text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: html }} />;
+  return (
+    <div
+      className="text-sm leading-relaxed"
+      style={{ color: 'rgba(255,255,255,0.6)' }}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
 }
 
-// ─── Message ──────────────────────────────────────────────────────────────────
+// ─── Message bubble ───────────────────────────────────────────────────────────
 function Msg({ msg, streaming }: { msg: ChatMessage; streaming?: boolean }) {
   const isUser = msg.role === 'user';
   return (
-    <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`}>
-      <div className={`w-6 h-6 rounded flex-shrink-0 flex items-center justify-center text-[10px] font-mono border ${
-        isUser ? 'border-[#2a2a2a] text-[#555] bg-[#0f0f0f]' : 'border-[#1f1f1f] text-[#444] bg-black'
-      }`}>
+    <article className={`flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`}>
+      <div
+        className="w-7 h-7 rounded-xl flex-shrink-0 flex items-center justify-center text-[10px] font-bold"
+        style={
+          isUser
+            ? { background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: 'white' }
+            : { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }
+        }
+        aria-hidden="true"
+      >
         {isUser ? 'U' : 'AI'}
       </div>
-      <div className={`max-w-[80%] rounded-lg px-4 py-3 border text-sm ${
-        isUser ? 'bg-[#0f0f0f] border-[#1f1f1f] text-white ml-auto' : 'bg-black border-[#1a1a1a]'
-      }`}>
+      <div
+        className="max-w-[80%] rounded-2xl px-4 py-3"
+        style={
+          isUser
+            ? {
+                background: 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.15))',
+                border: '1px solid rgba(99,102,241,0.25)',
+              }
+            : {
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.07)',
+              }
+        }
+      >
         {isUser
           ? <p className="text-white text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
           : <MdText content={msg.content} />
         }
-        {streaming && <span className="inline-block w-1 h-3.5 bg-[#444] animate-pulse ml-0.5 align-middle" />}
-        <div className="text-[#2a2a2a] text-[10px] mt-2 font-mono">
+        {streaming && (
+          <span
+            className="inline-block w-1 h-3.5 rounded-full animate-pulse ml-0.5 align-middle"
+            style={{ background: '#818cf8' }}
+          />
+        )}
+        <time
+          className="block text-[10px] mt-2 font-mono"
+          style={{ color: 'rgba(255,255,255,0.2)' }}
+          dateTime={msg.timestamp}
+        >
           {new Date(msg.timestamp).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
-        </div>
+        </time>
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -50,21 +82,47 @@ function SessionItem({ s, active, onSelect, onDelete }: {
   s: ChatSession; active: boolean; onSelect: () => void; onDelete: () => void;
 }) {
   return (
-    <div onClick={onSelect}
-      className={`group flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer transition-colors ${
-        active ? 'bg-white text-black' : 'hover:bg-[#0f0f0f] text-[#666]'
-      }`}>
-      <div className="flex-1 min-w-0">
-        <div className={`text-xs font-medium truncate ${active ? 'text-black' : 'text-[#888]'}`}>{s.title}</div>
-        <div className={`text-[10px] mt-0.5 ${active ? 'text-[#555]' : 'text-[#333]'}`}>
-          {s.messages.length} msgs
+    <li>
+      <button
+        type="button"
+        onClick={onSelect}
+        className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-200 text-left group"
+        style={
+          active
+            ? {
+                background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.1))',
+                border: '1px solid rgba(99,102,241,0.2)',
+                color: 'white',
+              }
+            : {
+                background: 'transparent',
+                border: '1px solid transparent',
+                color: 'rgba(255,255,255,0.4)',
+              }
+        }
+        aria-pressed={active}
+      >
+        <div className="flex-1 min-w-0 text-left">
+          <div className="text-xs font-semibold truncate" style={{ color: active ? 'white' : 'rgba(255,255,255,0.6)' }}>
+            {s.title}
+          </div>
+          <div className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.25)' }}>
+            {s.messages.length} messages
+          </div>
         </div>
-      </div>
-      <button onClick={e => { e.stopPropagation(); onDelete(); }}
-        className={`opacity-0 group-hover:opacity-100 text-[10px] transition-all ${active ? 'text-[#555] hover:text-black' : 'text-[#333] hover:text-[#666]'}`}>
-        ✕
+        <button
+          type="button"
+          onClick={e => { e.stopPropagation(); onDelete(); }}
+          className="opacity-0 group-hover:opacity-100 p-1 rounded-lg transition-all hover:bg-white/5"
+          style={{ color: 'rgba(255,255,255,0.3)' }}
+          aria-label="Delete session"
+        >
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
       </button>
-    </div>
+    </li>
   );
 }
 
@@ -128,7 +186,9 @@ export default function ChatPage() {
     const trades: Trade[] = tradesStore.getAll();
     const s = settingsStore.get();
     const a = computeAnalytics(trades, s.deposit);
-    const context = trades.length > 0 ? `Deposit: ${s.deposit}$, Risk: ${s.riskPercentage}%\nWin Rate: ${a.winRate.toFixed(1)}%, Trades: ${a.totalTrades}, P&L: ${a.totalProfitUSD}$` : '';
+    const context = trades.length > 0
+      ? `Deposit: ${s.deposit}$, Risk: ${s.riskPercentage}%\nWin Rate: ${a.winRate.toFixed(1)}%, Trades: ${a.totalTrades}, P&L: ${a.totalProfitUSD}$`
+      : '';
 
     const history = (sessions.find(ses => ses.id === sid)?.messages ?? [])
       .concat([{ id: '', role: 'user' as const, content: text, timestamp: new Date().toISOString() }])
@@ -158,95 +218,207 @@ export default function ChatPage() {
           if (!line.startsWith('data: ')) continue;
           const p = line.slice(6).trim();
           if (p === '[DONE]') { done = true; break; }
-          try { const parsed = JSON.parse(p); if (parsed.text) { content += parsed.text; setStreaming(content); } if (parsed.error) { setError(parsed.error); done = true; } } catch { /* skip */ }
+          try {
+            const parsed = JSON.parse(p);
+            if (parsed.text) { content += parsed.text; setStreaming(content); }
+            if (parsed.error) { setError(parsed.error); done = true; }
+          } catch { /* skip */ }
         }
       }
-    } catch (e) { setError(e instanceof Error ? e.message : 'Connection error'); }
-    finally {
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Connection error');
+    } finally {
       if (content && sid) { chatStore.addMessage(sid, { role: 'assistant', content }); loadSessions(); }
       setLoading(false); setStreaming('');
     }
   };
 
-  if (!mounted) return (
-    <div className="flex items-center justify-center h-64">
-      <div className="w-5 h-5 border border-[#333] border-t-white rounded-full animate-spin" />
-    </div>
-  );
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div
+          className="w-8 h-8 rounded-full border-2 border-transparent animate-spin"
+          style={{ borderTopColor: '#818cf8', borderRightColor: '#818cf8' }}
+          role="status"
+          aria-label="Loading..."
+        />
+      </div>
+    );
+  }
 
   const msgs = active?.messages ?? [];
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex gap-3">
-      {/* Sidebar */}
-      <div className={`${sidebar ? 'w-56 flex-shrink-0' : 'w-0 overflow-hidden'} transition-all duration-200 flex flex-col`}>
-        <div className="flex flex-col h-full border border-[#1f1f1f] rounded-lg overflow-hidden">
-          <div className="p-2 border-b border-[#1f1f1f]">
-            <button onClick={newSession}
-              className="w-full py-2 bg-white text-black text-xs font-medium rounded-md hover:bg-[#e0e0e0] transition-colors">
+    <div className="h-[calc(100vh-9rem)] flex gap-4">
+      {/* Sessions sidebar */}
+      <aside
+        className={`${sidebar ? 'w-56 flex-shrink-0' : 'w-0 overflow-hidden'} transition-all duration-300 flex flex-col`}
+        aria-label="Chat sessions"
+      >
+        <div
+          className="flex flex-col h-full rounded-2xl overflow-hidden"
+          style={{
+            background: 'rgba(255,255,255,0.02)',
+            border: '1px solid rgba(255,255,255,0.07)',
+          }}
+        >
+          <div className="p-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <button
+              type="button"
+              onClick={newSession}
+              className="w-full py-2.5 rounded-xl text-sm font-bold transition-all duration-200 hover:scale-[1.02]"
+              style={{
+                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                boxShadow: '0 4px 12px rgba(99,102,241,0.3)',
+                color: 'white',
+              }}
+            >
               + New chat
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto p-1.5 space-y-0.5">
-            {sessions.length === 0 && <div className="text-[#333] text-xs text-center py-6">No sessions</div>}
-            {sessions.map(s => (
-              <SessionItem key={s.id} s={s} active={s.id === activeId}
-                onSelect={() => { setActiveId(s.id); chatStore.setActiveSession(s.id); }}
-                onDelete={() => { chatStore.deleteSession(s.id); loadSessions(); }} />
-            ))}
+          <div className="flex-1 overflow-y-auto p-2" style={{ scrollbarWidth: 'none' }}>
+            {sessions.length === 0 && (
+              <p className="text-center py-6 text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>
+                No sessions yet
+              </p>
+            )}
+            <ul className="space-y-0.5">
+              {sessions.map(s => (
+                <SessionItem
+                  key={s.id}
+                  s={s}
+                  active={s.id === activeId}
+                  onSelect={() => { setActiveId(s.id); chatStore.setActiveSession(s.id); }}
+                  onDelete={() => { chatStore.deleteSession(s.id); loadSessions(); }}
+                />
+              ))}
+            </ul>
           </div>
           {sessions.length > 0 && (
-            <div className="p-2 border-t border-[#111]">
-              <button onClick={() => { if (confirm('Clear all?')) { chatStore.clearAll(); loadSessions(); setActiveId(null); } }}
-                className="w-full py-1.5 text-[#333] hover:text-[#666] text-xs transition-colors">
-                Clear all
+            <div className="p-2" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+              <button
+                type="button"
+                onClick={() => { if (confirm('Clear all?')) { chatStore.clearAll(); loadSessions(); setActiveId(null); } }}
+                className="w-full py-2 rounded-xl text-xs font-medium transition-all duration-200"
+                style={{ color: 'rgba(248,113,113,0.5)' }}
+              >
+                Clear all sessions
               </button>
             </div>
           )}
         </div>
-      </div>
+      </aside>
 
-      {/* Chat */}
-      <div className="flex-1 flex flex-col border border-[#1f1f1f] rounded-lg overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center gap-3 px-4 h-12 border-b border-[#1f1f1f] flex-shrink-0">
-          <button onClick={() => setSidebar(v => !v)} className="text-[#333] hover:text-white transition-colors text-xs">
-            {sidebar ? '◀' : '▶'}
+      {/* Chat area */}
+      <div
+        className="flex-1 flex flex-col rounded-2xl overflow-hidden"
+        style={{
+          background: 'rgba(255,255,255,0.02)',
+          border: '1px solid rgba(255,255,255,0.07)',
+        }}
+      >
+        {/* Chat header */}
+        <header
+          className="flex items-center gap-3 px-4 h-14 flex-shrink-0"
+          style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+        >
+          <button
+            type="button"
+            onClick={() => setSidebar(v => !v)}
+            className="p-1.5 rounded-lg transition-colors hover:bg-white/5"
+            style={{ color: 'rgba(255,255,255,0.3)' }}
+            aria-label={sidebar ? 'Collapse session sidebar' : 'Expand session sidebar'}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+              {sidebar ? <path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"/> : <path d="M13 17l5-5-5-5M6 17l5-5-5-5"/>}
+            </svg>
           </button>
-          <div className="w-5 h-5 border border-[#2a2a2a] rounded flex items-center justify-center">
-            <span className="text-[#555] text-[9px] font-mono">AI</span>
-          </div>
-          <div className="text-sm font-medium text-white">Claude</div>
-          <div className="text-[#333] text-xs">{active ? `${msgs.length} messages` : 'No session'}</div>
-          <div className="ml-auto flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#333] bg-white" />
-            <span className="text-[#444] text-[10px]">online</span>
-          </div>
-        </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4"
-          style={{ scrollbarWidth: 'thin', scrollbarColor: '#1f1f1f transparent' }}>
+          <div
+            className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.15))', border: '1px solid rgba(99,102,241,0.2)' }}
+            aria-hidden="true"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </div>
+
+          <div>
+            <div className="text-sm font-bold text-white">Claude AI</div>
+            <div className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
+              {active ? `${msgs.length} messages` : 'No active session'}
+            </div>
+          </div>
+
+          <div className="ml-auto flex items-center gap-1.5">
+            <span
+              className="w-2 h-2 rounded-full animate-pulse"
+              style={{ background: '#22c55e', boxShadow: '0 0 6px rgba(34,197,94,0.7)' }}
+              aria-hidden="true"
+            />
+            <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.35)' }}>online</span>
+          </div>
+        </header>
+
+        {/* Messages area */}
+        <div
+          className="flex-1 overflow-y-auto p-5 space-y-5"
+          style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.08) transparent' }}
+          role="log"
+          aria-live="polite"
+          aria-label="Chat messages"
+        >
           {!active ? (
             <div className="h-full flex flex-col items-center justify-center text-center">
-              <div className="w-10 h-10 border border-[#1f1f1f] rounded-lg flex items-center justify-center mb-4">
-                <span className="text-[#333] text-sm font-mono">AI</span>
+              <div
+                className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.1))',
+                  border: '1px solid rgba(99,102,241,0.2)',
+                }}
+                aria-hidden="true"
+              >
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
               </div>
-              <div className="text-white text-sm font-medium mb-1">AI Chat with history</div>
-              <div className="text-[#444] text-xs max-w-xs">Ask questions about XAU/USD trading, analyze strategies, attach chart screenshots</div>
-              <button onClick={newSession}
-                className="mt-6 px-5 py-2.5 bg-white text-black text-sm font-medium rounded-md hover:bg-[#e0e0e0] transition-colors">
+              <h2 className="text-white text-base font-bold mb-2">AI Chat with history</h2>
+              <p className="text-sm mb-8 max-w-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                Ask questions about XAU/USD trading, analyze strategies, attach chart screenshots
+              </p>
+              <button
+                type="button"
+                onClick={newSession}
+                className="px-6 py-3 rounded-xl text-sm font-bold transition-all duration-200 hover:scale-105"
+                style={{
+                  background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                  boxShadow: '0 4px 14px rgba(99,102,241,0.35)',
+                  color: 'white',
+                }}
+              >
                 Start chat
               </button>
             </div>
           ) : msgs.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center">
-              <div className="text-white text-sm font-medium mb-1">New conversation</div>
-              <div className="text-[#444] text-xs mb-6">Ask a question or attach a chart</div>
+              <h2 className="text-white text-sm font-bold mb-2">New conversation</h2>
+              <p className="text-xs mb-6" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                Ask a question or attach a chart screenshot
+              </p>
               <div className="space-y-2 w-full max-w-xs">
                 {['Analyze my Win Rate', 'Explain Order Block strategy', 'How to improve risk management?'].map(q => (
-                  <button key={q} onClick={() => setInput(q)}
-                    className="w-full text-left px-4 py-2.5 border border-[#1f1f1f] rounded-md text-[#555] text-xs hover:text-white hover:border-[#333] transition-colors">
+                  <button
+                    key={q}
+                    type="button"
+                    onClick={() => setInput(q)}
+                    className="w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 hover:border-indigo-400/40"
+                    style={{
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid rgba(255,255,255,0.07)',
+                      color: 'rgba(255,255,255,0.5)',
+                    }}
+                  >
                     {q}
                   </button>
                 ))}
@@ -255,25 +427,49 @@ export default function ChatPage() {
           ) : (
             <>
               {msgs.map((m, i) => (
-                <Msg key={m.id} msg={m}
-                  streaming={loading && i === msgs.length - 1 && m.role === 'user' && !streaming} />
+                <Msg
+                  key={m.id}
+                  msg={m}
+                  streaming={loading && i === msgs.length - 1 && m.role === 'user' && !streaming}
+                />
               ))}
               {loading && streaming && (
                 <Msg msg={{ id: 's', role: 'assistant', content: streaming, timestamp: new Date().toISOString() }} streaming />
               )}
               {loading && !streaming && (
                 <div className="flex gap-3">
-                  <div className="w-6 h-6 border border-[#1f1f1f] rounded flex items-center justify-center text-[10px] font-mono text-[#444]">AI</div>
-                  <div className="border border-[#1a1a1a] rounded-lg px-4 py-3 flex gap-1.5">
+                  <div
+                    className="w-7 h-7 rounded-xl flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}
+                    aria-hidden="true"
+                  >
+                    AI
+                  </div>
+                  <div
+                    className="rounded-2xl px-4 py-3 flex gap-1.5 items-center"
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
+                    role="status"
+                    aria-label="AI is typing..."
+                  >
                     {[0, 1, 2].map(i => (
-                      <div key={i} className="w-1 h-1 rounded-full bg-[#333] animate-bounce"
-                        style={{ animationDelay: `${i * 0.15}s` }} />
+                      <div
+                        key={i}
+                        className="w-1.5 h-1.5 rounded-full animate-bounce"
+                        style={{ background: '#818cf8', animationDelay: `${i * 0.15}s` }}
+                        aria-hidden="true"
+                      />
                     ))}
                   </div>
                 </div>
               )}
               {error && (
-                <div className="border border-[#2a2a2a] rounded-md px-4 py-3 text-[#555] text-xs">Error: {error}</div>
+                <div
+                  className="rounded-xl px-4 py-3 text-sm"
+                  style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', color: '#f87171' }}
+                  role="alert"
+                >
+                  Error: {error}
+                </div>
               )}
             </>
           )}
@@ -282,47 +478,110 @@ export default function ChatPage() {
 
         {/* Image previews */}
         {images.length > 0 && (
-          <div className="px-4 pt-2 flex gap-2 flex-wrap border-t border-[#111]">
+          <div
+            className="px-4 pt-3 flex gap-2 flex-wrap"
+            style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
+          >
             {images.map((im, i) => (
               <div key={i} className="relative group">
-                <img src={im.preview} alt="" className="w-12 h-12 rounded object-cover border border-[#1f1f1f]" />
-                <button onClick={() => setImages(p => p.filter((_, idx) => idx !== i))}
-                  className="absolute -top-1 -right-1 w-4 h-4 bg-[#1f1f1f] border border-[#333] rounded-full text-[#555] text-[8px] flex items-center justify-center opacity-0 group-hover:opacity-100 hover:text-white transition-all">
-                  ✕
+                <img src={im.preview} alt="" className="w-14 h-14 rounded-lg object-cover" style={{ border: '1px solid rgba(255,255,255,0.1)' }} />
+                <button
+                  type="button"
+                  onClick={() => setImages(p => p.filter((_, idx) => idx !== i))}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
+                  style={{ background: '#1e1e2e', border: '1px solid rgba(255,255,255,0.15)', color: '#f87171' }}
+                  aria-label="Remove image"
+                >
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true">
+                    <path d="M18 6L6 18M6 6l12 12"/>
+                  </svg>
                 </button>
               </div>
             ))}
           </div>
         )}
 
-        {/* Input */}
-        <div className="px-4 py-3 border-t border-[#1f1f1f]"
+        {/* Input area */}
+        <div
+          className="px-4 py-4 flex-shrink-0"
+          style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
           onDrop={e => { e.preventDefault(); setDragging(false); if (e.dataTransfer.files.length) addImages(e.dataTransfer.files); }}
           onDragOver={e => { e.preventDefault(); setDragging(true); }}
-          onDragLeave={() => setDragging(false)}>
-          <div className={`flex gap-2 border rounded-md px-3 py-2 transition-colors ${dragging ? 'border-[#333]' : 'border-[#1f1f1f] focus-within:border-[#2a2a2a]'}`}>
-            <button onClick={() => fileRef.current?.click()}
-              className="text-[#333] hover:text-[#666] transition-colors text-sm flex-shrink-0 self-end mb-0.5">
-              ⊕
+          onDragLeave={() => setDragging(false)}
+        >
+          <div
+            className="flex gap-3 rounded-xl px-4 py-3 transition-all duration-200"
+            style={{
+              background: 'rgba(255,255,255,0.04)',
+              border: `1px solid ${dragging ? 'rgba(99,102,241,0.5)' : 'rgba(255,255,255,0.08)'}`,
+              boxShadow: dragging ? '0 0 0 3px rgba(99,102,241,0.1)' : 'none',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="flex-shrink-0 self-end mb-0.5 p-1.5 rounded-lg transition-all duration-200 hover:bg-white/5"
+              style={{ color: 'rgba(255,255,255,0.3)' }}
+              aria-label="Attach image"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
             </button>
-            <textarea value={input} onChange={e => setInput(e.target.value)}
+
+            <textarea
+              value={input}
+              onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) send(); }}
-              disabled={loading} placeholder="Message... (Ctrl+Enter to send)"
-              rows={2} className="flex-1 bg-transparent text-white text-sm placeholder-[#333] focus:outline-none resize-none py-0.5"
-              style={{ scrollbarWidth: 'none' }} />
-            <button onClick={send} disabled={loading || (!input.trim() && images.length === 0)}
-              className={`flex-shrink-0 self-end mb-0.5 px-3 py-1 rounded text-sm font-medium transition-colors ${
+              disabled={loading}
+              placeholder="Message Claude... (Ctrl+Enter to send)"
+              rows={2}
+              className="flex-1 bg-transparent text-white text-sm placeholder:text-white/20 focus:outline-none resize-none py-0.5"
+              style={{ scrollbarWidth: 'none' }}
+              aria-label="Message input"
+            />
+
+            <button
+              type="button"
+              onClick={send}
+              disabled={loading || (!input.trim() && images.length === 0)}
+              className="flex-shrink-0 self-end mb-0.5 p-2 rounded-xl transition-all duration-200"
+              style={
                 loading || (!input.trim() && images.length === 0)
-                  ? 'text-[#222] cursor-not-allowed'
-                  : 'text-white hover:text-[#aaa]'
-              }`}>
+                  ? { background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.2)', cursor: 'not-allowed' }
+                  : { background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: 'white', boxShadow: '0 2px 8px rgba(99,102,241,0.35)' }
+              }
+              aria-label="Send message"
+            >
               {loading
-                ? <span className="inline-block w-3 h-3 border border-[#333] border-t-[#666] rounded-full animate-spin" />
-                : '↑'}
+                ? (
+                  <div
+                    className="w-4 h-4 rounded-full border-2 border-transparent animate-spin"
+                    style={{ borderTopColor: 'rgba(255,255,255,0.5)', borderRightColor: 'rgba(255,255,255,0.5)' }}
+                    aria-hidden="true"
+                  />
+                )
+                : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <line x1="12" y1="19" x2="12" y2="5"/>
+                    <polyline points="5 12 12 5 19 12"/>
+                  </svg>
+                )
+              }
             </button>
           </div>
-          <input ref={fileRef} type="file" accept="image/*" multiple className="hidden"
-            onChange={e => e.target.files && addImages(e.target.files)} />
+
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={e => e.target.files && addImages(e.target.files)}
+            aria-hidden="true"
+          />
         </div>
       </div>
     </div>

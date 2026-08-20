@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import BackgroundVideo from './components/BackgroundVideo';
+import UserTerminalLayout from './components/UserTerminalLayout';
 import HeaderBar from './components/HeaderBar';
 import MultiAssetSelector, { ASSET_LIST, AssetConfig } from './components/MultiAssetSelector';
 import RiskCalculator from './components/RiskCalculator';
@@ -10,7 +11,6 @@ import KillzonesWidget from './components/KillzonesWidget';
 import TradingJournal, { saveTradeToJournalStorage } from './components/TradingJournal';
 import EconomicCalendar from './components/EconomicCalendar';
 import TelegramShareModal, { sendDirectTelegramMessage } from './components/TelegramShareModal';
-import AdminPanel from './components/AdminPanel';
 import PreTradeChecklist from './components/PreTradeChecklist';
 import PropRiskCalculator from './components/PropRiskCalculator';
 import MarketHeatmap from './components/MarketHeatmap';
@@ -18,6 +18,11 @@ import StrategyEncyclopedia from './components/StrategyEncyclopedia';
 import BacktestSimulator from './components/BacktestSimulator';
 import MultiChartGrid from './components/MultiChartGrid';
 import SignalCardGenerator from './components/SignalCardGenerator';
+import AITrapHunter from './components/AITrapHunter';
+import ConfluenceRadar from './components/ConfluenceRadar';
+import TradeAutopsy from './components/TradeAutopsy';
+import MetaTraderCommandGenerator from './components/MetaTraderCommandGenerator';
+import VolumeDeltaPower from './components/VolumeDeltaPower';
 import { findUser, saveSession, loadSession, clearSession, updateUserLogin, addTokensUsed, addActiveMinutes, SessionData } from './lib/users';
 
 type Preset = 'Elif trading' | 'AB TRADE' | '2.6 STRATEGY' | 'ORDER BLOCK' | 'IFVG' | 'SNR_ICT' | 'SMT' | 'FIBONACCI';
@@ -954,6 +959,10 @@ function LoginScreen({ onAuthenticate }: { onAuthenticate: (session: SessionData
       if (user) {
         updateUserLogin(user.username);
         saveSession(user);
+        if (user.role === 'admin') {
+          window.location.href = '/admin';
+          return;
+        }
         onAuthenticate({ username: user.username, role: user.role, loginAt: new Date().toISOString() });
       } else {
         setError("Login yoki parol noto'g'ri!");
@@ -1035,8 +1044,25 @@ function LoginScreen({ onAuthenticate }: { onAuthenticate: (session: SessionData
 function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: boolean; currentUsername: string; onLogout: () => void }) {
   const [selectedAsset, setSelectedAsset] = useState<AssetConfig>(ASSET_LIST[0]);
   const [activeMainTab, setActiveMainTab] = useState<
-    'calc' | 'chart' | 'multichart' | 'checklist' | 'risk' | 'proprisk' | 'heatmap' | 'backtest' | 'encyclopedia' | 'killzones' | 'journal' | 'calendar' | 'admin'
-  >('calc');
+    | 'dashboard'
+    | 'calc'
+    | 'trap'
+    | 'radar'
+    | 'delta'
+    | 'chart'
+    | 'multichart'
+    | 'autopsy'
+    | 'checklist'
+    | 'risk'
+    | 'proprisk'
+    | 'heatmap'
+    | 'backtest'
+    | 'encyclopedia'
+    | 'killzones'
+    | 'journal'
+    | 'calendar'
+    | 'admin'
+  >('dashboard');
 
   // Input states
   const [dailyHigh, setDailyHigh] = useState('');
@@ -1498,10 +1524,13 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
   };
 
   return (
-    <div className="relative min-h-screen p-2.5 sm:p-5 md:p-8">
-      <BackgroundVideo />
-
-      <div className="max-w-3xl mx-auto pb-12 relative z-10">
+    <UserTerminalLayout
+      currentUsername={currentUsername}
+      activeTab={activeMainTab}
+      onSelectTab={(tab) => setActiveMainTab(tab as any)}
+      onLogout={onLogout}
+    >
+      <div className="max-w-7xl mx-auto space-y-6">
         {/* Toast Alert */}
         {toastMessage && (
           <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white font-bold text-xs px-4 py-2.5 rounded-full shadow-2xl animate-bounce">
@@ -1516,21 +1545,111 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
           tradeData={telegramModalData}
         />
 
-        {/* TOP COMPREHENSIVE HEADER (Live Tickers, World Clock, Session Indicator, Balance, Telegram & Tabs) */}
-        <HeaderBar
-          currentUsername={currentUsername}
-          isAdmin={isAdmin}
-          activeMainTab={activeMainTab}
-          setActiveMainTab={setActiveMainTab}
-          onLogout={onLogout}
-          onOpenTelegram={() => setIsTelegramModalOpen(true)}
-        />
+        {/* ── TAB 0: USER DASHBOARD ── */}
+        {activeMainTab === 'dashboard' && (
+          <div className="space-y-6">
+            {/* Welcome Banner */}
+            <div className="rounded-3xl p-6 sm:p-8 bg-gradient-to-r from-blue-900/40 via-indigo-950/50 to-slate-900/80 border border-blue-500/30 backdrop-blur-xl shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="relative z-10 flex flex-wrap items-center justify-between gap-6">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 text-xs font-bold mb-3">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    Bozor Jonli • London & NY Ochiq
+                  </div>
+                  <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
+                    Xush kelibsiz, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">{currentUsername}</span>!
+                  </h1>
+                  <p className="text-slate-300 text-xs sm:text-sm mt-2 max-w-xl">
+                    Professional tahlil, sun'iy intellekt signallari va ilg'or SMC/Gann strategiyalari bilan savdo qiling.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={() => setActiveMainTab('calc')}
+                    className="px-5 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black text-xs sm:text-sm shadow-xl shadow-blue-500/25 hover:scale-105 transition-all flex items-center gap-2"
+                  >
+                    <span>🧮 Kalkulyator</span>
+                    <span>→</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveMainTab('chart')}
+                    className="px-5 py-3 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-xs sm:text-sm border border-slate-700 hover:scale-105 transition-all flex items-center gap-2"
+                  >
+                    <span>📊 Live Grafik</span>
+                  </button>
+                </div>
+              </div>
+            </div>
 
-        {/* MULTI ASSET SELECTOR */}
-        <MultiAssetSelector selectedAsset={selectedAsset} onSelectAsset={setSelectedAsset} />
+            {/* 4 Trader Metric Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              <div className="bg-slate-900/80 border border-slate-700/80 rounded-2xl p-4 sm:p-5 backdrop-blur-xl shadow-xl space-y-1">
+                <div className="text-slate-400 text-xs font-bold">💰 Depozit Balansi</div>
+                <div className="text-2xl font-black text-emerald-400 font-mono">$1,000.00</div>
+                <div className="text-[10px] text-slate-500">Tavsiya qilingan lot: 0.05 - 0.10</div>
+              </div>
+              <div className="bg-slate-900/80 border border-slate-700/80 rounded-2xl p-4 sm:p-5 backdrop-blur-xl shadow-xl space-y-1">
+                <div className="text-slate-400 text-xs font-bold">🛡️ Savdo Riski (1%)</div>
+                <div className="text-2xl font-black text-sky-400 font-mono">$10.00</div>
+                <div className="text-[10px] text-slate-500">Maksimum zarar nazorati</div>
+              </div>
+              <div className="bg-slate-900/80 border border-slate-700/80 rounded-2xl p-4 sm:p-5 backdrop-blur-xl shadow-xl space-y-1">
+                <div className="text-slate-400 text-xs font-bold">🥇 XAU/USD (Gold)</div>
+                <div className="text-2xl font-black text-amber-400 font-mono">$4,506.39</div>
+                <div className="text-[10px] text-emerald-400">▲ Kuchli yuqoriga trend</div>
+              </div>
+              <div className="bg-slate-900/80 border border-slate-700/80 rounded-2xl p-4 sm:p-5 backdrop-blur-xl shadow-xl space-y-1">
+                <div className="text-slate-400 text-xs font-bold">⏰ Bozor Sessiyasi</div>
+                <div className="text-2xl font-black text-indigo-400">London/NY</div>
+                <div className="text-[10px] text-slate-500">Yuqori likvidlik davri</div>
+              </div>
+            </div>
+
+            {/* Quick Tools Access Grid */}
+            <div className="space-y-4">
+              <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                <span>⚡</span> Barcha Savdo Vositalari
+              </h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                {[
+                  { id: 'calc', label: 'Kalkulyator', sub: 'Signal & Gann', icon: '🧮', color: 'from-amber-500/20 to-orange-500/10 border-amber-500/40 text-amber-300' },
+                  { id: 'chart', label: 'Live Grafik', sub: 'TradingView', icon: '📊', color: 'from-sky-500/20 to-blue-500/10 border-sky-500/40 text-sky-300' },
+                  { id: 'multichart', label: 'Multi-Grid', sub: 'Ko\'p grafiklar', icon: '🪟', color: 'from-indigo-500/20 to-violet-500/10 border-indigo-500/40 text-indigo-300' },
+                  { id: 'trap', label: 'Trap Hunter', sub: 'Likvidlik tuzoqlari', icon: '🚨', color: 'from-red-500/20 to-rose-500/10 border-red-500/40 text-red-300' },
+                  { id: 'radar', label: '18-Radar', sub: 'Confluence radar', icon: '🧬', color: 'from-purple-500/20 to-fuchsia-500/10 border-purple-500/40 text-purple-300' },
+                  { id: 'delta', label: 'Vol Delta', sub: 'Order flow', icon: '🌊', color: 'from-teal-500/20 to-emerald-500/10 border-teal-500/40 text-teal-300' },
+                  { id: 'checklist', label: 'Checklist', sub: 'Savdo qoidalari', icon: '📝', color: 'from-amber-500/20 to-yellow-500/10 border-amber-500/40 text-amber-300' },
+                  { id: 'risk', label: 'Risk & Lot', sub: 'Lot hisoblash', icon: '🎯', color: 'from-cyan-500/20 to-blue-500/10 border-cyan-500/40 text-cyan-300' },
+                  { id: 'proprisk', label: 'Prop Guard', sub: 'Prop nazorati', icon: '🛡️', color: 'from-rose-500/20 to-red-500/10 border-rose-500/40 text-rose-300' },
+                  { id: 'heatmap', label: 'Heatmap', sub: 'Valyuta kuchi', icon: '🔥', color: 'from-orange-500/20 to-amber-500/10 border-orange-500/40 text-orange-300' },
+                  { id: 'backtest', label: 'Backtest', sub: 'Strategiya sinovi', icon: '🧬', color: 'from-violet-500/20 to-purple-500/10 border-violet-500/40 text-violet-300' },
+                  { id: 'killzones', label: 'Killzones', sub: 'Sessiyalar vaqti', icon: '⏰', color: 'from-emerald-500/20 to-teal-500/10 border-emerald-500/40 text-emerald-300' },
+                  { id: 'calendar', label: 'Taqvim', sub: 'Iqtisodiy xabarlar', icon: '📰', color: 'from-pink-500/20 to-rose-500/10 border-pink-500/40 text-pink-300' },
+                  { id: 'journal', label: 'Savdo Jurnali', sub: 'Qaydlar va P&L', icon: '📓', color: 'from-yellow-500/20 to-amber-500/10 border-yellow-500/40 text-yellow-300' },
+                  { id: 'encyclopedia', label: 'Lug\'at', sub: 'SMC qo\'llanma', icon: '📖', color: 'from-blue-500/20 to-sky-500/10 border-blue-500/40 text-blue-300' },
+                  { id: 'autopsy', label: 'Autopsy', sub: 'Xatolar tahlili', icon: '🧠', color: 'from-slate-500/20 to-zinc-500/10 border-slate-500/40 text-slate-300' },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveMainTab(item.id as any)}
+                    className={`p-4 rounded-2xl bg-gradient-to-br ${item.color} border backdrop-blur-xl shadow-lg hover:scale-105 transition-all text-left group`}
+                  >
+                    <div className="text-2xl mb-2 group-hover:scale-110 transition-transform">{item.icon}</div>
+                    <div className="font-bold text-xs sm:text-sm text-white truncate">{item.label}</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5 truncate">{item.sub}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── TAB 1: KALKULYATOR & SIGNALLAR ── */}
         {activeMainTab === 'calc' && (
+          <div className="space-y-6">
+            {/* MULTI ASSET SELECTOR */}
+            <MultiAssetSelector selectedAsset={selectedAsset} onSelectAsset={setSelectedAsset} />
           <>
             {/* AI TAHLIL PANELI */}
             <AIAnalysisPanel
@@ -2160,6 +2279,7 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
               </div>
             )}
           </>
+          </div>
         )}
 
         {/* ── TAB 2: TRADINGVIEW GRAFIK ── */}
@@ -2202,6 +2322,34 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
         {activeMainTab === 'calendar' && (
           <div>
             <EconomicCalendar />
+          </div>
+        )}
+
+        {/* ── TAB: AI TRAP HUNTER ── */}
+        {activeMainTab === 'trap' && (
+          <div>
+            <AITrapHunter currentPrice={parseFloat(currentPrice) || 4492.5} assetSymbol={selectedAsset.symbol} />
+          </div>
+        )}
+
+        {/* ── TAB: 18-MATRIX CONFLUENCE RADAR ── */}
+        {activeMainTab === 'radar' && (
+          <div>
+            <ConfluenceRadar />
+          </div>
+        )}
+
+        {/* ── TAB: LIVE VOLUME DELTA ── */}
+        {activeMainTab === 'delta' && (
+          <div>
+            <VolumeDeltaPower />
+          </div>
+        )}
+
+        {/* ── TAB: TRADE AUTOPSY ── */}
+        {activeMainTab === 'autopsy' && (
+          <div>
+            <TradeAutopsy />
           </div>
         )}
 
@@ -2250,22 +2398,28 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
         {/* ── TAB 7: ADMIN PANEL (faqat admin) ── */}
         {activeMainTab === 'admin' && isAdmin && (
           <div>
-            <div className="bg-gradient-to-r from-amber-950/60 to-orange-950/40 border border-amber-500/40 rounded-2xl p-4 mb-4 backdrop-blur">
+            <div className="bg-gradient-to-r from-amber-950/80 to-orange-950/60 border border-amber-500/50 rounded-2xl p-6 mb-4 backdrop-blur-xl shadow-2xl flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-xl shadow-lg">
-                  🛡️
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-2xl shadow-lg">
+                  👑
                 </div>
                 <div>
-                  <div className="text-amber-300 font-black text-base">Admin Panel</div>
-                  <div className="text-slate-400 text-xs">Foydalanuvchilar boshqaruvi va statistika</div>
+                  <div className="text-amber-300 font-black text-lg">Yangi Pro Admin Panel</div>
+                  <div className="text-slate-400 text-xs">To'liq zamonaviy interfeys, sidebar va barcha vositalar</div>
                 </div>
               </div>
+              <a
+                href="/admin"
+                className="px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black text-sm shadow-xl shadow-amber-500/30 hover:scale-105 transition-all flex items-center gap-2"
+              >
+                <span>Admin Panelni Ochish</span>
+                <span>→</span>
+              </a>
             </div>
-            <AdminPanel />
           </div>
         )}
       </div>
-    </div>
+    </UserTerminalLayout>
   );
 }
 
@@ -2278,23 +2432,34 @@ export default function XAUCalculator() {
     if (!session) return;
     const id = setInterval(() => {
       addActiveMinutes(session.username, 1);
-    }, 60000); // har daqiqada
+    }, 60000);
     return () => clearInterval(id);
   }, [session]);
 
   // Restore session on mount
   useEffect(() => {
     const saved = loadSession();
-    if (saved) setSession(saved);
+    if (saved) {
+      if (saved.role === 'admin') {
+        window.location.href = '/admin';
+        return;
+      }
+      setSession(saved);
+    }
     setChecked(true);
   }, []);
 
   const handleLogout = () => {
     clearSession();
+    try {
+      sessionStorage.clear();
+      localStorage.removeItem('trading_app_session');
+    } catch {}
     setSession(null);
+    window.location.href = '/';
   };
 
-  if (!checked) return null; // hydration wait
+  if (!checked) return null;
 
   if (!session) {
     return <LoginScreen onAuthenticate={(s) => setSession(s)} />;

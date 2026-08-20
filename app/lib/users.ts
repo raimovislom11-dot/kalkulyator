@@ -52,17 +52,21 @@ export function saveUsers(users: AppUser[]): void {
 
 export function findUser(username: string, password: string): AppUser | null {
   const users = loadUsers();
-  return users.find(u => u.username === username && u.password === password) ?? null;
+  const cleanU = username.trim().toLowerCase();
+  const cleanP = password.trim();
+  return users.find(u => u.username.trim().toLowerCase() === cleanU && u.password.trim() === cleanP) ?? null;
 }
 
 export function addUser(username: string, password: string): { ok: boolean; error?: string } {
+  const cleanU = username.trim();
+  const cleanP = password.trim();
   const users = loadUsers();
-  if (users.find(u => u.username === username)) {
+  if (users.find(u => u.username.trim().toLowerCase() === cleanU.toLowerCase())) {
     return { ok: false, error: 'Bu login allaqachon mavjud!' };
   }
   const newUser: AppUser = {
-    username,
-    password,
+    username: cleanU,
+    password: cleanP,
     role: 'user',
     createdAt: new Date().toISOString(),
     lastLoginAt: null,
@@ -75,17 +79,19 @@ export function addUser(username: string, password: string): { ok: boolean; erro
 }
 
 export function removeUser(username: string): boolean {
-  if (username === 'admin') return false;
+  const cleanU = username.trim().toLowerCase();
+  if (cleanU === 'admin') return false;
   const users = loadUsers();
-  const filtered = users.filter(u => u.username !== username);
+  const filtered = users.filter(u => u.username.trim().toLowerCase() !== cleanU);
   if (filtered.length === users.length) return false;
   saveUsers(filtered);
   return true;
 }
 
 export function updateUserLogin(username: string): void {
+  const cleanU = username.trim().toLowerCase();
   const users = loadUsers();
-  const user = users.find(u => u.username === username);
+  const user = users.find(u => u.username.trim().toLowerCase() === cleanU);
   if (user) {
     user.lastLoginAt = new Date().toISOString();
     saveUsers(users);

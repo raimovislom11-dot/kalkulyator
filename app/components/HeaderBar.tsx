@@ -217,11 +217,15 @@ function HeaderBar({
       </div>
 
       {/* 🗂️ 3. ASOSIY NAVIGATSIYA TABLARI */}
-      <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-6 lg:grid-cols-12 gap-1 sm:gap-1.5 text-xs font-bold pt-1 border-t border-slate-800/80">
+      <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-12 gap-1 sm:gap-1.5 text-xs font-bold pt-1 border-t border-slate-800/80">
         {[
           { id: 'calc', icon: '🧮', label: 'Kalkulyator' },
+          { id: 'trap', icon: '🚨', label: 'Trap Hunter' },
+          { id: 'radar', icon: '🧬', label: '18-Radar' },
+          { id: 'delta', icon: '🌊', label: 'Vol Delta' },
           { id: 'chart', icon: '📊', label: 'Grafik' },
           { id: 'multichart', icon: '🪟', label: 'Multi-Grid' },
+          { id: 'autopsy', icon: '🧠', label: 'Xatolar' },
           { id: 'checklist', icon: '📝', label: 'Checklist' },
           { id: 'risk', icon: '🎯', label: 'Risk & Lot' },
           { id: 'proprisk', icon: '🛡️', label: 'Prop Guard' },
@@ -237,7 +241,13 @@ function HeaderBar({
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveMainTab(tab.id as any)}
+              onClick={() => {
+                if (tab.id === 'admin') {
+                  window.location.href = '/admin';
+                } else {
+                  setActiveMainTab(tab.id as any);
+                }
+              }}
               className={`py-2 px-1 rounded-xl transition-all flex flex-col items-center justify-center gap-0.5 text-center ${
                 isActive
                   ? tab.id === 'admin'
