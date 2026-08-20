@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     const apiKey = process.env.ANTHROPIC_API_KEY;
-    
+
     if (!apiKey) {
       return new Response(JSON.stringify({ error: "Anthropic API kaliti (ANTHROPIC_API_KEY) .env faylida o'rnatilmagan!" }), {
         status: 500,
@@ -124,7 +124,7 @@ Agar rasm yuborilgan bo'lsa, uni diqqat bilan ko'rib tahlil qiling.`,
         } catch (err) {
           console.error('Claude API xatolik:', err);
           const errorMsg = err instanceof Error
-            ? `${err.message}${(err as {status?: number}).status ? ` (status: ${(err as {status?: number}).status})` : ''}`
+            ? `${err.message}${(err as { status?: number }).status ? ` (status: ${(err as { status?: number }).status})` : ''}`
             : JSON.stringify(err);
           controller.enqueue(
             encoder.encode(`data: ${JSON.stringify({ error: errorMsg })}\n\n`)

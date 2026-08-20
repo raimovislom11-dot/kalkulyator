@@ -244,11 +244,10 @@ function SignalCard({
             <button
               onClick={handleSendDirectTg}
               disabled={sendingDirectTg}
-              className={`flex items-center gap-1 px-3 py-1.5 text-white text-xs font-bold rounded-lg transition-all active:scale-95 shadow-md ${
-                sentDirectTg
-                  ? 'bg-emerald-600'
-                  : 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700'
-              }`}
+              className={`flex items-center gap-1 px-3 py-1.5 text-white text-xs font-bold rounded-lg transition-all active:scale-95 shadow-md ${sentDirectTg
+                ? 'bg-emerald-600'
+                : 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700'
+                }`}
             >
               {sendingDirectTg ? (
                 <span>Yuborilmoqda...</span>
@@ -374,16 +373,23 @@ function AIAnalysisPanel({
     setMarketResponse('');
     setMarketError(null);
 
+    const entryMatch = calcContext?.match(/(?:Kirish|Entry|Narx)\s*[:=]\s*([0-9.]+)/i);
+    const userPrice = entryMatch ? entryMatch[1] : '';
+
     const form = new FormData();
     form.append('assetSymbol', asset.symbol || 'XAUUSD');
     form.append('assetName', asset.name || 'Gold');
     form.append('timeframe', timeframe || '5m');
     form.append('termMode', term);
+    if (userPrice) {
+      form.append('userCurrentPrice', userPrice);
+    }
     form.append(
       'calcContext',
-      `Instrument: ${asset.name} (${asset.symbol})\nVaqt oralig'i: ${timeframe}\nTahlil turi: ${
-        term === 'short' ? 'Qisqa muddatli (Scalp: 1-15 daqiqa)' : 'Uzoq muddatli (Intraday: 1-4 soat)'
-      }\n` + calcContext
+      `Instrument: ${asset.name} (${asset.symbol})\nVaqt oralig'i: ${timeframe}\n` +
+      (userPrice ? `Grafikdagi Kirish Narxi: ${userPrice} USD\n` : '') +
+      `Tahlil turi: ${term === 'short' ? 'Qisqa muddatli (Scalp: 1-15 daqiqa)' : 'Uzoq muddatli (Intraday: 1-4 soat)'}\n` +
+      calcContext
     );
 
     try {
@@ -579,33 +585,30 @@ function AIAnalysisPanel({
           <div className="grid grid-cols-3 gap-1.5 bg-slate-800/80 p-1.5 rounded-xl">
             <button
               onClick={() => setActiveTab('live_chart')}
-              className={`py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                activeTab === 'live_chart'
-                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md font-black'
-                  : 'text-slate-400 hover:text-white'
-              }`}
+              className={`py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === 'live_chart'
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md font-black'
+                : 'text-slate-400 hover:text-white'
+                }`}
             >
               <span>📈</span>
               <span className="truncate">Jonli Grafik & AI</span>
             </button>
             <button
               onClick={() => setActiveTab('market')}
-              className={`py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                activeTab === 'market'
-                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-md font-black'
-                  : 'text-slate-400 hover:text-white'
-              }`}
+              className={`py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === 'market'
+                ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-md font-black'
+                : 'text-slate-400 hover:text-white'
+                }`}
             >
               <span>📊</span>
               <span className="truncate">Bozor Tahlili</span>
             </button>
             <button
               onClick={() => setActiveTab('chat')}
-              className={`py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                activeTab === 'chat'
-                  ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
+              className={`py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === 'chat'
+                ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md'
+                : 'text-slate-400 hover:text-white'
+                }`}
             >
               <span>🖼️</span>
               <span className="truncate">Skrinshot Tahlil</span>
@@ -631,6 +634,10 @@ function AIAnalysisPanel({
                   timeframe={timeframe}
                   hideHeader={true}
                   height={450}
+                  currentPrice={(() => {
+                    const match = calcContext?.match(/(?:Kirish|Entry|Narx)\s*[:=]\s*([0-9.]+)/i);
+                    return match ? parseFloat(match[1]) : undefined;
+                  })()}
                 />
               </div>
 
@@ -639,11 +646,10 @@ function AIAnalysisPanel({
                 <button
                   onClick={() => marketAnalyze('short')}
                   disabled={isMarketLoading}
-                  className={`py-3.5 px-3 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 shadow-lg ${
-                    isMarketLoading
-                      ? 'bg-amber-950/60 text-amber-500 cursor-wait'
-                      : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 shadow-amber-500/20 active:scale-95'
-                  }`}
+                  className={`py-3.5 px-3 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 shadow-lg ${isMarketLoading
+                    ? 'bg-amber-950/60 text-amber-500 cursor-wait'
+                    : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 shadow-amber-500/20 active:scale-95'
+                    }`}
                 >
                   {isMarketLoading && currentTermMode === 'short' ? (
                     <>
@@ -658,11 +664,10 @@ function AIAnalysisPanel({
                 <button
                   onClick={() => marketAnalyze('long')}
                   disabled={isMarketLoading}
-                  className={`py-3.5 px-3 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 shadow-lg ${
-                    isMarketLoading
-                      ? 'bg-indigo-950/60 text-indigo-400 cursor-wait'
-                      : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-indigo-500/20 active:scale-95'
-                  }`}
+                  className={`py-3.5 px-3 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 shadow-lg ${isMarketLoading
+                    ? 'bg-indigo-950/60 text-indigo-400 cursor-wait'
+                    : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-indigo-500/20 active:scale-95'
+                    }`}
                 >
                   {isMarketLoading && currentTermMode === 'long' ? (
                     <>
@@ -691,11 +696,10 @@ function AIAnalysisPanel({
                         {currentTermMode === 'short' ? '⚡ Qisqa Muddatli (1-15m) Natijasi' : '📈 Uzoq Muddatli (1-4 Soat) Natijasi'}
                       </span>
                     </div>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                      currentTermMode === 'short'
-                        ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
-                        : 'bg-indigo-500/20 text-indigo-400 border-indigo-500/40'
-                    }`}>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${currentTermMode === 'short'
+                      ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
+                      : 'bg-indigo-500/20 text-indigo-400 border-indigo-500/40'
+                      }`}>
                       {currentTermMode === 'short' ? 'Scalping / 1-15m' : 'Intraday / 1-4 Soat'}
                     </span>
                   </div>
@@ -732,11 +736,10 @@ function AIAnalysisPanel({
                 <button
                   onClick={() => marketAnalyze('short')}
                   disabled={isMarketLoading}
-                  className={`py-3.5 px-3 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 shadow-lg ${
-                    isMarketLoading
-                      ? 'bg-amber-950/60 text-amber-500 cursor-wait'
-                      : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 shadow-amber-500/20 active:scale-95'
-                  }`}
+                  className={`py-3.5 px-3 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 shadow-lg ${isMarketLoading
+                    ? 'bg-amber-950/60 text-amber-500 cursor-wait'
+                    : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 shadow-amber-500/20 active:scale-95'
+                    }`}
                 >
                   {isMarketLoading && currentTermMode === 'short' ? (
                     <>
@@ -751,11 +754,10 @@ function AIAnalysisPanel({
                 <button
                   onClick={() => marketAnalyze('long')}
                   disabled={isMarketLoading}
-                  className={`py-3.5 px-3 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 shadow-lg ${
-                    isMarketLoading
-                      ? 'bg-indigo-950/60 text-indigo-400 cursor-wait'
-                      : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-indigo-500/20 active:scale-95'
-                  }`}
+                  className={`py-3.5 px-3 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 shadow-lg ${isMarketLoading
+                    ? 'bg-indigo-950/60 text-indigo-400 cursor-wait'
+                    : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-indigo-500/20 active:scale-95'
+                    }`}
                 >
                   {isMarketLoading && currentTermMode === 'long' ? (
                     <>
@@ -783,11 +785,10 @@ function AIAnalysisPanel({
                         {currentTermMode === 'short' ? '⚡ Qisqa Muddatli (1-15m) Natijasi' : '📈 Uzoq Muddatli (1-4 Soat) Natijasi'}
                       </span>
                     </div>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                      currentTermMode === 'short'
-                        ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
-                        : 'bg-indigo-500/20 text-indigo-400 border-indigo-500/40'
-                    }`}>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${currentTermMode === 'short'
+                      ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
+                      : 'bg-indigo-500/20 text-indigo-400 border-indigo-500/40'
+                      }`}>
                       {currentTermMode === 'short' ? 'Scalping / 1-15m' : 'Intraday / 1-4 Soat'}
                     </span>
                   </div>
@@ -820,11 +821,10 @@ function AIAnalysisPanel({
                 onDragLeave={() => setIsDragging(false)}
                 onDrop={onDrop}
                 onClick={() => fileInputRef.current?.click()}
-                className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all ${
-                  isDragging
-                    ? 'border-violet-400 bg-violet-950/30'
-                    : 'border-slate-600 hover:border-violet-500 bg-slate-800/40 hover:bg-slate-800/70'
-                }`}
+                className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all ${isDragging
+                  ? 'border-violet-400 bg-violet-950/30'
+                  : 'border-slate-600 hover:border-violet-500 bg-slate-800/40 hover:bg-slate-800/70'
+                  }`}
               >
                 <input
                   ref={fileInputRef}
@@ -870,13 +870,12 @@ function AIAnalysisPanel({
               <button
                 onClick={analyze}
                 disabled={isLoading || (!message.trim() && images.length === 0)}
-                className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
-                  isLoading
-                    ? 'bg-violet-900/50 text-violet-400 cursor-wait'
-                    : (!message.trim() && images.length === 0)
+                className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${isLoading
+                  ? 'bg-violet-900/50 text-violet-400 cursor-wait'
+                  : (!message.trim() && images.length === 0)
                     ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
                     : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-lg shadow-violet-500/20 active:scale-95'
-                }`}
+                  }`}
               >
                 {isLoading ? (
                   <>
@@ -956,11 +955,17 @@ function LoginScreen({ onAuthenticate }: { onAuthenticate: (session: SessionData
   };
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center p-4"
-      style={{ backgroundImage: "url('/image.png')", backgroundSize: 'cover', backgroundPosition: 'center' }}
-    >
-      <div className="w-full max-w-md">
+    <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="fixed inset-0 w-full h-full object-cover -z-10 pointer-events-none"
+        src="/back.MP4"
+      />
+      <div className="fixed inset-0 bg-black/45 -z-10 pointer-events-none" />
+      <div className="w-full max-w-md relative z-10">
         {/* Logo/Title */}
         <div className="text-center mb-8">
           <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-4xl mx-auto mb-4 shadow-2xl shadow-orange-500/40">
@@ -1490,11 +1495,19 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
   };
 
   return (
-    <div
-      className="min-h-screen p-3 sm:p-5 md:p-8"
-      style={{ backgroundImage: "url('/image.png')", backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}
-    >
-      <div className="max-w-3xl mx-auto pb-12">
+    <div className="relative min-h-screen p-3 sm:p-5 md:p-8">
+      {/* Background Video */}
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="fixed inset-0 w-full h-full object-cover -z-10 pointer-events-none"
+        src="/back.MP4"
+      />
+      <div className="fixed inset-0 bg-slate-950/45 -z-10 pointer-events-none" />
+
+      <div className="max-w-3xl mx-auto pb-12 relative z-10">
         {/* Toast Alert */}
         {toastMessage && (
           <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white font-bold text-xs px-4 py-2.5 rounded-full shadow-2xl animate-bounce">
@@ -1545,13 +1558,12 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
                 <button
                   key={tab.id}
                   onClick={() => setActiveMainTab(tab.id as any)}
-                  className={`py-2.5 px-1 rounded-xl transition-all flex flex-col items-center justify-center gap-0.5 text-center ${
-                    isActive
-                      ? tab.id === 'admin'
-                        ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25 font-black scale-[1.02]'
-                        : 'bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 shadow-lg shadow-orange-500/25 font-black scale-[1.02]'
-                      : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700/80 hover:text-white'
-                  }`}
+                  className={`py-2.5 px-1 rounded-xl transition-all flex flex-col items-center justify-center gap-0.5 text-center ${isActive
+                    ? tab.id === 'admin'
+                      ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25 font-black scale-[1.02]'
+                      : 'bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 shadow-lg shadow-orange-500/25 font-black scale-[1.02]'
+                    : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700/80 hover:text-white'
+                    }`}
                 >
                   <span className="text-base">{tab.icon}</span>
                   <span className="truncate text-[10px]">{tab.label}</span>
@@ -1588,11 +1600,10 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
                   <button
                     key={t}
                     onClick={() => setTimeframe(t)}
-                    className={`py-2 rounded-xl font-bold text-sm transition-all ${
-                      timeframe === t
-                        ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30 scale-105'
-                        : 'bg-slate-700/80 text-slate-400 hover:bg-slate-600/80'
-                    }`}
+                    className={`py-2 rounded-xl font-bold text-sm transition-all ${timeframe === t
+                      ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30 scale-105'
+                      : 'bg-slate-700/80 text-slate-400 hover:bg-slate-600/80'
+                      }`}
                   >
                     {t}
                   </button>
@@ -1607,20 +1618,18 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
             {calculations && (
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div
-                  className={`p-4 rounded-2xl border-2 text-center font-bold text-2xl flex items-center justify-center transition-all duration-300 ${
-                    isBuy
-                      ? 'bg-green-500/20 border-green-400 text-green-300 shadow-lg shadow-green-500/30 scale-105'
-                      : 'bg-black/50 border-slate-800 text-slate-700 opacity-40'
-                  }`}
+                  className={`p-4 rounded-2xl border-2 text-center font-bold text-2xl flex items-center justify-center transition-all duration-300 ${isBuy
+                    ? 'bg-green-500/20 border-green-400 text-green-300 shadow-lg shadow-green-500/30 scale-105'
+                    : 'bg-black/50 border-slate-800 text-slate-700 opacity-40'
+                    }`}
                 >
                   <span className="text-3xl mr-2">&#9650;</span>BUY
                 </div>
                 <div
-                  className={`p-4 rounded-2xl border-2 text-center font-bold text-2xl flex items-center justify-center transition-all duration-300 ${
-                    !isBuy
-                      ? 'bg-red-500/20 border-red-400 text-red-300 shadow-lg shadow-red-500/30 scale-105'
-                      : 'bg-black/50 border-slate-800 text-slate-700 opacity-40'
-                  }`}
+                  className={`p-4 rounded-2xl border-2 text-center font-bold text-2xl flex items-center justify-center transition-all duration-300 ${!isBuy
+                    ? 'bg-red-500/20 border-red-400 text-red-300 shadow-lg shadow-red-500/30 scale-105'
+                    : 'bg-black/50 border-slate-800 text-slate-700 opacity-40'
+                    }`}
                 >
                   <span className="text-3xl mr-2">&#9660;</span>SELL
                 </div>
@@ -1632,21 +1641,19 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => setInputMode('manual')}
-                  className={`py-2.5 rounded-xl font-bold text-sm transition-all ${
-                    inputMode === 'manual'
-                      ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30'
-                      : 'bg-slate-700/80 text-slate-400 hover:bg-slate-600'
-                  }`}
+                  className={`py-2.5 rounded-xl font-bold text-sm transition-all ${inputMode === 'manual'
+                    ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30'
+                    : 'bg-slate-700/80 text-slate-400 hover:bg-slate-600'
+                    }`}
                 >
                   ✏️ Qo&apos;lda kiritish
                 </button>
                 <button
                   onClick={() => setInputMode('candle')}
-                  className={`py-2.5 rounded-xl font-bold text-sm transition-all ${
-                    inputMode === 'candle'
-                      ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/30'
-                      : 'bg-slate-700/80 text-slate-400 hover:bg-slate-600'
-                  }`}
+                  className={`py-2.5 rounded-xl font-bold text-sm transition-all ${inputMode === 'candle'
+                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/30'
+                    : 'bg-slate-700/80 text-slate-400 hover:bg-slate-600'
+                    }`}
                 >
                   🕯️ Shamoldan (OHLC)
                 </button>
@@ -1715,26 +1722,24 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
 
                 {candleAnalysis && (
                   <div
-                    className={`rounded-xl p-4 border ${
-                      candleAnalysis.isDoji
-                        ? 'bg-yellow-900/20 border-yellow-600/40'
-                        : candleAnalysis.isBullish
+                    className={`rounded-xl p-4 border ${candleAnalysis.isDoji
+                      ? 'bg-yellow-900/20 border-yellow-600/40'
+                      : candleAnalysis.isBullish
                         ? 'bg-green-900/20 border-green-600/40'
                         : 'bg-red-900/20 border-red-600/40'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center gap-3 mb-2">
                       <span className="text-2xl">
                         {candleAnalysis.isDoji ? '⚡' : candleAnalysis.isBullish ? '🟢' : '🔴'}
                       </span>
                       <span
-                        className={`font-bold text-lg ${
-                          candleAnalysis.isDoji
-                            ? 'text-yellow-400'
-                            : candleAnalysis.isBullish
+                        className={`font-bold text-lg ${candleAnalysis.isDoji
+                          ? 'text-yellow-400'
+                          : candleAnalysis.isBullish
                             ? 'text-green-400'
                             : 'text-red-400'
-                        }`}
+                          }`}
                       >
                         {candleAnalysis.type} Shamol
                       </span>
@@ -1745,9 +1750,8 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
                         <div className="text-red-300 font-bold">{candleAnalysis.upperWick}</div>
                       </div>
                       <div
-                        className={`rounded-lg p-2 ${
-                          candleAnalysis.isBullish ? 'bg-green-900/40' : 'bg-red-900/40'
-                        }`}
+                        className={`rounded-lg p-2 ${candleAnalysis.isBullish ? 'bg-green-900/40' : 'bg-red-900/40'
+                          }`}
                       >
                         <div className="text-slate-400 mb-1">Tana ({candleAnalysis.bodyPct}%)</div>
                         <div className={`font-bold ${candleAnalysis.isBullish ? 'text-green-300' : 'text-red-300'}`}>
@@ -1795,25 +1799,22 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
 
               {rangeVal > 0 && (
                 <div
-                  className={`rounded-xl px-4 py-3 flex justify-between items-center text-sm mb-4 ${
-                    rangeWarning
-                      ? 'bg-red-900/40 border border-red-600/50'
-                      : rangeOk
+                  className={`rounded-xl px-4 py-3 flex justify-between items-center text-sm mb-4 ${rangeWarning
+                    ? 'bg-red-900/40 border border-red-600/50'
+                    : rangeOk
                       ? 'bg-green-900/20 border border-green-600/30'
                       : 'bg-slate-700/80'
-                  }`}
+                    }`}
                 >
                   <span
-                    className={`font-bold ${
-                      rangeWarning ? 'text-red-400' : rangeOk ? 'text-green-400' : 'text-slate-400'
-                    }`}
+                    className={`font-bold ${rangeWarning ? 'text-red-400' : rangeOk ? 'text-green-400' : 'text-slate-400'
+                      }`}
                   >
                     Range: {rangeVal.toFixed(selectedAsset.digits)} pip
                   </span>
                   <span
-                    className={`font-bold text-xs ${
-                      rangeWarning ? 'text-red-400' : rangeOk ? 'text-green-400' : 'text-slate-400'
-                    }`}
+                    className={`font-bold text-xs ${rangeWarning ? 'text-red-400' : rangeOk ? 'text-green-400' : 'text-slate-400'
+                      }`}
                   >
                     {rangeWarning ? `⚠ Katta! Max: ${tf.maxRange}` : `✓ ${timeframe} uchun mos`}
                   </span>
