@@ -380,16 +380,16 @@ function AIAnalysisPanel({
     const form = new FormData();
     form.append('assetSymbol', asset.symbol || 'XAUUSD');
     form.append('assetName', asset.name || 'Gold');
-    form.append('timeframe', timeframe || '5m');
+    form.append('timeframe', term === 'short' ? '1m' : (timeframe || '1h'));
     form.append('termMode', term);
     if (userPrice) {
       form.append('userCurrentPrice', userPrice);
     }
     form.append(
       'calcContext',
-      `Instrument: ${asset.name} (${asset.symbol})\nVaqt oralig'i: ${timeframe}\n` +
+      `Instrument: ${asset.name} (${asset.symbol})\nVaqt oralig'i: ${term === 'short' ? '1m/5m' : timeframe}\n` +
       (userPrice ? `Grafikdagi Kirish Narxi: ${userPrice} USD\n` : '') +
-      `Tahlil turi: ${term === 'short' ? 'Qisqa muddatli (Scalp: 1-15 daqiqa)' : 'Uzoq muddatli (Intraday: 1-4 soat)'}\n` +
+      `Tahlil turi: ${term === 'short' ? 'Qisqa muddatli (1-15m Ultra-Scalp)' : 'Uzoq muddatli (Intraday: 1-4 soat)'}\n` +
       calcContext
     );
 

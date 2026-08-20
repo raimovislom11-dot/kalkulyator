@@ -239,7 +239,7 @@ function TradingViewWidget({
     'mtf',
   ]);
 
-  const price = currentPrice || (asset.id === 'gold' ? 2915.5 : asset.id === 'btc' ? 96500 : 1.085);
+  const price = currentPrice || (asset.id.toLowerCase().includes('xau') || asset.id === 'gold' ? 4492.5 : asset.id === 'btc' ? 71950 : 1.085);
   const interval = tfToTvInterval[timeframe] || '60';
 
   const toggleStrategy = (id: string) => {
