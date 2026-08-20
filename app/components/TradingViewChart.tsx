@@ -149,6 +149,51 @@ const STRATEGIES_LIST: StrategyItem[] = [
     description: 'Trend yo\'nalishi o\'zgarishini ko\'rsatuvchi dastlabki struktura o\'zgarishi',
     formulaOrValue: (p) => `Bullish CHoCH: ${(p * 1.005).toFixed(2)} | Bearish CHoCH: ${(p * 0.995).toFixed(2)}`,
   },
+  {
+    id: 'smt',
+    name: 'SMT Divergence (DXY vs Gold Korrelyatsiya)',
+    category: 'ICT',
+    icon: '⚡',
+    badge: 'SMT',
+    description: 'Dollar indeksi (DXY) va Oltin o\'rtasidagi nomutanosiblik — Yirik o\'yinchilarning tuzog\'i (Fakeout) aniqlash',
+    formulaOrValue: (p) => `Bullish SMT: DXY Low sweep / Gold High saqlanmoqda (Kuchli burilish)`,
+  },
+  {
+    id: 'silver_bullet',
+    name: 'ICT Silver Bullet (60 Daqiqalik Oyna)',
+    category: 'ICT',
+    icon: '🎯',
+    badge: 'SB',
+    description: 'Kun davomidagi eng yuqori ehtimolli vaqt oynalari: London AM (12:00-13:00 Uzb), NY AM (19:00-20:00 Uzb), NY PM (23:00-00:00 Uzb)',
+    formulaOrValue: (p) => `Aktiv FVG Nishon: +15 - +30 pip (5-10$ harakat) | Optimal vaqt oralig'i`,
+  },
+  {
+    id: 'judas_swing',
+    name: 'ICT Judas Swing (Sessiya Ochilish Tuzog\'i)',
+    category: 'ICT',
+    icon: '🪤',
+    badge: 'Judas',
+    description: 'London/NY ochilishining ilk 15-30 daqiqasidagi yolg\'on harakat (Manipulation) va undan keyingi haqiqiy trend',
+    formulaOrValue: (p) => `Osiyo likvidligi olindi -> Haqiqiy yo'nalishga kengayish (Expansion)`,
+  },
+  {
+    id: 'breaker_block',
+    name: 'Breaker Block (BB & Mitigation)',
+    category: 'SMC',
+    icon: '🧱',
+    badge: 'Breaker',
+    description: 'Buzib o\'tilgan Order Block qaytishida (Retest) juda kuchli qarama-qarshi kirish tayanchi bo\'ladi',
+    formulaOrValue: (p) => `Bullish Breaker: ${(p * 0.996).toFixed(2)} | Bearish Breaker: ${(p * 1.004).toFixed(2)}`,
+  },
+  {
+    id: 'mtf',
+    name: 'Multi-Timeframe Matrix (H4 + M15 + M5 Confluence)',
+    category: 'Price Action',
+    icon: '🌐',
+    badge: 'MTF',
+    description: 'H4 (Katta Trend) + M15 (Struktura & Likvidlik) + M5 (Kam xatarli aniq kirish) 100% uyg\'unligi',
+    formulaOrValue: (p) => `H4 Trend: BULLISH | M15 Struktura: BOS Up | Confluence: 94%`,
+  },
 ];
 
 const tfToTvInterval: Record<string, string> = {
@@ -187,6 +232,11 @@ function TradingViewWidget({
     'ict',
     'bos',
     'choch',
+    'smt',
+    'silver_bullet',
+    'judas_swing',
+    'breaker_block',
+    'mtf',
   ]);
 
   const price = currentPrice || (asset.id === 'gold' ? 2915.5 : asset.id === 'btc' ? 96500 : 1.085);

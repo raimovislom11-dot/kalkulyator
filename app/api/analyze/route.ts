@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest } from 'next/server';
 
-export const maxDuration = 60; // 1-minute timeout for Vercel
+export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
@@ -23,10 +23,8 @@ export async function POST(req: NextRequest) {
     const message = formData.get('message') as string;
     const context = formData.get('context') as string;
 
-    // Xabar tuzish
     const contentBlocks: Anthropic.MessageParam['content'] = [];
 
-    // Ko'p rasm qabul qilish
     const imageCount = parseInt(formData.get('imageCount') as string || '0', 10);
 
     if (imageCount > 0) {
@@ -37,10 +35,9 @@ export async function POST(req: NextRequest) {
         const base64Image = Buffer.from(imageBuffer).toString('base64');
         let mediaType = (imgFile.type || 'image/jpeg') as string;
         if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(mediaType)) {
-          mediaType = 'image/jpeg'; // iOS HEIC or other types should be treated as jpeg if accept attribute forces conversion, otherwise API will reject it anyway, but we must send a valid enum value
+          mediaType = 'image/jpeg';
         }
 
-        // Agar bir nechta rasm bo'lsa — har birining oldiga label qo'shamiz
         if (imageCount > 1) {
           contentBlocks.push({ type: 'text', text: `📸 Rasm ${i + 1}:` });
         }
@@ -50,7 +47,6 @@ export async function POST(req: NextRequest) {
         });
       }
     } else {
-      // Eski mos kelish uchun (bitta rasm — "image" kalit)
       const imageFile = formData.get('image') as File | null;
       if (imageFile) {
         const imageBuffer = await imageFile.arrayBuffer();
@@ -66,19 +62,17 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Kontekst va savol
     let fullMessage = '';
     if (context) {
-      fullMessage += `📊 **Kalkulyator natijalari (kontekst):**\n${context}\n\n`;
+      fullMessage += `📊 **Kalkulyator natijalari va kontekst:**\n${context}\n\n`;
     }
-    fullMessage += message || 'Bu grafik/rasmni tahlil qilib bering.';
+    fullMessage += message || 'Ushbu grafik/rasmni 18 ta SMC, ICT, SMT, Silver Bullet, Breaker Block va Ganna strategiyalari bo\'yicha to\'liq tahlil qilib bering.';
 
     contentBlocks.push({
       type: 'text',
       text: fullMessage,
     });
 
-    // Streaming response
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
@@ -86,20 +80,33 @@ export async function POST(req: NextRequest) {
           const claudeStream = await anthropic.messages.stream({
             model: "claude-opus-4-5",
             max_tokens: 4096,
-            temperature: 1,
-            system: `Siz XAU/USD (oltin) savdo kalkulyatori uchun mutaxassis moliyaviy tahlilchisiz. 
-Foydalanuvchi savdo grafiklari, skreenshotlar va narx ma'lumotlarini yuboradi. 
-Siz quyidagilarni tahlil qilasiz:
-- Narx harakati va trend
-- Support/Resistance darajalari  
-- Order Block va FVG (Fair Value Gap) zonalari
-- Fibonacci Retracement va OTE darajalari (0.618, 0.705, 0.786)
-- Gann kvadrat darajalari bilan moslik
-- Entry, Stop Loss va Take Profit tavsiyalari
-- Umumiy bozor holati
+            temperature: 0.7,
+            system: `Siz SMC (Smart Money Concepts), ICT, SMT Divergence, Silver Bullet, Breaker Block va Ganna Matematikasi bo'yicha eng kuchli xalqaro moliyaviy tahlilchisiz.
 
-Javoblaringiz o'zbek tilida bo'lsin. Aniq, qisqa va foydali ma'lumot bering.
-Agar rasm yuborilgan bo'lsa, uni diqqat bilan ko'rib tahlil qiling.`,
+Siz quyidagi 18 TA PROFESSIONAL STRATEGIYALAR bo'yicha rasm va grafikni tahlil qilasiz:
+1. 🧱 Order Block (OB Demand & Supply)
+2. 🧱 Breaker Block (BB) & Mitigation Block
+3. ⚡ FVG (Fair Value Gap 50% CE)
+4. 🔄 iFVG (Inverted Fair Value Gap)
+5. ⚡ SMT Divergence (DXY vs Gold / Yirik o'yinchilar tuzog'i)
+6. 🎯 ICT Silver Bullet (60m likvidlik oynasi)
+7. 🪤 ICT Judas Swing (Sessiya ochilish manipulyatsiyasi)
+8. 📊 SNR (Support & Resistance)
+9. 📐 Fibonacci OTE (0.5 Eq, 0.618, 0.705 Sweet Spot, 0.786)
+10. ✨ Ganna Kvadrat Darajalari (Square of 9: 90°, 180°, 270°, 360°)
+11. 🎯 Liquidity (BSL / SSL High & Low)
+12. 🕯️ Yolg'iz Sham (Institutional Displacement)
+13. 🏛️ ICT (Killzones, Midnight Open, Power of 3 AMD)
+14. ⚡ BOS (Break of Structure)
+15. 🔄 CHoCH (Change of Character)
+16. 🌐 Multi-Timeframe Matrix (H4 Bias + M15 Struktura + M5 Trigger)
+17. 🧮 Matematika & Smart Risk (ATR, R:R 1:3, qisqa SL)
+18. 📌 High va Low (Swing High & Low)
+
+JAVOB FORMATI (O'ZBEK TILIDA):
+📌 1. ANIQ SAVDO SIGNALI (Buyruq: BUY/SELL, Kirish, Stop Loss, TP1, TP2, TP3, Confluence %)
+🔍 2. 18 TA STRATEGIYALAR XULOSASI (Topilgan barcha zonalar, SMT, Silver Bullet, Breaker Block)
+💡 3. TREYDER UCHUN AMALIY MASLAHAT VA XATAR BOSHQARUVI`,
             messages: [
               {
                 role: 'user',

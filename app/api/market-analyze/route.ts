@@ -51,7 +51,6 @@ async function fetchMarketData(symbolKey: string = 'XAUUSD', termMode: string = 
     const recentCandles: { date: string; open: string; high: string; low: string; close: string }[] = [];
     const parsedCandles: Candle[] = [];
 
-    // Agar foydalanuvchi spot narxi berilgan bo'lsa va yahoo futures narxi bilan farq qilsa, offsetni moslash
     const rawYahooLastPrice = quotes.close[quotes.close.length - 1] ?? meta.regularMarketPrice ?? baseUserPrice;
     const priceOffset = baseUserPrice && rawYahooLastPrice ? baseUserPrice - rawYahooLastPrice : 0;
 
@@ -120,20 +119,15 @@ export async function POST(req: NextRequest) {
     const timeframe = (formData.get('timeframe') as string) || (termMode === 'short' ? '5m' : '1h');
     const userPriceRaw = formData.get('userCurrentPrice') as string;
 
-    // Entry yoki foydalanuvchi joriy narxini kontekstdan ajratib olish
     const entryMatch = calcContext?.match(/(?:Kirish|Entry|Narx)\s*[:=]\s*([0-9.]+)/i);
     const baseUserPrice = userPriceRaw ? parseFloat(userPriceRaw) : entryMatch ? parseFloat(entryMatch[1]) : undefined;
 
     const marketData = await fetchMarketData(assetSymbol, termMode, baseUserPrice);
-
     const actualEffectivePrice = baseUserPrice || (marketData ? parseFloat(marketData.currentPrice) : 2915.5);
 
     let marketDataText = '';
-    marketDataText += `🎯 TREYDER GRAFIK VA ASOSIY NARXI: ${actualEffectivePrice} USD\n`;
+    marketDataText += `🎯 TREYDERNING JORIY SPOT NARXI: ${actualEffectivePrice} USD\n`;
     marketDataText += `===========================================================\n`;
-    marketDataText += `⚠️ QAT'IY TALAB: Barcha Entry, Stop Loss, Take Profit, Order Block va FVG zonalari\n`;
-    marketDataText += `FAQAT VA FAQAT ${actualEffectivePrice} USD narxiga 100% mos bo'lishi SHART!\n`;
-    marketDataText += `Grafikdagi narxdan boshqa narx berish qat'iyan man etiladi.\n\n`;
 
     if (calcContext) {
       marketDataText += '📊 Kalkulyator Sozlamalari:\n' + calcContext + '\n\n';
@@ -142,35 +136,66 @@ export async function POST(req: NextRequest) {
     if (marketData && marketData.smcAnalysis) {
       const smc = marketData.smcAnalysis;
       marketDataText +=
-        `📈 SMC & ICT STRATEGIYA DARAJALARI (Joriy Narx: ${actualEffectivePrice}):\n` +
+        `📈 PROFESSIONAL SMC & ICT VA ADVANCED STRATEGIYALAR DARAJALARI:\n` +
         `- Order Block: ${smc.orderBlocks.map((b) => `${b.type}: ${b.bottom} - ${b.top}`).join(' | ') || 'Neytral'}\n` +
+        `- Breaker Block (BB): ${smc.breakerBlocks.map((b) => `${b.type}: ${b.bottom} - ${b.top}`).join(' | ') || 'Buzilgan OB yo\'q'}\n` +
         `- FVG 50% CE: ${smc.fvgs.map((f) => `${f.midpoint}`).join(' | ') || 'N/A'}\n` +
+        `- iFVG (Inverted): ${smc.ifvgs.map((f) => `${f.midpoint}`).join(' | ') || 'N/A'}\n` +
         `- Fibonacci OTE (0.705): ${smc.fibOte ? `0.705 Sweet Spot: ${smc.fibOte.levels.fib0705}, 0.5 Eq: ${smc.fibOte.levels.fib050}` : 'N/A'}\n` +
         `- Ganna Kvadrat 90°/180°: ${smc.gann ? `90°=${smc.gann.degrees.deg90}, 180°=${smc.gann.degrees.deg180}` : 'N/A'}\n` +
+        `- SMT Divergence: ${smc.smt.type} (${smc.smt.note})\n` +
+        `- ICT Silver Bullet: ${smc.silverBullet.sessionWindow} (${smc.silverBullet.recommendation})\n` +
+        `- ICT Judas Swing: Bosqich: ${smc.judasSwing.stage}, Xatar: ${smc.judasSwing.riskLevel}\n` +
+        `- Multi-Timeframe Matrix: H4 Bias=${smc.mtf.h4Bias}, M15=${smc.mtf.m15Structure}, M5 Trigger=${smc.mtf.m5Trigger} (Confluence: ${smc.mtf.confluenceScore}%)\n` +
         `- Liquidity: BSL=${(actualEffectivePrice * 1.006).toFixed(2)}, SSL=${(actualEffectivePrice * 0.994).toFixed(2)}\n` +
         `- Matematik Tavsiya SL: ${(actualEffectivePrice - smc.math.idealSLDistance).toFixed(2)}, TP1: ${(actualEffectivePrice + smc.math.idealTP1).toFixed(2)}, TP2: ${(actualEffectivePrice + smc.math.idealTP2).toFixed(2)}\n\n`;
     }
 
-    const systemPrompt =
-      `Siz professional SMC/ICT treyder va aniq tahlilchisiz.\n` +
-      `🎯 ENG ASOSIY QOIDA: Treyderning grafikdagi joriy narxi: ${actualEffectivePrice} USD.\n` +
-      `Siz beradigan barcha kirish nuqtalari (Entry), Stop Loss, TP1, TP2, TP3, Order Block va FVG narxlari\n` +
-      `grafikdagi ayni shu ${actualEffectivePrice} USD narxi atrofida 100% aniq mos bo'lishi SHART!\n` +
-      `Hech qanday boshqa futures yoki chetdagi narxlarni aralashtirmang, bu treyderni chalg'itadi.\n\n` +
-      `Reja formati (O'zbek tilida):\n` +
-      `1. 🎯 SIGNAL:\n` +
-      `   - Instrument: ${assetName} (${assetSymbol})\n` +
-      `   - Buyruq: BUY yoki SELL\n` +
-      `   - Entry: ${actualEffectivePrice} atrofida\n` +
-      `   - Stop Loss: [aniq qisqa SL]\n` +
-      `   - TP1 / TP2 / TP3: [aniq darajalar]\n` +
-      `   - Risk/Reward: [1:2 yoki 1:3]\n\n` +
-      `2. 🔍 13 TA STRATEGIYALAR XULOSASI (Order Block, FVG, Ganna, Fib OTE 0.705, Liquidity, Matematika)\n` +
-      `3. 💡 TREYDERGA TAVSIYA`;
+    let systemPrompt = '';
+    let userMessage = '';
 
-    const userMessage =
-      marketDataText +
-      `\n\nIltimos, grafikdagi haqiqiy ${actualEffectivePrice} narxiga 100% mos keladigan, treyderni chalg'itmaydigan aniq tahlil va signallarni bering.`;
+    if (termMode === 'short') {
+      const slOffset = assetSymbol.includes('XAU') ? 2.0 : actualEffectivePrice * 0.002;
+
+      systemPrompt =
+        `Siz professional ULTRA-QISQA MUDDATLI (1-15m SCALPING) treydersiz (SMC, ICT, SMT Divergence, Silver Bullet, Judas Swing, Breaker Block va MTF Confluence bo'yicha dunyo mutaxassisi).\n\n` +
+        `🎯 O'TA MUHIM QAT'IY QOIDALAR:\n` +
+        `1. KIRISH (ENTRY) NARXI: AYNAN joriy narx ${actualEffectivePrice} bo'lishi SHART (yoki maksimal ±0.20$ - ±0.50$ oraliqda). Kutish yo'q, zudlik bilan scalp kirish.\n` +
+        `2. STOP LOSS (SL): Oltin uchun atigi 1.5$ - 2.5$ masofada qat'iy scalp himoyasi!\n` +
+        `3. TAKE PROFITLAR: TP1 (+2.0$), TP2 (+4.5$), TP3 (+7.5$) — tezkor likvidlik va Silver Bullet maqsadlari.\n` +
+        `4. STRATEGIYALAR INTEGRATSIYASI:\n` +
+        `   - SMT Divergence & Judas Swing: Tuzoqlar va likvidlik supurishi holatini baholang.\n` +
+        `   - ICT Silver Bullet & Breaker Block: Eng yuqori ehtimolli kirish triggerini ko'rsating.\n` +
+        `   - Multi-Timeframe Matrix: H4 katta trend va M15 struktura bilan 100% uyg'unlikni ta'minlang.\n\n` +
+        `JAVOB STRUKTURASI (Qat'iy O'zbek tilida, chiroyli va qisqa formatda):\n` +
+        `📌 1. ANIQ TEZKOR SCALP SIGNALI:\n` +
+        `   - Instrument: ${assetName} (${assetSymbol})\n` +
+        `   - Buyruq: 🟢 BUY yoki 🔴 SELL\n` +
+        `   - Kirish (Entry): ${actualEffectivePrice} (Joriy narxda / Market Entry)\n` +
+        `   - Stop Loss (SL): [aniq scalp SL]\n` +
+        `   - TP1 / TP2 / TP3: [aniq maqsadlar]\n` +
+        `   - Risk/Reward: 1:2 yoki 1:3\n` +
+        `   - MTF Confluence: 90%+\n\n` +
+        `🔍 2. 18 TA STRATEGIYALAR XULOSASI (SMT, Silver Bullet, Judas Swing, Breaker Block, OB, FVG, Fib OTE 0.705, Ganna)\n` +
+        `💡 3. TEZKOR AMALIY TAVSIYA VA XATAR BOSHQARUVI`;
+
+      userMessage =
+        marketDataText +
+        `\n\nIltimos, aynan joriy ${actualEffectivePrice} USD narxi atrofida barcha 18 ta strategiya (SMT, Silver Bullet, Judas Swing, Breaker Block, MTF Confluence, OB, FVG, OTE) asosida eng yuqori ehtimolli 1-15m SCALP tahlil va signallarini bering.`;
+    } else {
+      systemPrompt =
+        `Siz professional INTRADAY va SWING treydersiz (1 — 4 soatlik oraliqlar mutaxassisi: SMC, SMT, Judas Swing, Breaker Block va MTF Matrix).\n\n` +
+        `🎯 TALABLAR:\n` +
+        `1. Joriy narx: ${actualEffectivePrice} USD.\n` +
+        `2. 1-4 soatlik trend va H1/H4 asosiy darajalar bo'yicha mustahkam reja.\n` +
+        `3. Aniq Entry (${actualEffectivePrice} atrofida), H1 himoyalangan SL va kunlik TP1, TP2, TP3 maqsadlari.\n` +
+        `4. SMT Divergence va Multi-Timeframe Confluence xulosasi.\n` +
+        `Javobni O'ZBEK TILIDA bering.`;
+
+      userMessage =
+        marketDataText +
+        `\n\nIltimos, ushbu ${actualEffectivePrice} USD narxi asosida 1 — 4 soatlik INTRADAY tahlil va signallarni bering.`;
+    }
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
