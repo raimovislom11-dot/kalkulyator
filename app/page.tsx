@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import BackgroundVideo from './components/BackgroundVideo';
+import HeaderBar from './components/HeaderBar';
 import MultiAssetSelector, { ASSET_LIST, AssetConfig } from './components/MultiAssetSelector';
 import RiskCalculator from './components/RiskCalculator';
 import TradingViewWidget from './components/TradingViewChart';
@@ -1506,56 +1507,15 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
           tradeData={telegramModalData}
         />
 
-        {/* TOP NAVIGATION TABS */}
-        <div className="bg-slate-900/90 border border-slate-700/90 rounded-2xl p-2 mb-4 backdrop-blur shadow-2xl">
-          {/* User info bar */}
-          <div className="flex items-center justify-between px-2 pb-2 mb-1 border-b border-slate-800">
-            <div className="flex items-center gap-2">
-              <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black ${isAdmin ? 'bg-amber-500/20 text-amber-400' : 'bg-blue-500/20 text-blue-400'}`}>
-                {currentUsername.charAt(0).toUpperCase()}
-              </div>
-              <span className="text-slate-400 text-xs">
-                <span className="text-white font-bold">{currentUsername}</span>
-                {isAdmin && <span className="ml-1.5 text-[10px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-full font-bold border border-amber-500/30">👑 Admin</span>}
-              </span>
-            </div>
-            <button
-              onClick={onLogout}
-              className="text-slate-500 hover:text-red-400 text-xs transition-colors flex items-center gap-1"
-            >
-              <span>🚪</span><span>Chiqish</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-3 sm:grid-cols-6 md:grid-cols-7 gap-1 sm:gap-1.5 text-xs font-bold">
-            {[
-              { id: 'calc', icon: '🧮', label: 'Kalkulyator' },
-              { id: 'chart', icon: '📊', label: 'Jonli Grafik' },
-              { id: 'risk', icon: '🎯', label: 'Risk & Lot' },
-              { id: 'killzones', icon: '⏰', label: 'Killzones' },
-              { id: 'journal', icon: '📓', label: 'Jurnal' },
-              { id: 'calendar', icon: '📰', label: 'Taqvim' },
-              ...(isAdmin ? [{ id: 'admin', icon: '🛡️', label: 'Admin' }] : []),
-            ].map((tab) => {
-              const isActive = activeMainTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveMainTab(tab.id as any)}
-                  className={`py-2.5 px-1 rounded-xl transition-all flex flex-col items-center justify-center gap-0.5 text-center ${isActive
-                    ? tab.id === 'admin'
-                      ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25 font-black scale-[1.02]'
-                      : 'bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 shadow-lg shadow-orange-500/25 font-black scale-[1.02]'
-                    : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700/80 hover:text-white'
-                    }`}
-                >
-                  <span className="text-base">{tab.icon}</span>
-                  <span className="truncate text-[10px]">{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        {/* TOP COMPREHENSIVE HEADER (Live Tickers, World Clock, Session Indicator, Balance, Telegram & Tabs) */}
+        <HeaderBar
+          currentUsername={currentUsername}
+          isAdmin={isAdmin}
+          activeMainTab={activeMainTab}
+          setActiveMainTab={setActiveMainTab}
+          onLogout={onLogout}
+          onOpenTelegram={() => setIsTelegramModalOpen(true)}
+        />
 
         {/* MULTI ASSET SELECTOR */}
         <MultiAssetSelector selectedAsset={selectedAsset} onSelectAsset={setSelectedAsset} />
