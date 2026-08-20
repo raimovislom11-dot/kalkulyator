@@ -217,15 +217,21 @@ function HeaderBar({
       </div>
 
       {/* 🗂️ 3. ASOSIY NAVIGATSIYA TABLARI */}
-      <div className="grid grid-cols-3 sm:grid-cols-6 md:grid-cols-7 gap-1 sm:gap-1.5 text-xs font-bold pt-1 border-t border-slate-800/80">
+      <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-6 lg:grid-cols-12 gap-1 sm:gap-1.5 text-xs font-bold pt-1 border-t border-slate-800/80">
         {[
           { id: 'calc', icon: '🧮', label: 'Kalkulyator' },
-          { id: 'chart', icon: '📊', label: 'Jonli Grafik' },
+          { id: 'chart', icon: '📊', label: 'Grafik' },
+          { id: 'multichart', icon: '🪟', label: 'Multi-Grid' },
+          { id: 'checklist', icon: '📝', label: 'Checklist' },
           { id: 'risk', icon: '🎯', label: 'Risk & Lot' },
+          { id: 'proprisk', icon: '🛡️', label: 'Prop Guard' },
+          { id: 'heatmap', icon: '🔥', label: 'Heatmap' },
+          { id: 'backtest', icon: '🧬', label: 'Backtest' },
+          { id: 'encyclopedia', icon: '📖', label: 'Lug\'at' },
           { id: 'killzones', icon: '⏰', label: 'Killzones' },
           { id: 'journal', icon: '📓', label: 'Jurnal' },
           { id: 'calendar', icon: '📰', label: 'Taqvim' },
-          ...(isAdmin ? [{ id: 'admin', icon: '🛡️', label: 'Admin' }] : []),
+          ...(isAdmin ? [{ id: 'admin', icon: '👑', label: 'Admin' }] : []),
         ].map((tab) => {
           const isActive = activeMainTab === tab.id;
           return (
@@ -241,7 +247,7 @@ function HeaderBar({
               }`}
             >
               <span className="text-base">{tab.icon}</span>
-              <span className="text-[11px] font-bold truncate w-full">{tab.label}</span>
+              <span className="text-[10px] sm:text-[11px] font-bold truncate w-full">{tab.label}</span>
             </button>
           );
         })}

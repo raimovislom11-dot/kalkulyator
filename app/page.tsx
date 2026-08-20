@@ -11,6 +11,13 @@ import TradingJournal, { saveTradeToJournalStorage } from './components/TradingJ
 import EconomicCalendar from './components/EconomicCalendar';
 import TelegramShareModal, { sendDirectTelegramMessage } from './components/TelegramShareModal';
 import AdminPanel from './components/AdminPanel';
+import PreTradeChecklist from './components/PreTradeChecklist';
+import PropRiskCalculator from './components/PropRiskCalculator';
+import MarketHeatmap from './components/MarketHeatmap';
+import StrategyEncyclopedia from './components/StrategyEncyclopedia';
+import BacktestSimulator from './components/BacktestSimulator';
+import MultiChartGrid from './components/MultiChartGrid';
+import SignalCardGenerator from './components/SignalCardGenerator';
 import { findUser, saveSession, loadSession, clearSession, updateUserLogin, addTokensUsed, addActiveMinutes, SessionData } from './lib/users';
 
 type Preset = 'Elif trading' | 'AB TRADE' | '2.6 STRATEGY' | 'ORDER BLOCK' | 'IFVG' | 'SNR_ICT' | 'SMT' | 'FIBONACCI';
@@ -1027,7 +1034,9 @@ function LoginScreen({ onAuthenticate }: { onAuthenticate: (session: SessionData
 // ─────────────────────────────────────────────
 function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: boolean; currentUsername: string; onLogout: () => void }) {
   const [selectedAsset, setSelectedAsset] = useState<AssetConfig>(ASSET_LIST[0]);
-  const [activeMainTab, setActiveMainTab] = useState<'calc' | 'chart' | 'risk' | 'killzones' | 'journal' | 'calendar' | 'admin'>('calc');
+  const [activeMainTab, setActiveMainTab] = useState<
+    'calc' | 'chart' | 'multichart' | 'checklist' | 'risk' | 'proprisk' | 'heatmap' | 'backtest' | 'encyclopedia' | 'killzones' | 'journal' | 'calendar' | 'admin'
+  >('calc');
 
   // Input states
   const [dailyHigh, setDailyHigh] = useState('');
@@ -2193,6 +2202,48 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
         {activeMainTab === 'calendar' && (
           <div>
             <EconomicCalendar />
+          </div>
+        )}
+
+        {/* ── TAB: MULTI-CHART SPLIT VIEW ── */}
+        {activeMainTab === 'multichart' && (
+          <div>
+            <MultiChartGrid />
+          </div>
+        )}
+
+        {/* ── TAB: PRE-TRADE CHECKLIST ── */}
+        {activeMainTab === 'checklist' && (
+          <div>
+            <PreTradeChecklist />
+          </div>
+        )}
+
+        {/* ── TAB: PROP RISK GUARD & COMPOUND ── */}
+        {activeMainTab === 'proprisk' && (
+          <div>
+            <PropRiskCalculator />
+          </div>
+        )}
+
+        {/* ── TAB: MARKET HEATMAP ── */}
+        {activeMainTab === 'heatmap' && (
+          <div>
+            <MarketHeatmap />
+          </div>
+        )}
+
+        {/* ── TAB: BACKTEST SIMULATOR ── */}
+        {activeMainTab === 'backtest' && (
+          <div>
+            <BacktestSimulator />
+          </div>
+        )}
+
+        {/* ── TAB: ENCYCLOPEDIA & CHEATSHEET ── */}
+        {activeMainTab === 'encyclopedia' && (
+          <div>
+            <StrategyEncyclopedia />
           </div>
         )}
 
