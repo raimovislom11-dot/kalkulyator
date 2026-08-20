@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import BackgroundVideo from './components/BackgroundVideo';
 import MultiAssetSelector, { ASSET_LIST, AssetConfig } from './components/MultiAssetSelector';
 import RiskCalculator from './components/RiskCalculator';
 import TradingViewWidget from './components/TradingViewChart';
@@ -955,16 +956,8 @@ function LoginScreen({ onAuthenticate }: { onAuthenticate: (session: SessionData
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="fixed inset-0 w-full h-full object-cover -z-10 pointer-events-none"
-        src="/back.MP4"
-      />
-      <div className="fixed inset-0 bg-black/45 -z-10 pointer-events-none" />
+    <div className="relative min-h-screen flex items-center justify-center p-3 sm:p-4 overflow-hidden">
+      <BackgroundVideo />
       <div className="w-full max-w-md relative z-10">
         {/* Logo/Title */}
         <div className="text-center mb-8">
@@ -1495,17 +1488,8 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
   };
 
   return (
-    <div className="relative min-h-screen p-3 sm:p-5 md:p-8">
-      {/* Background Video */}
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="fixed inset-0 w-full h-full object-cover -z-10 pointer-events-none"
-        src="/back.MP4"
-      />
-      <div className="fixed inset-0 bg-slate-950/45 -z-10 pointer-events-none" />
+    <div className="relative min-h-screen p-2.5 sm:p-5 md:p-8">
+      <BackgroundVideo />
 
       <div className="max-w-3xl mx-auto pb-12 relative z-10">
         {/* Toast Alert */}
@@ -1543,7 +1527,7 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
             </button>
           </div>
 
-          <div className="grid gap-1.5 text-xs font-bold" style={{ gridTemplateColumns: isAdmin ? 'repeat(7, 1fr)' : 'repeat(6, 1fr)' }}>
+          <div className="grid grid-cols-3 sm:grid-cols-6 md:grid-cols-7 gap-1 sm:gap-1.5 text-xs font-bold">
             {[
               { id: 'calc', icon: '🧮', label: 'Kalkulyator' },
               { id: 'chart', icon: '📊', label: 'Jonli Grafik' },

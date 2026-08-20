@@ -398,13 +398,13 @@ function TradingViewWidget({
 
       {/* 🚀 INDICATORS & STRATEGIES MODAL (Xuddi TradingView uslubida) */}
       {showIndicatorsModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-[#131722] border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden text-slate-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-[#131722] border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden text-slate-200">
             {/* Modal Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <span className="text-xl">📊</span>
-                <span className="text-white font-bold text-base">Indicators & SMC/ICT Strategies</span>
+            <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <span className="text-lg sm:text-xl">📊</span>
+                <span className="text-white font-bold text-sm sm:text-base">Indicators & SMC/ICT Strategies</span>
               </div>
               <button
                 onClick={() => setShowIndicatorsModal(false)}

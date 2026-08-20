@@ -3,13 +3,13 @@
 export interface AssetConfig {
   id: string;
   name: string;
-  symbol: string; // TradingView symbol
+  symbol: string;
   tvSymbol: string;
   icon: string;
-  pipSize: number; // 1 pip value in price
-  pipMultiplier: number; // For pip calculation
+  pipSize: number;
+  pipMultiplier: number;
   digits: number;
-  contractSize: number; // Standard lot units
+  contractSize: number;
   defaultMaxRange: number;
   category: 'Metals' | 'Forex' | 'Crypto' | 'Indices';
 }
@@ -24,7 +24,7 @@ export const ASSET_LIST: AssetConfig[] = [
     pipSize: 0.10,
     pipMultiplier: 10,
     digits: 2,
-    contractSize: 100, // 100 oz per lot
+    contractSize: 100,
     defaultMaxRange: 50,
     category: 'Metals',
   },
@@ -115,31 +115,32 @@ interface MultiAssetSelectorProps {
 
 export default function MultiAssetSelector({ selectedAsset, onSelectAsset }: MultiAssetSelectorProps) {
   return (
-    <div className="bg-slate-900/85 border border-slate-700/80 rounded-2xl p-3 mb-4 backdrop-blur shadow-lg">
+    <div className="bg-slate-900/85 border border-slate-700/80 rounded-2xl p-2.5 sm:p-3 mb-4 backdrop-blur shadow-lg">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-slate-400 text-xs font-bold tracking-widest flex items-center gap-1.5">
+        <span className="text-slate-400 text-[11px] sm:text-xs font-bold tracking-wider flex items-center gap-1.5">
           <span>🌐</span> INSTRUMENT TANLASH
         </span>
-        <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-orange-400 font-mono font-bold">
-          {selectedAsset.name} ({selectedAsset.symbol})
+        <span className="text-[11px] sm:text-xs px-2 py-0.5 rounded-full bg-slate-800 text-orange-400 font-mono font-bold">
+          {selectedAsset.symbol}
         </span>
       </div>
 
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-1.5">
+      {/* Responsive Grid / Flex on Mobile */}
+      <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-7 gap-1 sm:gap-1.5">
         {ASSET_LIST.map((asset) => {
           const isSelected = asset.id === selectedAsset.id;
           return (
             <button
               key={asset.id}
               onClick={() => onSelectAsset(asset)}
-              className={`flex flex-col items-center justify-center py-2 px-1.5 rounded-xl text-xs font-bold transition-all ${
+              className={`flex flex-col items-center justify-center py-1.5 sm:py-2 px-1 rounded-xl text-xs font-bold transition-all ${
                 isSelected
-                  ? 'bg-gradient-to-b from-orange-500 to-amber-600 text-white shadow-md shadow-orange-500/25 scale-[1.03] ring-1 ring-orange-400'
+                  ? 'bg-gradient-to-b from-orange-500 to-amber-600 text-white shadow-md shadow-orange-500/25 scale-[1.02] ring-1 ring-orange-400'
                   : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700/80 hover:text-white'
               }`}
             >
-              <span className="text-base mb-0.5">{asset.icon}</span>
-              <span className="truncate w-full text-center text-[11px] font-mono">{asset.symbol}</span>
+              <span className="text-sm sm:text-base mb-0.5">{asset.icon}</span>
+              <span className="truncate w-full text-center text-[10px] sm:text-[11px] font-mono">{asset.symbol}</span>
             </button>
           );
         })}
