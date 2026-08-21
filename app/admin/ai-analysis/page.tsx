@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import MultiAssetSelector, { ASSET_LIST, AssetConfig } from '../../components/MultiAssetSelector';
 import TelegramShareModal from '../../components/TelegramShareModal';
@@ -28,40 +28,62 @@ function parseSignal(text: string) {
 
   const entry = find([
     new RegExp('\\*?[Ee]ntry\\*?[\\s\\*\\:]+' + NUM, 'i'),
-    new RegExp('\\*?Kirish[\\s\\*\\:]*(?:narxi?)?[\\s\\*\\:]*' + NUM, 'i'),
+    new RegExp('\\*?Kirish[\\s\\*\\:]*(?:\\(Entry\\))?[\\s\\*\\:]*(?:narxi?)?[\\s\\*\\:]*' + NUM, 'i'),
     new RegExp('\\*?KIRISH[\\s\\*\\:]+' + NUM),
   ]);
   const sl = find([
-    new RegExp('\\*?Stop[\\s\\-]*Loss\\*?[\\s\\*\\:]+' + NUM, 'i'),
+    new RegExp('\\*?Stop[\\s\\-]*Loss\\*?[\\s\\*\\:]+(?:\\(SL\\))?[\\s\\*\\:]*' + NUM, 'i'),
     new RegExp('\\*?SL\\*?[\\s\\*\\:]+' + NUM, 'i'),
     new RegExp('\\bSL\\b[\\s\\*\\:]+' + NUM),
     new RegExp('To\'xtatish[\\s\\*\\:]+' + NUM, 'i'),
   ]);
   const tp1 = find([
-    new RegExp('\\*?TP[\\s\\-]?1\\*?[\\s\\*\\:]+' + NUM, 'i'),
+    new RegExp('\\*?TP[\\s\\-]?1\\*?[\\s\\*\\:]+(?:\\([^\\)]*\\))?[\\s\\*\\:]*' + NUM, 'i'),
     new RegExp('\\*?TP1\\*?[\\s\\*\\:]+' + NUM, 'i'),
     new RegExp('Take\\s*Profit\\s*1[\\s\\*\\:]+' + NUM, 'i'),
   ]);
   const tp2 = find([
-    new RegExp('\\*?TP[\\s\\-]?2\\*?[\\s\\*\\:]+' + NUM, 'i'),
+    new RegExp('\\*?TP[\\s\\-]?2\\*?[\\s\\*\\:]+(?:\\([^\\)]*\\))?[\\s\\*\\:]*' + NUM, 'i'),
     new RegExp('\\*?TP2\\*?[\\s\\*\\:]+' + NUM, 'i'),
     new RegExp('Take\\s*Profit\\s*2[\\s\\*\\:]+' + NUM, 'i'),
   ]);
   const tp3 = find([
-    new RegExp('\\*?TP[\\s\\-]?3\\*?[\\s\\*\\:]+' + NUM, 'i'),
+    new RegExp('\\*?TP[\\s\\-]?3\\*?[\\s\\*\\:]+(?:\\([^\\)]*\\))?[\\s\\*\\:]*' + NUM, 'i'),
     new RegExp('\\*?TP3\\*?[\\s\\*\\:]+' + NUM, 'i'),
     new RegExp('Take\\s*Profit\\s*3[\\s\\*\\:]+' + NUM, 'i'),
   ]);
 
-  // Direction
+  // Direction: AI javobining 1-bo'limidagi "Buyruq:" satridan aniq ajratib olish!
   let direction: 'BUY' | 'SELL' = 'BUY';
-  if (/🔴\s*SELL|\bSELL\b|SOTISH|\bSHORT\b/i.test(cleaned)) direction = 'SELL';
-  else if (/🟢\s*BUY|\bBUY\b|SOTIB\s*OLISH|\bLONG\b/i.test(cleaned)) direction = 'BUY';
+  const buyruqLine = cleaned.match(/(?:Buyruq|Buyurtma|Action|Yo['']?nalish|Pozitsiya)[\s\*:]*([^\n\r]+)/i);
+  if (buyruqLine && buyruqLine[1]) {
+    const line = buyruqLine[1];
+    if (/🔴|SELL|SOTISH|SHORT/i.test(line)) {
+      direction = 'SELL';
+    } else if (/🟢|BUY|SOTIB|LONG/i.test(line)) {
+      direction = 'BUY';
+    }
+  } else {
+    // Matnning birinchi 600 belgisidagi eng birinchi chiqqan 🔴 SELL yoki 🟢 BUY ni aniqlash
+    const topText = cleaned.slice(0, 600);
+    const redMatch = topText.match(/🔴\s*SELL|\bSELL\b|🔴/i);
+    const greenMatch = topText.match(/🟢\s*BUY|\bBUY\b|🟢/i);
+
+    if (redMatch && (!greenMatch || (redMatch.index ?? 999) < (greenMatch.index ?? 999))) {
+      direction = 'SELL';
+    } else if (greenMatch && (!redMatch || (greenMatch.index ?? 999) < (redMatch.index ?? 999))) {
+      direction = 'BUY';
+    } else if (/🔴|SELL|SOTISH|SHORT/i.test(topText)) {
+      direction = 'SELL';
+    } else if (/🟢|BUY|SOTIB|LONG/i.test(topText)) {
+      direction = 'BUY';
+    }
+  }
 
   // Strategy
-  let strategy = 'SMC/ICT';
-  if (/scalp|1m|5m/i.test(cleaned)) strategy = '1m/5m Scalp';
-  else if (/intraday|1-4|H1|H4/i.test(cleaned)) strategy = 'Intraday 1-4H';
+  let strategy = '18 ta SMC/ICT/Gann';
+  if (/scalp|1m|5m/i.test(cleaned)) strategy = '1m/5m Scalp (18 Strategiya)';
+  else if (/intraday|1-4|H1|H4/i.test(cleaned)) strategy = 'Intraday 1-4H (18 Strategiya)';
 
   const hasSignal = !!(entry || sl || tp1);
   return { entry, sl, tp1, tp2, tp3, direction, strategy, hasSignal };
@@ -104,6 +126,18 @@ function SignalCard({
   const [direction, setDirection] = useState<'BUY' | 'SELL'>(parsed.direction);
   const [editMode, setEditMode] = useState(!parsed.hasSignal);
   const [copied, setCopied] = useState(false);
+
+  // Matn kelganda yoki o'zgarganda Signal Card qiymatlarini yangilash
+  useEffect(() => {
+    const p = parseSignal(text);
+    setEntry(p.entry);
+    setSl(p.sl);
+    setTp1(p.tp1);
+    setTp2(p.tp2);
+    setTp3(p.tp3);
+    setDirection(p.direction);
+    setEditMode(!p.hasSignal);
+  }, [text]);
 
   // AI javobidan qayta to'ldirish
   const resetFromAI = () => {

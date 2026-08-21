@@ -609,99 +609,158 @@ export interface StrategyLiveItem {
 }
 
 export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: number, decimals: number = 2): StrategyLiveItem[] {
-  const p = price;
-  const d = (n: number) => Number(n).toFixed(decimals);
+  const p = Math.abs(price);
+  const d = (n: number) => Math.abs(Number(n)).toFixed(decimals);
 
   // 1. Order Block
   const lastBullOB = analysis.orderBlocks.find(b => b.type === 'Bullish OB');
   const lastBearOB = analysis.orderBlocks.find(b => b.type === 'Bearish OB');
-  const obVal = lastBullOB && lastBearOB
-    ? `Demand: ${d(lastBullOB.bottom)}-${d(lastBullOB.top)} | Supply: ${d(lastBearOB.bottom)}-${d(lastBearOB.top)}`
-    : lastBullOB
-    ? `Demand: ${d(lastBullOB.bottom)}-${d(lastBullOB.top)} | Supply: ${d(p * 1.006)}`
-    : `Demand: ${d(p * 0.994)} | Supply: ${d(p * 1.006)}`;
+  const obDemandStr = lastBullOB ? `${d(Math.min(lastBullOB.bottom, lastBullOB.top))} - ${d(Math.max(lastBullOB.bottom, lastBullOB.top))}` : `${d(p * 0.993)} - ${d(p * 0.996)}`;
+  const obSupplyStr = lastBearOB ? `${d(Math.min(lastBearOB.bottom, lastBearOB.top))} - ${d(Math.max(lastBearOB.bottom, lastBearOB.top))}` : `${d(p * 1.004)} - ${d(p * 1.007)}`;
+  const obVal = `Demand: ${obDemandStr} | Supply: ${obSupplyStr}`;
+  let obSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
+  if (lastBullOB && p <= lastBullOB.top * 1.001 && p >= lastBullOB.bottom * 0.999) obSignal = 'BUY';
+  else if (lastBearOB && p >= lastBearOB.bottom * 0.999 && p <= lastBearOB.top * 1.001) obSignal = 'SELL';
+  else if (p < (lastBullOB?.top || p * 0.996)) obSignal = 'BUY';
 
   // 2. Breaker Block
   const lastBreaker = analysis.breakerBlocks[analysis.breakerBlocks.length - 1];
   const bbVal = lastBreaker
-    ? `${lastBreaker.type}: ${d(lastBreaker.bottom)} - ${d(lastBreaker.top)} (Retest)`
+    ? `${lastBreaker.type}: ${d(Math.min(lastBreaker.bottom, lastBreaker.top))} - ${d(Math.max(lastBreaker.bottom, lastBreaker.top))}`
     : `Bullish Breaker: ${d(p * 0.995)} | Bearish Breaker: ${d(p * 1.005)}`;
+  let bbSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
+  if (lastBreaker?.type === 'Bullish Breaker') bbSignal = 'BUY';
+  else if (lastBreaker?.type === 'Bearish Breaker') bbSignal = 'SELL';
 
   // 3. FVG
   const lastFVG = analysis.fvgs[analysis.fvgs.length - 1];
   const fvgVal = lastFVG
-    ? `50% CE: ${d(lastFVG.midpoint)} | Bo'shliq: ${d(lastFVG.bottom)} - ${d(lastFVG.top)}`
+    ? `50% CE: ${d(lastFVG.midpoint)} | Imbalance: ${d(Math.min(lastFVG.bottom, lastFVG.top))} - ${d(Math.max(lastFVG.bottom, lastFVG.top))}`
     : `50% CE: ${d(p * 0.998)} | Imbalance: ${d(p * 0.996)} - ${d(p * 1.002)}`;
+  let fvgSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
+  if (lastFVG && !lastFVG.mitigated) {
+    fvgSignal = lastFVG.type === 'Bullish FVG' ? 'BUY' : 'SELL';
+  } else if (lastFVG) {
+    fvgSignal = p < lastFVG.midpoint ? 'BUY' : 'SELL';
+  }
 
   // 4. iFVG
   const lastIFVG = analysis.ifvgs[analysis.ifvgs.length - 1];
   const ifvgVal = lastIFVG
     ? `Invert 50%: ${d(lastIFVG.midpoint)} (${lastIFVG.type})`
     : `Invert Zonalari: ${d(p * 0.997)} (Tayanch) / ${d(p * 1.003)} (Qarshilik)`;
+  let ifvgSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
+  if (lastIFVG?.type === 'Bullish FVG') ifvgSignal = 'BUY';
+  else if (lastIFVG?.type === 'Bearish FVG') ifvgSignal = 'SELL';
 
   // 5. SMT
-  const smtVal = `${analysis.smt.type} • ${analysis.smt.strength}`;
+  const smtVal = `${analysis.smt.type} (${analysis.smt.strength})`;
+  let smtSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
+  if (analysis.smt.type.includes('Bullish')) smtSignal = 'BUY';
+  else if (analysis.smt.type.includes('Bearish')) smtSignal = 'SELL';
 
   // 6. Silver Bullet
+  const currentHour = new Date().getUTCHours();
+  const isSBAwake = (currentHour >= 7 && currentHour <= 8) || (currentHour >= 14 && currentHour <= 15) || (currentHour >= 18 && currentHour <= 19);
   const sbVal = `${analysis.silverBullet.sessionWindow} • ${analysis.silverBullet.targetTicks}`;
+  const sbSignal: 'BUY' | 'SELL' | 'NEUTRAL' = isSBAwake ? (p > (analysis.ictSession.dailyOpen || p) ? 'SELL' : 'BUY') : 'NEUTRAL';
 
   // 7. Judas Swing
-  const jsVal = `${analysis.judasSwing.stage} • Tuzoq xavfi: ${analysis.judasSwing.riskLevel}`;
+  const jsVal = `${analysis.judasSwing.stage} • Xavf: ${analysis.judasSwing.riskLevel}`;
+  let jsSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
+  if (analysis.judasSwing.stage.includes('Manipulation')) jsSignal = 'SELL';
+  else if (analysis.judasSwing.stage.includes('Sweep')) jsSignal = 'BUY';
 
   // 8. SNR
   const sup = analysis.snrLevels.find(s => s.type === 'Support');
   const res = analysis.snrLevels.find(s => s.type === 'Resistance');
-  const snrVal = `Support: ${sup ? d(sup.price) : d(p * 0.990)} | Resistance: ${res ? d(res.price) : d(p * 1.010)}`;
+  const supPrice = sup ? Math.abs(sup.price) : p * 0.991;
+  const resPrice = res ? Math.abs(res.price) : p * 1.009;
+  const snrVal = `Support: ${d(supPrice)} | Resistance: ${d(resPrice)}`;
+  let snrSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
+  if (Math.abs(p - supPrice) < Math.abs(p - resPrice) * 0.4) snrSignal = 'BUY';
+  else if (Math.abs(p - resPrice) < Math.abs(p - supPrice) * 0.4) snrSignal = 'SELL';
 
   // 9. Fib OTE
   const fib = analysis.fibOte;
-  const fibVal = fib
-    ? `0.705 OTE: ${d(fib.levels.fib0705)} | 0.618: ${d(fib.levels.fib0618)} | 0.50 Eq: ${d(fib.levels.fib050)}`
-    : `0.705 OTE: ${d(p * 0.994)} | 0.618: ${d(p * 0.996)} | 0.5 Eq: ${d(p * 0.999)}`;
+  const fib0705 = fib ? Math.abs(fib.levels.fib0705) : p * 0.994;
+  const fib0618 = fib ? Math.abs(fib.levels.fib0618) : p * 0.996;
+  const fib050 = fib ? Math.abs(fib.levels.fib050) : p * 0.999;
+  const fibVal = `0.705 OTE: ${d(fib0705)} | 0.618: ${d(fib0618)} | 0.50 Eq: ${d(fib050)}`;
+  let fibSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
+  if (fib?.trend.includes('Uptrend') && p <= fib0618 && p >= fib0705 * 0.998) fibSignal = 'BUY';
+  else if (fib?.trend.includes('Downtrend') && p >= fib0618 && p <= fib0705 * 1.002) fibSignal = 'SELL';
+  else fibSignal = p < fib050 ? 'BUY' : 'SELL';
 
   // 10. Ganna
   const g = analysis.gann.degrees;
   const gannVal = `90°=${d(g.deg90)} | 180°=${d(g.deg180)} | 270°=${d(g.deg270)} | 360°=${d(g.deg360)}`;
+  let gannSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
+  if (p < g.deg90) gannSignal = 'BUY';
+  else if (p > g.deg270) gannSignal = 'SELL';
 
   // 11. Liquidity
   const bsl = analysis.liquidity.find(l => l.type.includes('BSL'));
   const ssl = analysis.liquidity.find(l => l.type.includes('SSL'));
-  const liqVal = `BSL (Yuqori): ${bsl ? d(bsl.price) : d(p * 1.007)} | SSL (Pastki): ${ssl ? d(ssl.price) : d(p * 0.993)}`;
+  const bslPrice = bsl ? Math.abs(bsl.price) : p * 1.008;
+  const sslPrice = ssl ? Math.abs(ssl.price) : p * 0.992;
+  const liqVal = `BSL: ${d(bslPrice)} (${bsl?.swept ? 'Swept' : 'Ochiq'}) | SSL: ${d(sslPrice)} (${ssl?.swept ? 'Swept' : 'Ochiq'})`;
+  let liqSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
+  if (bsl?.swept) liqSignal = 'SELL'; // Liquidity swept at high -> Reversal down
+  else if (ssl?.swept) liqSignal = 'BUY'; // Liquidity swept at low -> Reversal up
+  else if (p < (bslPrice + sslPrice) / 2) liqSignal = 'BUY';
+  else liqSignal = 'SELL';
 
   // 12. Single Candle
   const sc = analysis.singleCandles[analysis.singleCandles.length - 1];
   const scVal = sc
-    ? `${sc.type} (${d(sc.bodySize)} diapazon, ${sc.significance})`
-    : `Institutsional impuls: ${d(p * 0.006)} diapazon`;
+    ? `${sc.type} (${d(sc.bodySize)} pip impuls)`
+    : `Institutsional impuls: ${d(p * 0.005)} diapazon`;
+  let scSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
+  if (sc?.type === 'Bullish Displacement') scSignal = 'BUY';
+  else if (sc?.type === 'Bearish Displacement') scSignal = 'SELL';
 
   // 13. ICT AMD
-  const ictVal = `Killzone: ${analysis.ictSession.currentKillzone} | Bias: ${analysis.ictSession.bias}`;
+  const dailyOpen = analysis.ictSession.dailyOpen ? Math.abs(analysis.ictSession.dailyOpen) : p;
+  const ictVal = `${analysis.ictSession.currentKillzone} | Open: ${d(dailyOpen)} | ${analysis.ictSession.bias}`;
+  let ictSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
+  if (p < dailyOpen) ictSignal = 'BUY'; // Discount buying
+  else if (p > dailyOpen) ictSignal = 'SELL'; // Premium selling
 
   // 14. BOS
   const lastBOS = analysis.structureBreaks.find(s => s.type.includes('BOS'));
   const bosVal = lastBOS
     ? `${lastBOS.type} darajasi: ${d(lastBOS.price)}`
     : `Bullish BOS: ${d(p * 1.004)} | Bearish BOS: ${d(p * 0.996)}`;
+  let bosSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
+  if (lastBOS?.type.includes('Bullish')) bosSignal = 'BUY';
+  else if (lastBOS?.type.includes('Bearish')) bosSignal = 'SELL';
 
   // 15. CHoCH
   const lastCHoCH = analysis.structureBreaks.find(s => s.type.includes('CHoCH'));
   const chochVal = lastCHoCH
     ? `${lastCHoCH.type} trigger: ${d(lastCHoCH.price)}`
     : `Bullish CHoCH: ${d(p * 1.005)} | Bearish CHoCH: ${d(p * 0.995)}`;
+  let chochSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
+  if (lastCHoCH?.type.includes('Bullish')) chochSignal = 'BUY';
+  else if (lastCHoCH?.type.includes('Bearish')) chochSignal = 'SELL';
 
   // 16. MTF Matrix
   const mtfVal = `H4: ${analysis.mtf.h4Bias} | M15: ${analysis.mtf.m15Structure} | Confluence: ${analysis.mtf.confluenceScore}%`;
+  let mtfSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
+  if (analysis.mtf.h4Bias === 'BULLISH' && analysis.mtf.m15Structure === 'BOS Up') mtfSignal = 'BUY';
+  else if (analysis.mtf.h4Bias === 'BEARISH' && analysis.mtf.m15Structure === 'BOS Down') mtfSignal = 'SELL';
 
   // 17. Matematika
   const m = analysis.math;
   const mathVal = `ATR: ${d(m.atr)} | Ideal SL: ${d(m.idealSLDistance)} | TP1: ${d(m.idealTP1)} | TP2: ${d(m.idealTP2)} | R:R=1:3`;
+  const mathSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
 
   // 18. Swing High & Low
-  const supP = sup ? sup.price : p * 0.994;
-  const resP = res ? res.price : p * 1.006;
-  const hlVal = `Swing High: ${d(resP)} | Swing Low: ${d(supP)}`;
-
-  const isBuyBias = analysis.ictSession.bias.includes('Bullish') || analysis.mtf.h4Bias === 'BULLISH';
+  const hlVal = `Swing High: ${d(resPrice)} | Swing Low: ${d(supPrice)}`;
+  let hlSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
+  if (p < (resPrice + supPrice) / 2) hlSignal = 'BUY';
+  else hlSignal = 'SELL';
 
   return [
     {
@@ -712,7 +771,7 @@ export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: numbe
       badge: 'OB',
       description: 'Institutsional yirik banklar va fondlar buyurtma zonalari (Demand / Supply)',
       liveValue: obVal,
-      signal: isBuyBias ? 'BUY' : 'SELL',
+      signal: obSignal,
       keyLevel: lastBullOB ? d(lastBullOB.top) : d(p * 0.995),
     },
     {
@@ -723,7 +782,7 @@ export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: numbe
       badge: 'Breaker',
       description: 'Buzib o\'tilgan Order Block qaytishida (Retest) juda kuchli qarama-qarshi kirish tayanchi bo\'ladi',
       liveValue: bbVal,
-      signal: isBuyBias ? 'BUY' : 'SELL',
+      signal: bbSignal,
       keyLevel: lastBreaker ? d(lastBreaker.top) : d(p * 0.996),
     },
     {
@@ -734,7 +793,7 @@ export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: numbe
       badge: 'FVG',
       description: '3 ta sham oralig\'idagi narx nomutanosibligi (50% Consequent Encroachment)',
       liveValue: fvgVal,
-      signal: lastFVG?.type === 'Bullish FVG' ? 'BUY' : 'SELL',
+      signal: fvgSignal,
       keyLevel: lastFVG ? d(lastFVG.midpoint) : d(p * 0.998),
     },
     {
@@ -745,7 +804,7 @@ export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: numbe
       badge: 'iFVG',
       description: 'Narx tomonidan buzib o\'tilgan va teskari (Support <-> Resistance) vazifasini bajaruvchi FVG',
       liveValue: ifvgVal,
-      signal: lastIFVG?.type === 'Bullish FVG' ? 'BUY' : 'SELL',
+      signal: ifvgSignal,
       keyLevel: lastIFVG ? d(lastIFVG.midpoint) : d(p * 0.997),
     },
     {
@@ -756,7 +815,7 @@ export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: numbe
       badge: 'SMT',
       description: 'Dollar indeksi (DXY) va Oltin o\'rtasidagi nomutanosiblik — Yirik o\'yinchilarning tuzog\'i (Fakeout) aniqlash',
       liveValue: smtVal,
-      signal: analysis.smt.type.includes('Bullish') ? 'BUY' : 'SELL',
+      signal: smtSignal,
       keyLevel: 'DXY/Gold Divergence',
     },
     {
@@ -767,7 +826,7 @@ export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: numbe
       badge: 'SB',
       description: 'Kun davomidagi eng yuqori ehtimolli 60 daqiqalik vaqt oynasi (London AM, NY AM, NY PM)',
       liveValue: sbVal,
-      signal: isBuyBias ? 'BUY' : 'SELL',
+      signal: sbSignal,
       keyLevel: analysis.silverBullet.sessionWindow,
     },
     {
@@ -778,7 +837,7 @@ export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: numbe
       badge: 'Judas',
       description: 'London/NY ochilishining ilk 15-30 daqiqasidagi yolg\'on harakat (Manipulation) va undan keyingi haqiqiy trend',
       liveValue: jsVal,
-      signal: analysis.judasSwing.targetDirection === 'BUY' ? 'BUY' : 'SELL',
+      signal: jsSignal,
       keyLevel: analysis.judasSwing.stage,
     },
     {
@@ -789,8 +848,8 @@ export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: numbe
       badge: 'SNR',
       description: 'Statik va dinamik asosiy qo\'llab-quvvatlash va qarshilik gorizontal darajalari',
       liveValue: snrVal,
-      signal: 'NEUTRAL',
-      keyLevel: sup ? d(sup.price) : d(p * 0.990),
+      signal: snrSignal,
+      keyLevel: d(supPrice),
     },
     {
       id: 'fib_ote',
@@ -800,8 +859,8 @@ export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: numbe
       badge: 'OTE',
       description: 'Fibonacci 0.50 (Eq), 0.618 (Golden), 0.705 (ICT OTE Sweet Spot) va 0.786 darajalari',
       liveValue: fibVal,
-      signal: isBuyBias ? 'BUY' : 'SELL',
-      keyLevel: fib ? d(fib.levels.fib0705) : d(p * 0.994),
+      signal: fibSignal,
+      keyLevel: d(fib0705),
     },
     {
       id: 'ganna',
@@ -811,7 +870,7 @@ export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: numbe
       badge: 'Gann',
       description: 'W.D. Gann matematik kvadrat ildiz va burchak darajalari (90°, 180°, 270°, 360°)',
       liveValue: gannVal,
-      signal: 'NEUTRAL',
+      signal: gannSignal,
       keyLevel: d(g.deg180),
     },
     {
@@ -822,8 +881,8 @@ export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: numbe
       badge: 'Liq',
       description: 'Likvidlik yig\'ilgan zonalar: Buy-side Liquidity (BSL) va Sell-side Liquidity (SSL)',
       liveValue: liqVal,
-      signal: bsl?.swept ? 'SELL' : ssl?.swept ? 'BUY' : 'NEUTRAL',
-      keyLevel: bsl ? d(bsl.price) : d(p * 1.007),
+      signal: liqSignal,
+      keyLevel: d(bslPrice),
     },
     {
       id: 'single_candle',
@@ -833,7 +892,7 @@ export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: numbe
       badge: 'Sham',
       description: 'Katta hajmli yakkaxon institutsional impuls shami (Imbalance / Katta tana)',
       liveValue: scVal,
-      signal: sc?.type === 'Bullish Displacement' ? 'BUY' : 'SELL',
+      signal: scSignal,
       keyLevel: sc ? d(sc.priceEnd) : d(p),
     },
     {
@@ -844,7 +903,7 @@ export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: numbe
       badge: 'ICT',
       description: 'London / New York Killzones, Midnight Open, Daily Open va Accumulation-Manipulation-Distribution',
       liveValue: ictVal,
-      signal: isBuyBias ? 'BUY' : 'SELL',
+      signal: ictSignal,
       keyLevel: analysis.ictSession.bias,
     },
     {
@@ -855,7 +914,7 @@ export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: numbe
       badge: 'BOS',
       description: 'Trend davom etishini tasdiqlovchi struktura buzilishi (Higher High / Lower Low)',
       liveValue: bosVal,
-      signal: lastBOS?.type.includes('Bullish') ? 'BUY' : 'SELL',
+      signal: bosSignal,
       keyLevel: lastBOS ? d(lastBOS.price) : d(p * 1.004),
     },
     {
@@ -866,7 +925,7 @@ export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: numbe
       badge: 'CHoCH',
       description: 'Trend yo\'nalishi o\'zgarishini ko\'rsatuvchi dastlabki struktura o\'zgarishi',
       liveValue: chochVal,
-      signal: lastCHoCH?.type.includes('Bullish') ? 'BUY' : 'SELL',
+      signal: chochSignal,
       keyLevel: lastCHoCH ? d(lastCHoCH.price) : d(p * 1.005),
     },
     {
@@ -877,7 +936,7 @@ export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: numbe
       badge: 'MTF',
       description: 'H4 (Katta Trend) + M15 (Struktura & Likvidlik) + M5 (Kam xatarli aniq kirish) 100% uyg\'unligi',
       liveValue: mtfVal,
-      signal: analysis.mtf.h4Bias === 'BULLISH' ? 'BUY' : 'SELL',
+      signal: mtfSignal,
       keyLevel: `${analysis.mtf.confluenceScore}% Confluence`,
     },
     {
@@ -888,7 +947,7 @@ export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: numbe
       badge: 'Math',
       description: 'ATR volatilligi, Risk-Reward (1:3), ideal Stop Loss va Take Profit 1/2 masofalari',
       liveValue: mathVal,
-      signal: 'NEUTRAL',
+      signal: mathSignal,
       keyLevel: `R:R 1:3 • ATR ${d(m.atr)}`,
     },
     {
@@ -899,9 +958,10 @@ export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: numbe
       badge: 'H/L',
       description: 'Bozordagi eng so\'nggi muhim maksimal (High) va minimal (Low) burilish nuqtalari',
       liveValue: hlVal,
-      signal: 'NEUTRAL',
-      keyLevel: d(resP),
+      signal: hlSignal,
+      keyLevel: d(resPrice),
     },
   ];
 }
+
 

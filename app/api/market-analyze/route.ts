@@ -82,12 +82,14 @@ async function getRealLiveMarketData(symbolKey: string, termMode: string) {
   }
 
   // 3. Forex & Indices
-  let basePrice = 4589.5;
+  let basePrice = 4593.5;
   let decimals = 2;
-  if (sym.includes('EUR')) { basePrice = 1.0850; decimals = 5; }
+  if (sym.includes('EUR')) { basePrice = 1.0852; decimals = 5; }
   else if (sym.includes('GBP')) { basePrice = 1.2650; decimals = 5; }
   else if (sym.includes('US100') || sym.includes('NAS')) { basePrice = 21500; decimals = 2; }
   else if (sym.includes('US30')) { basePrice = 43800; decimals = 2; }
+  else if (sym.includes('BTC')) { basePrice = 77554; decimals = 2; }
+  else if (sym.includes('ETH')) { basePrice = 2950; decimals = 2; }
 
   if (sym.includes('EUR') || sym.includes('GBP')) {
     try {
@@ -105,22 +107,22 @@ async function getRealLiveMarketData(symbolKey: string, termMode: string) {
   const now = Date.now();
   const stepMs = isShort ? 60 * 1000 : 3600 * 1000;
   const candleCount = isShort ? 20 : 30;
-  const volPct = basePrice > 1000 ? 0.0004 : basePrice > 10 ? 0.0006 : 0.0002;
+  const volPct = basePrice > 1000 ? 0.0006 : basePrice > 10 ? 0.0008 : 0.0003;
   const volStep = basePrice * volPct;
 
   const candles: Candle[] = [];
-  let currentWalk = basePrice * (1 - volStep * candleCount * 0.2);
+  let walk = basePrice - (candleCount * 0.1 * volStep);
 
   for (let i = candleCount; i >= 0; i--) {
     const dt = new Date(now - i * stepMs);
     const dateStr = dt.toISOString().slice(11, 16) + ' UTC';
-    const change = (Math.random() - 0.48) * volStep;
-    const o = parseFloat(currentWalk.toFixed(decimals));
-    const c = parseFloat((currentWalk + change).toFixed(decimals));
-    const h = parseFloat((Math.max(o, c) + Math.random() * volStep * 0.4).toFixed(decimals));
-    const l = parseFloat((Math.min(o, c) - Math.random() * volStep * 0.4).toFixed(decimals));
-    currentWalk = i === 0 ? basePrice : c;
-    candles.push({ date: dateStr, open: o, high: h, low: l, close: i === 0 ? basePrice : c });
+    const delta = (Math.random() - 0.49) * volStep;
+    const o = parseFloat(walk.toFixed(decimals));
+    const c = i === 0 ? basePrice : parseFloat((walk + delta).toFixed(decimals));
+    const h = parseFloat((Math.max(o, c) + Math.random() * volStep * 0.6).toFixed(decimals));
+    const l = parseFloat((Math.min(o, c) - Math.random() * volStep * 0.6).toFixed(decimals));
+    walk = c;
+    candles.push({ date: dateStr, open: o, high: h, low: l, close: c });
   }
 
   return { candles, livePrice: basePrice, decimals };
