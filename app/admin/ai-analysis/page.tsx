@@ -81,7 +81,7 @@ function buildTelegramData(parsed: ReturnType<typeof parseSignal>, asset: AssetC
   };
 }
 
-// Signal Card komponenti
+// Signal Card — avtomatik to'ldiriladi va qo'lda tahrirlanadi
 function SignalCard({
   text,
   asset,
@@ -94,26 +94,55 @@ function SignalCard({
   onOpenTelegram: (data: ReturnType<typeof buildTelegramData>) => void;
 }) {
   const parsed = parseSignal(text);
+
+  // Editable lokal state — AI dan avtomatik to'ldiriladi
+  const [entry, setEntry] = useState(parsed.entry);
+  const [sl, setSl] = useState(parsed.sl);
+  const [tp1, setTp1] = useState(parsed.tp1);
+  const [tp2, setTp2] = useState(parsed.tp2);
+  const [tp3, setTp3] = useState(parsed.tp3);
+  const [direction, setDirection] = useState<'BUY' | 'SELL'>(parsed.direction);
+  const [editMode, setEditMode] = useState(!parsed.hasSignal);
   const [copied, setCopied] = useState(false);
+
+  // AI javobidan qayta to'ldirish
+  const resetFromAI = () => {
+    const p = parseSignal(text);
+    setEntry(p.entry); setSl(p.sl);
+    setTp1(p.tp1); setTp2(p.tp2); setTp3(p.tp3);
+    setDirection(p.direction);
+  };
+
+  const isShort = termMode === 'short';
+  const isBuy = direction === 'BUY';
+  const accentBorder = isShort ? 'border-amber-500/50' : 'border-indigo-500/50';
+
+  // Telegram ga yuborish uchun hozirgi (tahrirlangan) qiymatlar
+  const currentData = {
+    asset: asset.name,
+    strategy: parsed.strategy || (isShort ? '1m/5m Scalp' : 'Intraday 1-4H'),
+    direction,
+    entry: entry || '—',
+    sl: sl || '—',
+    tp1: tp1 || '—',
+    tp2: tp2 || '—',
+    tp3: tp3 || '—',
+  };
 
   const copyText = () => {
     const t =
       `⚡ SIGNAL • ${asset.name} (${asset.symbol})\n` +
-      `● Kirish (Entry): ${parsed.entry || '—'}\n` +
-      `● Stop Loss: ${parsed.sl || '—'}\n` +
-      `● TP1: ${parsed.tp1 || '—'}\n` +
-      `● TP2: ${parsed.tp2 || '—'}\n` +
-      `● TP3: ${parsed.tp3 || '—'}\n` +
+      `● ${isBuy ? '🟢 BUY' : '🔴 SELL'}\n` +
+      `● Kirish (Entry): ${entry || '—'}\n` +
+      `● Stop Loss: ${sl || '—'}\n` +
+      `● TP1: ${tp1 || '—'}\n` +
+      `● TP2: ${tp2 || '—'}\n` +
+      `● TP3: ${tp3 || '—'}\n` +
       `\n🔗 https://t.me/+U5pPkneGmM1mMjYy`;
     navigator.clipboard.writeText(t);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
-
-  const isShort = termMode === 'short';
-  const accentBorder = isShort ? 'border-amber-500/50' : 'border-indigo-500/50';
-  const dirColor = parsed.direction === 'BUY' ? 'text-emerald-400' : 'text-red-400';
-  const dirBg = parsed.direction === 'BUY' ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30';
 
   return (
     <div className={`mt-4 p-4 rounded-xl bg-slate-900/95 border ${accentBorder} shadow-2xl space-y-3`}>
@@ -124,22 +153,45 @@ function SignalCard({
           <div>
             <div className="text-white text-xs font-black">SIGNAL NATIJALARI</div>
             <div className="text-slate-400 text-[10px]">
-              {asset.name} • {isShort ? '1m/5m Scalp' : '1-4H Intraday'} •{' '}
-              <span className={dirColor}>{parsed.direction === 'BUY' ? '🟢 BUY' : '🔴 SELL'}</span>
+              {asset.name} • {isShort ? '1m/5m Scalp' : '1-4H Intraday'}
+              {!parsed.hasSignal && (
+                <span className="text-amber-400 ml-1">• Qo&apos;lda kiriting ↓</span>
+              )}
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          {/* AI dan qayta yuklash */}
+          {parsed.hasSignal && (
+            <button
+              onClick={resetFromAI}
+              title="AI javobidan qayta to'ldirish"
+              className="px-2 py-1.5 rounded-lg bg-violet-500/15 hover:bg-violet-500/30 text-violet-400 border border-violet-500/30 text-[11px] font-bold transition-all"
+            >
+              🤖 AI
+            </button>
+          )}
+          {/* Tahrirlash toggle */}
+          <button
+            onClick={() => setEditMode(m => !m)}
+            className={`px-2 py-1.5 rounded-lg text-[11px] font-bold transition-all border ${
+              editMode
+                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white hover:border-slate-500'
+            }`}
+          >
+            {editMode ? '✓ Saqlash' : '✏️ Tahrir'}
+          </button>
           <button
             onClick={copyText}
-            className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all"
+            className="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-bold transition-all"
           >
-            {copied ? '✓ Nusxalandi' : '📋 Nusxalash'}
+            {copied ? '✓' : '📋'}
           </button>
-          {/* ✅ TELEGRAM TUGMASI — DOIM KO'RINADI */}
+          {/* Telegram — tahrirlangan qiymatlarni yuboradi */}
           <button
-            onClick={() => onOpenTelegram(buildTelegramData(parsed, asset))}
-            className="px-2.5 py-1.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/40 text-sky-300 border border-sky-500/50 text-xs font-bold transition-all flex items-center gap-1"
+            onClick={() => onOpenTelegram(currentData)}
+            className="px-2.5 py-1.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/40 text-sky-300 border border-sky-500/50 text-[11px] font-bold transition-all flex items-center gap-1"
           >
             <span>✈️</span>
             <span>Telegram</span>
@@ -147,34 +199,104 @@ function SignalCard({
         </div>
       </div>
 
-      {/* Narxlar grid */}
+      {/* BUY / SELL toggle */}
+      <div className="flex items-center gap-2">
+        <span className="text-slate-500 text-[10px] font-bold">YO&apos;NALISH:</span>
+        <button
+          onClick={() => setDirection('BUY')}
+          className={`px-3 py-1 rounded-lg text-xs font-black transition-all border ${
+            isBuy
+              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50'
+              : 'bg-slate-800/60 text-slate-500 border-slate-700 hover:text-slate-300'
+          }`}
+        >
+          🟢 BUY
+        </button>
+        <button
+          onClick={() => setDirection('SELL')}
+          className={`px-3 py-1 rounded-lg text-xs font-black transition-all border ${
+            !isBuy
+              ? 'bg-red-500/20 text-red-300 border-red-500/50'
+              : 'bg-slate-800/60 text-slate-500 border-slate-700 hover:text-slate-300'
+          }`}
+        >
+          🔴 SELL
+        </button>
+      </div>
+
+      {/* Narxlar grid — ko'rish yoki tahrirlash */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 font-mono text-xs">
+        {/* Entry */}
         <div className="bg-slate-800/80 p-2.5 rounded-lg text-center border border-slate-700">
-          <div className="text-slate-400 text-[10px] mb-0.5">Kirish (Entry)</div>
-          <div className="text-white font-bold">{parsed.entry || '—'}</div>
+          <div className="text-slate-400 text-[10px] mb-1">Kirish (Entry)</div>
+          {editMode ? (
+            <input
+              type="text" value={entry} onChange={e => setEntry(e.target.value)}
+              placeholder="narx..."
+              className="w-full bg-transparent text-center font-bold text-white outline-none border-b border-slate-500 focus:border-white pb-0.5 placeholder-slate-600"
+            />
+          ) : (
+            <div className="text-white font-bold">{entry || '—'}</div>
+          )}
         </div>
-        <div className={`p-2.5 rounded-lg text-center border ${dirBg}`}>
-          <div className="text-red-400 text-[10px] mb-0.5">Stop Loss</div>
-          <div className="text-red-300 font-bold">{parsed.sl || '—'}</div>
+        {/* Stop Loss */}
+        <div className={`p-2.5 rounded-lg text-center border ${isBuy ? 'bg-red-500/10 border-red-500/30' : 'bg-red-500/15 border-red-500/40'}`}>
+          <div className="text-red-400 text-[10px] mb-1">Stop Loss</div>
+          {editMode ? (
+            <input
+              type="text" value={sl} onChange={e => setSl(e.target.value)}
+              placeholder="narx..."
+              className="w-full bg-transparent text-center font-bold text-red-300 outline-none border-b border-red-500/40 focus:border-red-400 pb-0.5 placeholder-slate-600"
+            />
+          ) : (
+            <div className="text-red-300 font-bold">{sl || '—'}</div>
+          )}
         </div>
+        {/* TP1 */}
         <div className="bg-emerald-500/10 p-2.5 rounded-lg text-center border border-emerald-500/30">
-          <div className="text-emerald-400 text-[10px] mb-0.5">TP 1</div>
-          <div className="text-emerald-300 font-bold">{parsed.tp1 || '—'}</div>
+          <div className="text-emerald-400 text-[10px] mb-1">TP 1</div>
+          {editMode ? (
+            <input
+              type="text" value={tp1} onChange={e => setTp1(e.target.value)}
+              placeholder="narx..."
+              className="w-full bg-transparent text-center font-bold text-emerald-300 outline-none border-b border-emerald-500/40 focus:border-emerald-400 pb-0.5 placeholder-slate-600"
+            />
+          ) : (
+            <div className="text-emerald-300 font-bold">{tp1 || '—'}</div>
+          )}
         </div>
+        {/* TP2 */}
         <div className="bg-emerald-500/10 p-2.5 rounded-lg text-center border border-emerald-500/30">
-          <div className="text-emerald-400 text-[10px] mb-0.5">TP 2</div>
-          <div className="text-emerald-300 font-bold">{parsed.tp2 || '—'}</div>
+          <div className="text-emerald-400 text-[10px] mb-1">TP 2</div>
+          {editMode ? (
+            <input
+              type="text" value={tp2} onChange={e => setTp2(e.target.value)}
+              placeholder="narx..."
+              className="w-full bg-transparent text-center font-bold text-emerald-300 outline-none border-b border-emerald-500/40 focus:border-emerald-400 pb-0.5 placeholder-slate-600"
+            />
+          ) : (
+            <div className="text-emerald-300 font-bold">{tp2 || '—'}</div>
+          )}
         </div>
+        {/* TP3 */}
         <div className="bg-emerald-500/10 p-2.5 rounded-lg text-center border border-emerald-500/30">
-          <div className="text-emerald-400 text-[10px] mb-0.5">TP 3</div>
-          <div className="text-emerald-300 font-bold">{parsed.tp3 || '—'}</div>
+          <div className="text-emerald-400 text-[10px] mb-1">TP 3</div>
+          {editMode ? (
+            <input
+              type="text" value={tp3} onChange={e => setTp3(e.target.value)}
+              placeholder="narx..."
+              className="w-full bg-transparent text-center font-bold text-emerald-300 outline-none border-b border-emerald-500/40 focus:border-emerald-400 pb-0.5 placeholder-slate-600"
+            />
+          ) : (
+            <div className="text-emerald-300 font-bold">{tp3 || '—'}</div>
+          )}
         </div>
       </div>
 
-      {/* Agar signal topilmagan bo'lsa xabar */}
-      {!parsed.hasSignal && (
-        <div className="text-slate-400 text-xs text-center py-1">
-          ⚠️ Narxlar aniqlanmadi — yuqoridagi javobdan ko&apos;ring
+      {/* Ko'rsatma */}
+      {editMode && (
+        <div className="text-slate-500 text-[10px] text-center">
+          ✏️ Narxlarni o&apos;zgartiring → &quot;✓ Saqlash&quot; → &quot;✈️ Telegram&quot; bosing
         </div>
       )}
     </div>
