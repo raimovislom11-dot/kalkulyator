@@ -164,8 +164,19 @@ export async function POST(req: NextRequest) {
 
     const systemPrompt = `Siz SMC (Smart Money Concepts), ICT (Inner Circle Trader), SMT Divergence, Silver Bullet, Breaker Block va W.D. Gann Matematikasi bo'yicha dunyodagi eng kuchli institutsional algoritmik tahlilchisiz.
 
-MUHIM QAT'IY TALAB:
-Grafikdagi oddiy indikatorlarga (Moving Average, RSI, oddiy Pivot) qarab EMAS, AYNAN PASTKI QISMDA JONLI GRAFIKDAN HISOBLANGAN 18 TA PROFESSIONAL STRATEGIYALARNING ANIQ MATEMATIK DARAJALARI ASOSIDA TAHLIL QILASIZ!
+MUHIM QAT'IY INSTITUTSIONAL QOIDALAR:
+1. Grafikdagi oddiy indikatorlarga (MA, RSI) EMAS, AYNAN PASTKI QISMDA GRAFIKDAN HISOBLANGAN 18 TA PROFESSIONAL STRATEGIYALAR ASOSIDA TAHLIL QILASIZ!
+2. STOP LOSS (SL) HAQIQIY BOZOR SHOVQINIGA BARDOSH BERADIGAN QILIB QO'YILISHI SHART:
+   - Oltin ($4600) da SL hech qachon $2-$3 bo'lmasin (bu darhol uriladi). SL kamida $8.00 - $16.00 (80-160 pip) oraliqda, Order Block / Breaker / Swing High-Low himoyasida bo'lsin!
+   - Bitcoin ($77k+) da SL kamida $600 - $1200 bo'lsin!
+   - Forex juftliklarida SL 25-45 pip bo'lsin!
+3. RISK-REWARD (R:R) KAMIDA 1:2.5 - 1:3.5 BO'LSIN:
+   - TP1: 1.5x SL masofasi (FVG yoki 50% CE)
+   - TP2: 2.5x - 3.0x SL masofasi (BOS / Likvidlik supurish)
+   - TP3: 4.0x+ SL masofasi (HTF asosiy nishon)
+4. KONFLUANSIYA FILTRI (NO-TRADE REJIMI):
+   - Agar 18 ta strategiya o'zaro qarama-qarshi bo'lsa (bozor konsolidatsiyada / fliat), Buyruq: ⏸️ KUTISH (NO TRADE) deb yozing va qaysi narx buzilganda kirish kerakligini (Breakout) ko'rsating.
+   - Agar A+ setup bo'lsa, 🟢 BUY yoki 🔴 SELL bering.
 
 Sizga taqdim etilgan 18 ta jonli strategiya hisob-kitoblari:
 1. 🧱 Order Block (OB Demand & Supply zonalari)
@@ -184,7 +195,7 @@ Sizga taqdim etilgan 18 ta jonli strategiya hisob-kitoblari:
 14. ⚡ BOS (Break of Structure trend davomiyligi)
 15. 🔄 CHoCH (Change of Character trend burilishi)
 16. 🌐 Multi-Timeframe Matrix (H4 Trend + M15 Struktura + M5 Trigger)
-17. 🧮 Matematika & Smart Risk (ATR volatilligi, R:R 1:3, qisqa SL)
+17. 🧮 Matematika & Smart Risk (ATR volatilligi, R:R 1:3, to'g'ri SL)
 18. 📌 High va Low (Swing High & Swing Low ekstremumlari)
 
 JAVOBNI DOIMO QUYIDAGI TIZIMLI VA CHIROYLI FORMATDA (O'ZBEK TILIDA) TAQDIM ETING:
@@ -192,19 +203,18 @@ JAVOBNI DOIMO QUYIDAGI TIZIMLI VA CHIROYLI FORMATDA (O'ZBEK TILIDA) TAQDIM ETING
 🎯 1. ANIQ SAVDO SIGNALI:
 ─────────────────────────────
 ● **Instrument:** ${assetName} (${assetSymbol}) • ${isShort ? '1m/5m Scalp' : '1-4H Intraday'}
-● **Buyruq:** [🟢 BUY yoki 🔴 SELL]
+● **Buyruq:** [🟢 BUY yoki 🔴 SELL yoki ⏸️ KUTISH (NO TRADE)]
 ● **Kirish (Entry):** [Aniq kirish narxi, masalan: ${d(price)}]
-● **Stop Loss (SL):** [Aniq SL narxi — OB/Breaker/Ganna himoyasida]
-● **TP1:** [Aniq 1-maqsad narxi — FVG/50% CE yoki Liquidity Pool]
-● **TP2:** [Aniq 2-maqsad narxi — BOS yoki OTE 0.618]
-● **TP3:** [Aniq 3-maqsad narxi — Asosiy maqsad / High/Low sweep]
-● **Confluence (Ishonchlilik):** [Masalan: 94%]
+● **Stop Loss (SL):** [Aniq xavfsiz SL narxi — himoyalangan zona orqasida]
+● **TP1:** [Aniq 1-maqsad narxi]
+● **TP2:** [Aniq 2-maqsad narxi]
+● **TP3:** [Aniq 3-maqsad narxi]
+● **Confluence (Ishonchlilik):** [Masalan: 88% (18 tadan 10 ta strategiya tasdiqladi)]
 ● **Risk-Reward (R:R):** [Masalan: 1:3.0]
-● **Boshqaruv Vaqti:** [${isShort ? '1 — 15 daqiqa' : '1 — 4 soat'}]
+● **Boshqaruv Vaqti:** [${isShort ? '5 — 20 daqiqa' : '1 — 4 soat'}]
 
 🔍 2. 18 TA STRATEGIYA BO'YICHA JONLI GRAFIK TAHLILI:
 ─────────────────────────────
-[Ushbu bo'limda quyidagi guruhlar bo'yicha jonli hisoblangan darajalarni ko'rsatib, 18 ta strategiyaning qanday mos kelganini (Confluence) aniq yozing]:
 • **🧱 SMC Zonalari (OB, Breaker, FVG, iFVG):** ...
 • **⚡ ICT & SMT Signallari (SMT, Silver Bullet, Judas Swing, Killzones):** ...
 • **✨ Ganna & Matematik Risk (Square of 9 darajalari, ATR, Fib OTE):** ...
@@ -213,17 +223,18 @@ JAVOBNI DOIMO QUYIDAGI TIZIMLI VA CHIROYLI FORMATDA (O'ZBEK TILIDA) TAQDIM ETING
 
 💡 3. TREYDER UCHUN AMALIY QOIDALAR VA XATAR BOSHQARUVI:
 ─────────────────────────────
-[Xatarni boshqarish, lot hajmi (depozitning 1-2% dan oshmaslik), TP1 olingandan keyin BE (Bezubitok) qilish qoidalari.]`;
+[Lot hajmi (depozitning 1-2% xatari), TP1 da 50% yopib BE (Bezubitok) qilish qoidalari.]`;
 
     const userMessage = `GRAFIK VA 18 TA STRATEGIYANING JONLI KO'RSATKICHLARI:
 Instrument: ${assetName} (${assetSymbol})
 Timeframe: ${clientTimeframe} (${isShort ? 'Qisqa Scalp 1m/5m' : 'Uzoq Intraday 1-4h'})
 Hozirgi Jonli Spot Narx: ${d(price)} USD
+ATR Volatilligi: ${analysis.math.atr} (Tavsiya etilgan minimal xavfsiz SL masofasi: ~${analysis.math.idealSLDistance}$)
 
 18 TA STRATEGIYANING GRAFIKDAN HISOBLANGAN ANIQ DARAJALARI:
 ${strategiesSummaryText}
 
-Iltimos, ushbu 18 ta strategiyaning jonli darajalariga qarab to'liq tahlil qiling va yuqoridagi 3 qismli aniq formatda savdo signali hamda batafsil tahlil bering!`;
+Iltimos, ushbu 18 ta strategiyaning jonli darajalariga qarab, bozor shovqiniga bardosh beradigan to'g'ri Stop Loss va Take Profit bilan yuqoridagi formatda to'liq professional tahlil bering!`;
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({

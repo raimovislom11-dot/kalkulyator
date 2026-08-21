@@ -537,18 +537,50 @@ export function calculateSMCAnalysis(candles: Candle[], currentPrice?: number): 
   }
 
   const ranges = candles.map((c) => c.high - c.low);
-  const atr = ranges.length > 0 ? Number((ranges.reduce((a, b) => a + b, 0) / ranges.length).toFixed(2)) : 10.0;
+  const rawAtr = ranges.length > 0 ? ranges.reduce((a, b) => a + b, 0) / ranges.length : price * 0.003;
+
+  // Asset turiga qarab professional dinamik Stop Loss va TP hisoblash
+  const isCrypto = price > 10000;
+  const isGoldOrIndex = price > 1000 && price <= 10000;
+  const isMid = price > 10 && price <= 1000;
+  const isForex = price <= 10;
+
+  let atr = Number(rawAtr.toFixed(isForex ? 5 : 2));
+  let idealSLDistance: number;
+  let idealTP1: number;
+  let idealTP2: number;
+
+  if (isCrypto) {
+    // BTC: SL $600 - $1200, TP1 $1200 - $2000, TP2 $2500+
+    idealSLDistance = Number(Math.max(atr * 1.5, price * 0.008).toFixed(2));
+    idealTP1 = Number((idealSLDistance * 1.8).toFixed(2));
+    idealTP2 = Number((idealSLDistance * 3.2).toFixed(2));
+  } else if (isGoldOrIndex) {
+    // Gold ($4600) / US100: SL $8.00 - $15.00, TP1 $15 - $25, TP2 $35 - $50
+    idealSLDistance = Number(Math.max(atr * 1.4, price * 0.0022).toFixed(2));
+    idealTP1 = Number((idealSLDistance * 1.8).toFixed(2));
+    idealTP2 = Number((idealSLDistance * 3.2).toFixed(2));
+  } else if (isMid) {
+    idealSLDistance = Number(Math.max(atr * 1.5, price * 0.005).toFixed(2));
+    idealTP1 = Number((idealSLDistance * 1.8).toFixed(2));
+    idealTP2 = Number((idealSLDistance * 3.0).toFixed(2));
+  } else {
+    // Forex: SL 25-40 pip (0.0025-0.0040), TP1 45-70 pip, TP2 90-120 pip
+    idealSLDistance = Number(Math.max(atr * 1.5, 0.0025).toFixed(5));
+    idealTP1 = Number((idealSLDistance * 1.8).toFixed(5));
+    idealTP2 = Number((idealSLDistance * 3.0).toFixed(5));
+  }
 
   const math: MathMetrics = {
     currentPrice: price,
     atr,
-    dailyRange: Number((maxSwingHigh - minSwingLow).toFixed(2)),
-    pipSpreadEstimate: 1.2,
-    idealSLDistance: 2.0,
-    idealTP1: 3.5,
-    idealTP2: 7.0,
+    dailyRange: Number((maxSwingHigh - minSwingLow).toFixed(isForex ? 5 : 2)),
+    pipSpreadEstimate: isGoldOrIndex ? 0.35 : isForex ? 0.00015 : 5.0,
+    idealSLDistance,
+    idealTP1,
+    idealTP2,
     riskRewardRatio: '1:3.0',
-    volatilityScore: atr > 15 ? 'Yuqori' : atr > 8 ? "O'rta" : 'Past',
+    volatilityScore: atr > (price * 0.006) ? 'Yuqori' : atr > (price * 0.002) ? "O'rta" : 'Past',
   };
 
   return {

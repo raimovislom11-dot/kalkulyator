@@ -54,29 +54,34 @@ function parseSignal(text: string) {
   ]);
 
   // Direction: AI javobining 1-bo'limidagi "Buyruq:" satridan aniq ajratib olish!
-  let direction: 'BUY' | 'SELL' = 'BUY';
+  let direction: 'BUY' | 'SELL' | 'WAIT' = 'BUY';
   const buyruqLine = cleaned.match(/(?:Buyruq|Buyurtma|Action|Yo['']?nalish|Pozitsiya)[\s\*:]*([^\n\r]+)/i);
   if (buyruqLine && buyruqLine[1]) {
     const line = buyruqLine[1];
-    if (/🔴|SELL|SOTISH|SHORT/i.test(line)) {
+    if (/⏸️|KUTISH|NO\s*TRADE|WAIT|KONSOLIDATSIYA/i.test(line)) {
+      direction = 'WAIT';
+    } else if (/🔴|SELL|SOTISH|SHORT/i.test(line)) {
       direction = 'SELL';
     } else if (/🟢|BUY|SOTIB|LONG/i.test(line)) {
       direction = 'BUY';
     }
   } else {
-    // Matnning birinchi 600 belgisidagi eng birinchi chiqqan 🔴 SELL yoki 🟢 BUY ni aniqlash
     const topText = cleaned.slice(0, 600);
-    const redMatch = topText.match(/🔴\s*SELL|\bSELL\b|🔴/i);
-    const greenMatch = topText.match(/🟢\s*BUY|\bBUY\b|🟢/i);
+    if (/⏸️\s*KUTISH|NO\s*TRADE/i.test(topText)) {
+      direction = 'WAIT';
+    } else {
+      const redMatch = topText.match(/🔴\s*SELL|\bSELL\b|🔴/i);
+      const greenMatch = topText.match(/🟢\s*BUY|\bBUY\b|🟢/i);
 
-    if (redMatch && (!greenMatch || (redMatch.index ?? 999) < (greenMatch.index ?? 999))) {
-      direction = 'SELL';
-    } else if (greenMatch && (!redMatch || (greenMatch.index ?? 999) < (redMatch.index ?? 999))) {
-      direction = 'BUY';
-    } else if (/🔴|SELL|SOTISH|SHORT/i.test(topText)) {
-      direction = 'SELL';
-    } else if (/🟢|BUY|SOTIB|LONG/i.test(topText)) {
-      direction = 'BUY';
+      if (redMatch && (!greenMatch || (redMatch.index ?? 999) < (greenMatch.index ?? 999))) {
+        direction = 'SELL';
+      } else if (greenMatch && (!redMatch || (greenMatch.index ?? 999) < (redMatch.index ?? 999))) {
+        direction = 'BUY';
+      } else if (/🔴|SELL|SOTISH|SHORT/i.test(topText)) {
+        direction = 'SELL';
+      } else if (/🟢|BUY|SOTIB|LONG/i.test(topText)) {
+        direction = 'BUY';
+      }
     }
   }
 
@@ -94,7 +99,7 @@ function buildTelegramData(parsed: ReturnType<typeof parseSignal>, asset: AssetC
   return {
     asset: asset.name,
     strategy: parsed.strategy,
-    direction: parsed.direction,
+    direction: parsed.direction === 'WAIT' ? '⏸️ KUTISH' : parsed.direction,
     entry: parsed.entry || '—',
     sl: parsed.sl || '—',
     tp1: parsed.tp1 || '—',
@@ -123,7 +128,7 @@ function SignalCard({
   const [tp1, setTp1] = useState(parsed.tp1);
   const [tp2, setTp2] = useState(parsed.tp2);
   const [tp3, setTp3] = useState(parsed.tp3);
-  const [direction, setDirection] = useState<'BUY' | 'SELL'>(parsed.direction);
+  const [direction, setDirection] = useState<'BUY' | 'SELL' | 'WAIT'>(parsed.direction);
   const [editMode, setEditMode] = useState(!parsed.hasSignal);
   const [copied, setCopied] = useState(false);
 
@@ -149,13 +154,15 @@ function SignalCard({
 
   const isShort = termMode === 'short';
   const isBuy = direction === 'BUY';
+  const isSell = direction === 'SELL';
+  const isWait = direction === 'WAIT';
   const accentBorder = isShort ? 'border-amber-500/50' : 'border-indigo-500/50';
 
   // Telegram ga yuborish uchun hozirgi (tahrirlangan) qiymatlar
   const currentData = {
     asset: asset.name,
     strategy: parsed.strategy || (isShort ? '1m/5m Scalp' : 'Intraday 1-4H'),
-    direction,
+    direction: isWait ? '⏸️ KUTISH' : direction,
     entry: entry || '—',
     sl: sl || '—',
     tp1: tp1 || '—',
@@ -164,9 +171,10 @@ function SignalCard({
   };
 
   const copyText = () => {
+    const dirStr = isBuy ? '🟢 BUY' : isSell ? '🔴 SELL' : '⏸️ KUTISH (NO TRADE)';
     const t =
       `⚡ SIGNAL • ${asset.name} (${asset.symbol})\n` +
-      `● ${isBuy ? '🟢 BUY' : '🔴 SELL'}\n` +
+      `● ${dirStr}\n` +
       `● Kirish (Entry): ${entry || '—'}\n` +
       `● Stop Loss: ${sl || '—'}\n` +
       `● TP1: ${tp1 || '—'}\n` +
@@ -233,7 +241,7 @@ function SignalCard({
         </div>
       </div>
 
-      {/* BUY / SELL toggle */}
+      {/* BUY / SELL / KUTISH toggle */}
       <div className="flex items-center gap-2">
         <span className="text-slate-500 text-[10px] font-bold">YO&apos;NALISH:</span>
         <button
@@ -249,12 +257,22 @@ function SignalCard({
         <button
           onClick={() => setDirection('SELL')}
           className={`px-3 py-1 rounded-lg text-xs font-black transition-all border ${
-            !isBuy
+            isSell
               ? 'bg-red-500/20 text-red-300 border-red-500/50'
               : 'bg-slate-800/60 text-slate-500 border-slate-700 hover:text-slate-300'
           }`}
         >
           🔴 SELL
+        </button>
+        <button
+          onClick={() => setDirection('WAIT')}
+          className={`px-3 py-1 rounded-lg text-xs font-black transition-all border ${
+            isWait
+              ? 'bg-amber-500/20 text-amber-300 border-amber-500/50'
+              : 'bg-slate-800/60 text-slate-500 border-slate-700 hover:text-slate-300'
+          }`}
+        >
+          ⏸️ KUTISH
         </button>
       </div>
 
