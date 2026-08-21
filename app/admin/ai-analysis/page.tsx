@@ -506,13 +506,13 @@ export default function AIAnalysisPage() {
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-black text-white tracking-tight">SUN&apos;IY INTELLEKT 18 TA STRATEGIYA TAHLIL PANELI</h1>
+            <h1 className="text-2xl font-black text-white tracking-tight">SUN&apos;IY INTELLEKT 10 TA ELITA STRATEGIYA TAHLIL PANELI</h1>
             <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/40 font-mono font-bold">
-              Claude Fable 5 • 18 ta SMC/ICT/Gann
+              Claude Fable 5 • 10 ta Elita SMC/ICT
             </span>
           </div>
           <p className="mt-1 text-sm text-slate-400">
-            Oddiy indikatorlarga emas, pastdagi 18 ta professional strategiyaning jonli grafik hisob-kitoblariga asoslangan AI tahlil
+            Oddiy indikatorlarga emas, pastdagi 10 ta elita strategiyaning jonli grafik hisob-kitoblariga asoslangan AI tahlil
           </p>
         </div>
       </header>
@@ -533,7 +533,7 @@ export default function AIAnalysisPage() {
             }`}
           >
             <span className="text-base">📈</span>
-            <span className="truncate">Jonli Grafik &amp; 18 Strategiya</span>
+            <span className="truncate">Jonli Grafik &amp; 10 Strategiya</span>
           </button>
           <button
             onClick={() => { setActiveTab('market'); setResponse(''); }}
@@ -544,7 +544,7 @@ export default function AIAnalysisPage() {
             }`}
           >
             <span className="text-base">📊</span>
-            <span className="truncate">18 Strategiya Tahlili</span>
+            <span className="truncate">10 Strategiya Tahlili</span>
           </button>
           <button
             onClick={() => { setActiveTab('screenshot'); setResponse(''); }}
@@ -564,11 +564,11 @@ export default function AIAnalysisPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between bg-slate-800/60 px-4 py-2.5 rounded-xl border border-slate-700/60 text-xs">
               <div className="flex items-center gap-2">
-                <span className="text-emerald-400 font-bold">● Jonli Grafik &amp; 18 Strategiya:</span>
+                <span className="text-emerald-400 font-bold">● Jonli Grafik &amp; 10 Elita Strategiya:</span>
                 <span className="text-white font-bold font-mono">{selectedAsset.name} ({selectedAsset.symbol})</span>
                 <span className="text-orange-400 font-bold font-mono">• {timeframe}</span>
               </div>
-              <span className="text-slate-400 text-[11px]">Real-Time TradingView + 18 ta SMC/ICT/Gann Dasturi</span>
+              <span className="text-slate-400 text-[11px]">Real-Time TradingView + 10 ta SMC/ICT Dasturi</span>
             </div>
 
             <div className="rounded-xl overflow-hidden border border-slate-700/80 shadow-2xl">
@@ -593,10 +593,10 @@ export default function AIAnalysisPage() {
                 {isLoading && currentTermMode === 'short' ? (
                   <>
                     <span className="inline-block w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-                    18 ta strategiya hisoblanmoqda...
+                    10 ta strategiya hisoblanmoqda...
                   </>
                 ) : (
-                  <>⚡ 18 Strategiya bilan Qisqa (1-15m Scalp)</>
+                  <>⚡ 10 Strategiya bilan Qisqa (1-15m Scalp)</>
                 )}
               </button>
 
@@ -612,10 +612,10 @@ export default function AIAnalysisPage() {
                 {isLoading && currentTermMode === 'long' ? (
                   <>
                     <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    18 ta strategiya hisoblanmoqda...
+                    10 ta strategiya hisoblanmoqda...
                   </>
                 ) : (
-                  <>📈 18 Strategiya bilan Uzoq (1-4 Soat)</>
+                  <>📈 10 Strategiya bilan Uzoq (1-4 Soat)</>
                 )}
               </button>
             </div>
@@ -626,8 +626,8 @@ export default function AIAnalysisPage() {
         {activeTab === 'market' && (
           <div className="space-y-4">
             <div className="bg-slate-800/40 rounded-xl p-4 border border-slate-700/60 text-xs text-slate-300">
-              <span className="text-amber-400 font-bold">💡 18 ta strategiya bo&apos;yicha tahlil: </span>
-              Sun&apos;iy intellekt standart indikatorlarga emas, pastdagi 18 ta strategiya (Order Block, Breaker, FVG, SMT, Silver Bullet, Judas, Gann, Likvidlik va boshqalar) ning jonli darajalariga qarab tahlil qiladi.
+              <span className="text-amber-400 font-bold">💡 10 ta elita strategiya bo&apos;yicha tahlil: </span>
+              Sun&apos;iy intellekt standart indikatorlarga emas, pastdagi 10 ta eng kuchli strategiya (Order Block, Breaker, FVG, SMT Divergence, Silver Bullet, Judas Swing, OTE, Likvidlik supurish va boshqalar) ning jonli darajalariga qarab tahlil qiladi.
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -643,10 +643,10 @@ export default function AIAnalysisPage() {
                 {isLoading && currentTermMode === 'short' ? (
                   <>
                     <span className="inline-block w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-                    Tahlil qilinmoqda...
+                    10 ta strategiya hisoblanmoqda...
                   </>
                 ) : (
-                  <>⚡ Qisqa Muddatli (1-15m Scalp)</>
+                  <>⚡ 10 Strategiya bilan Qisqa (1-15m Scalp)</>
                 )}
               </button>
 
@@ -662,10 +662,10 @@ export default function AIAnalysisPage() {
                 {isLoading && currentTermMode === 'long' ? (
                   <>
                     <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Tahlil qilinmoqda...
+                    10 ta strategiya hisoblanmoqda...
                   </>
                 ) : (
-                  <>📈 Uzoq Muddatli (1-4 Soat)</>
+                  <>📈 10 Strategiya bilan Uzoq (1-4 Soat)</>
                 )}
               </button>
             </div>

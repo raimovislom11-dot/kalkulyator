@@ -21,7 +21,7 @@ const DEFAULT_STRATEGIES: StrategyLiveItem[] = [
     category: 'SMC',
     icon: '🧱',
     badge: 'OB',
-    description: 'Institutsional yirik banklar va fondlar buyurtma zonalari (Demand / Supply)',
+    description: 'Institutsional banklar va yirik o\'yinchilarning buyurtma zonalari (Demand / Supply)',
     liveValue: 'Yuklanmoqda...',
     signal: 'BUY',
     keyLevel: 'Demand / Supply Zone',
@@ -49,30 +49,30 @@ const DEFAULT_STRATEGIES: StrategyLiveItem[] = [
     keyLevel: '50% CE Midpoint',
   },
   {
-    id: 'ifvg',
-    name: 'iFVG (Inverted Fair Value Gap)',
+    id: 'liquidity',
+    name: 'Liquidity Pools (BSL & SSL Sweeps)',
     category: 'SMC',
-    icon: '🔄',
-    badge: 'iFVG',
-    description: 'Narx tomonidan buzib o\'tilgan va teskari (Support <-> Resistance) vazifasini bajaruvchi FVG',
+    icon: '🎯',
+    badge: 'Liq',
+    description: 'Likvidlik yig\'ilgan zonalar: Buy-side Liquidity (BSL) va Sell-side Liquidity (SSL) supurilishi',
     liveValue: 'Yuklanmoqda...',
     signal: 'BUY',
-    keyLevel: 'Invert S/R',
+    keyLevel: 'BSL / SSL',
   },
   {
     id: 'smt',
-    name: 'SMT Divergence (DXY vs Gold Korrelyatsiya)',
+    name: 'SMT Divergence (DXY vs Asset)',
     category: 'ICT',
     icon: '⚡',
     badge: 'SMT',
-    description: 'Dollar indeksi (DXY) va Oltin o\'rtasidagi nomutanosiblik — Yirik o\'yinchilarning tuzog\'i (Fakeout) aniqlash',
+    description: 'Dollar indeksi (DXY) va Oltin o\'rtasidagi nomutanosiblik — Yirik o\'yinchilar tuzog\'i',
     liveValue: 'Yuklanmoqda...',
     signal: 'BUY',
-    keyLevel: 'DXY/Gold Divergence',
+    keyLevel: 'DXY Divergence',
   },
   {
     id: 'silver_bullet',
-    name: 'ICT Silver Bullet (60 Daqiqalik Oyna)',
+    name: 'ICT Silver Bullet (60m Oyna)',
     category: 'ICT',
     icon: '🎯',
     badge: 'SB',
@@ -83,135 +83,58 @@ const DEFAULT_STRATEGIES: StrategyLiveItem[] = [
   },
   {
     id: 'judas_swing',
-    name: 'ICT Judas Swing (Sessiya Ochilish Tuzog\'i)',
+    name: 'ICT Judas Swing (Sessiya Tuzog\'i)',
     category: 'ICT',
     icon: '🪤',
     badge: 'Judas',
-    description: 'London/NY ochilishining ilk 15-30 daqiqasidagi yolg\'on harakat (Manipulation) va undan keyingi haqiqiy trend',
+    description: 'London/NY ochilishining dastlabki yolg\'on harakati va undan keyingi haqiqiy trend',
     liveValue: 'Yuklanmoqda...',
     signal: 'BUY',
     keyLevel: 'Session Manipulation',
   },
   {
-    id: 'snr',
-    name: 'SNR (Support & Resistance Darajalari)',
-    category: 'Price Action',
-    icon: '📊',
-    badge: 'SNR',
-    description: 'Statik va dinamik asosiy qo\'llab-quvvatlash va qarshilik gorizontal darajalari',
-    liveValue: 'Yuklanmoqda...',
-    signal: 'NEUTRAL',
-    keyLevel: 'Key S/R',
-  },
-  {
     id: 'fib_ote',
-    name: 'Fibonacci OTE (Optimal Trade Entry 0.705)',
+    name: 'Fibonacci OTE (0.705 Sweet Spot)',
     category: 'SMC',
     icon: '📐',
     badge: 'OTE',
-    description: 'Fibonacci 0.50 (Eq), 0.618 (Golden), 0.705 (ICT OTE Sweet Spot) va 0.786 darajalari',
+    description: 'Fibonacci 0.50 (Discount), 0.618 (Golden) va 0.705 (Optimal Trade Entry) kirish zonalari',
     liveValue: 'Yuklanmoqda...',
     signal: 'BUY',
     keyLevel: '0.705 OTE',
   },
   {
-    id: 'ganna',
-    name: 'Ganna (Gann Square of 9 Darajalari)',
-    category: 'Matematika',
-    icon: '✨',
-    badge: 'Gann',
-    description: 'W.D. Gann matematik kvadrat ildiz va burchak darajalari (90°, 180°, 270°, 360°)',
-    liveValue: 'Yuklanmoqda...',
-    signal: 'NEUTRAL',
-    keyLevel: '180° Angle',
-  },
-  {
-    id: 'liquidity',
-    name: 'Liquidity Pools (BSL & SSL Likvidlik)',
-    category: 'SMC',
-    icon: '🎯',
-    badge: 'Liq',
-    description: 'Likvidlik yig\'ilgan zonalar: Buy-side Liquidity (BSL) va Sell-side Liquidity (SSL)',
-    liveValue: 'Yuklanmoqda...',
-    signal: 'NEUTRAL',
-    keyLevel: 'BSL / SSL',
-  },
-  {
-    id: 'single_candle',
-    name: 'Yolg\'iz Sham (Displacement / Institutional Candle)',
-    category: 'Price Action',
-    icon: '🕯️',
-    badge: 'Sham',
-    description: 'Katta hajmli yakkaxon institutsional impuls shami (Imbalance / Katta tana)',
-    liveValue: 'Yuklanmoqda...',
-    signal: 'BUY',
-    keyLevel: 'Displacement',
-  },
-  {
     id: 'ict',
-    name: 'ICT (Killzones & Power of 3 AMD)',
+    name: 'ICT Killzones & Power of 3 AMD',
     category: 'ICT',
     icon: '🏛️',
     badge: 'ICT',
-    description: 'London / New York Killzones, Midnight Open, Daily Open va Accumulation-Manipulation-Distribution',
+    description: 'London / NY Killzones, Midnight Open, Daily Open va Accumulation-Manipulation-Distribution',
     liveValue: 'Yuklanmoqda...',
     signal: 'BUY',
     keyLevel: 'Killzones',
   },
   {
-    id: 'bos',
-    name: 'BOS (Break of Structure)',
-    category: 'SMC',
-    icon: '⚡',
-    badge: 'BOS',
-    description: 'Trend davom etishini tasdiqlovchi struktura buzilishi (Higher High / Lower Low)',
-    liveValue: 'Yuklanmoqda...',
-    signal: 'BUY',
-    keyLevel: 'BOS',
-  },
-  {
-    id: 'choch',
-    name: 'CHoCH (Change of Character)',
-    category: 'SMC',
-    icon: '🔄',
-    badge: 'CHoCH',
-    description: 'Trend yo\'nalishi o\'zgarishini ko\'rsatuvchi dastlabki struktura o\'zgarishi',
-    liveValue: 'Yuklanmoqda...',
-    signal: 'BUY',
-    keyLevel: 'CHoCH',
-  },
-  {
     id: 'mtf',
-    name: 'Multi-Timeframe Matrix (H4 + M15 + M5 Confluence)',
-    category: 'Price Action',
+    name: 'Multi-Timeframe Matrix (H4 + M15 + M5)',
+    category: 'SMC',
     icon: '🌐',
     badge: 'MTF',
-    description: 'H4 (Katta Trend) + M15 (Struktura & Likvidlik) + M5 (Kam xatarli aniq kirish) 100% uyg\'unligi',
+    description: 'H4 Katta Trend + M15 Struktura + M5 Kam xatarli aniq kirish 100% konfluensiyasi',
     liveValue: 'Yuklanmoqda...',
     signal: 'BUY',
     keyLevel: 'MTF Matrix',
   },
   {
-    id: 'matematika',
-    name: 'Matematika (ATR & Smart Risk Matrix)',
-    category: 'Matematika',
-    icon: '🧮',
-    badge: 'Math',
-    description: 'ATR volatilligi, Risk-Reward (1:3), ideal Stop Loss va Take Profit 1/2 masofalari',
+    id: 'scalping',
+    name: 'Sniper Scalp (1m/5m Tezkor Skalping)',
+    category: 'Scalping',
+    icon: '⚡',
+    badge: 'Scalp',
+    description: '1-5 daqiqalik mikro-impuls, Micro-FVG retesti va tezkor 5-15 pip skalping setupi',
     liveValue: 'Yuklanmoqda...',
-    signal: 'NEUTRAL',
-    keyLevel: 'R:R 1:3',
-  },
-  {
-    id: 'high_low',
-    name: 'High va Low (Swing High & Swing Low)',
-    category: 'Price Action',
-    icon: '📌',
-    badge: 'H/L',
-    description: 'Bozordagi eng so\'nggi muhim maksimal (High) va minimal (Low) burilish nuqtalari',
-    liveValue: 'Yuklanmoqda...',
-    signal: 'NEUTRAL',
-    keyLevel: 'Swing H/L',
+    signal: 'BUY',
+    keyLevel: 'Scalp Target',
   },
 ];
 
@@ -409,13 +332,12 @@ function TradingViewWidget({
               <span className="hidden sm:inline">Yangilash</span>
             </button>
 
-            {/* Indicators Modal Trigger */}
             <button
               onClick={() => setShowIndicatorsModal(true)}
               className="px-3 py-1.5 rounded-xl font-bold text-xs bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/20 flex items-center gap-1.5 transition-all active:scale-95 border border-blue-400/30"
             >
               <span>fx</span>
-              <span>18 Ta Strategiya ({activeStrategies.length}/18)</span>
+              <span>10 Ta Elita Strategiya ({activeStrategies.length}/10)</span>
             </button>
 
             {isOpen && (
@@ -442,12 +364,11 @@ function TradingViewWidget({
         </div>
       )}
 
-      {/* Active Strategy Pills Bar */}
       {activeStrategies.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 bg-slate-950/60 p-2 rounded-xl border border-slate-800/80">
           <span className="text-[11px] font-bold text-amber-400 mr-1 flex items-center gap-1">
             <span>⚡</span>
-            <span>Grafikdan hisoblangan faol strategiyalar:</span>
+            <span>Faol strategiyalar:</span>
           </span>
           {liveStrategies.filter((s) => activeStrategies.includes(s.id)).map((strat) => (
             <span
@@ -472,24 +393,21 @@ function TradingViewWidget({
             onClick={() => setShowIndicatorsModal(true)}
             className="text-[10px] text-blue-400 hover:underline font-bold ml-auto"
           >
-            + Barchasi (18 ta)
+            + Barchasi (10 ta)
           </button>
         </div>
       )}
 
-      {/* TradingView Chart Container */}
       {isOpen && (
         <div
-          className={`transition-all duration-300 ${
-            isFullScreen
-              ? 'fixed inset-4 z-50 bg-slate-950/98 border-2 border-blue-500 rounded-2xl p-4 flex flex-col shadow-2xl backdrop-blur-2xl'
-              : 'relative rounded-xl overflow-hidden border border-slate-700/80 shadow-2xl'
+          className={`relative w-full rounded-2xl overflow-hidden border border-slate-800 bg-[#131722] shadow-2xl transition-all ${
+            isFullScreen ? 'fixed inset-4 z-50 h-[90vh]' : 'h-[500px]'
           }`}
         >
           {isFullScreen && (
-            <div className="flex justify-between items-center mb-3">
+            <div className="flex justify-between items-center p-3 border-b border-slate-800">
               <span className="text-white font-bold text-sm">
-                {asset.name} ({asset.symbol}) — {timeframe} Jonli Grafik • {formattedPrice} USD
+                {asset.name} ({asset.symbol}) — {timeframe} Jonli Grafik
               </span>
               <button
                 onClick={() => setIsFullScreen(false)}
@@ -499,51 +417,56 @@ function TradingViewWidget({
               </button>
             </div>
           )}
-          <div
-            id={widgetId}
-            ref={containerRef}
-            className={`w-full ${isFullScreen ? 'flex-1 min-h-[500px]' : ''}`}
-            style={{ height: isFullScreen ? undefined : `${height}px` }}
-          />
+          <div id={widgetId} ref={containerRef} className="w-full h-full" />
         </div>
       )}
 
-      {/* 🚀 18 TA JONLI STRATEGIYALAR GRIDI (Grafikdan to'liq hisoblangan real darajalar) */}
-      {activeStrategies.length > 0 && (
-        <div className="space-y-2 pt-1">
+      {liveStrategies.length > 0 && (
+        <div className="space-y-2.5 pt-1">
           <div className="flex items-center justify-between px-1">
-            <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-              <span>🎯</span>
-              <span>18 TA STRATEGIYANING JONLI GRAFIK DARAJALARI:</span>
-            </span>
-            <span className="text-[10px] text-slate-400 font-mono">
-              Real OHLCV & SMC hisob-kitobi
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
+              <span className="text-amber-400">⚡</span>
+              <span>10 TA ELITA SMC/ICT STRATEGIYANING JONLI GRAFIK DARAJALARI:</span>
+            </div>
+            <span className="text-[10px] text-slate-500 font-mono">
+              Har 12 soniyada avto-yangilanadi • {asset.symbol}
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-            {liveStrategies.filter((s) => activeStrategies.includes(s.id)).map((strat) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2.5">
+            {liveStrategies.map((strat) => (
               <div
                 key={strat.id}
-                className="bg-slate-950/90 border border-slate-800 hover:border-slate-700 rounded-xl p-2.5 space-y-1.5 transition-all shadow-sm group"
-              >
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-slate-200 flex items-center gap-1.5 truncate">
-                    <span>{strat.icon}</span>
-                    <span className="truncate">{strat.name}</span>
-                  </span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono font-bold ${
-                    strat.signal === 'BUY'
-                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                onClick={() => toggleStrategy(strat.id)}
+                className={`p-3 rounded-xl border transition-all cursor-pointer select-none space-y-1.5 ${
+                  activeStrategies.includes(strat.id)
+                    ? strat.signal === 'BUY'
+                      ? 'bg-emerald-950/25 border-emerald-500/50 shadow-md shadow-emerald-950/30'
                       : strat.signal === 'SELL'
-                      ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                      : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                  }`}>
-                    {strat.badge}
+                      ? 'bg-rose-950/25 border-rose-500/50 shadow-md shadow-rose-950/30'
+                      : 'bg-slate-900/80 border-slate-700'
+                    : 'bg-slate-900/40 border-slate-800/60 opacity-60 hover:opacity-100'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm">{strat.icon}</span>
+                    <span className="text-white text-xs font-bold truncate max-w-[120px]">{strat.name}</span>
+                  </div>
+                  <span
+                    className={`text-[9px] font-black px-1.5 py-0.5 rounded ${
+                      strat.signal === 'BUY'
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                        : strat.signal === 'SELL'
+                        ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                        : 'bg-slate-800 text-slate-400'
+                    }`}
+                  >
+                    {strat.signal}
                   </span>
                 </div>
 
-                <div className="text-[11px] font-mono text-emerald-400 bg-slate-900/90 px-2 py-1 rounded border border-slate-800/80 truncate select-all group-hover:border-emerald-500/30 transition-colors">
+                <div className="font-mono text-[11px] font-bold text-amber-300 bg-black/40 px-2 py-1 rounded border border-amber-500/20 truncate">
                   {strat.liveValue}
                 </div>
 
@@ -557,15 +480,13 @@ function TradingViewWidget({
         </div>
       )}
 
-      {/* 🚀 INDICATORS & STRATEGIES MODAL (Xuddi TradingView uslubida) */}
       {showIndicatorsModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
           <div className="bg-[#131722] border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden text-slate-200">
-            {/* Modal Header */}
             <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <span className="text-lg sm:text-xl">📊</span>
-                <span className="text-white font-bold text-sm sm:text-base">18 Ta SMC, ICT, Ganna & Matematik Strategiyalar</span>
+                <span className="text-white font-bold text-sm sm:text-base">10 Ta Elita SMC & ICT Strategiyalar</span>
               </div>
               <button
                 onClick={() => setShowIndicatorsModal(false)}
@@ -575,7 +496,6 @@ function TradingViewWidget({
               </button>
             </div>
 
-            {/* Search Input Bar */}
             <div className="p-4 border-b border-slate-800 bg-[#0c101a]">
               <div className="relative">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
@@ -583,12 +503,11 @@ function TradingViewWidget({
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Strategiyani qidiring (Order Block, FVG, SMT, Ganna, Fib, Breaker...)"
+                  placeholder="Strategiyani qidiring (Order Block, FVG, SMT, Breaker, OTE...)"
                   className="w-full bg-[#1e222d] border border-slate-700/80 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
                 />
               </div>
 
-              {/* Quick Actions */}
               <div className="flex items-center justify-between mt-3 text-xs text-slate-400">
                 <span>Mavjud: {filteredStrategies.length} ta strategiya</span>
                 <div className="flex items-center gap-3">
@@ -596,7 +515,7 @@ function TradingViewWidget({
                     onClick={() => selectAllStrategies(true)}
                     className="text-emerald-400 hover:underline font-bold"
                   >
-                    ✓ Barchasini yoqish (18 ta)
+                    ✓ Barchasini yoqish (10 ta)
                   </button>
                   <span>|</span>
                   <button
@@ -609,7 +528,6 @@ function TradingViewWidget({
               </div>
             </div>
 
-            {/* Strategies List */}
             <div className="flex-1 overflow-y-auto p-4 space-y-2 divide-y divide-slate-800/60">
               {filteredStrategies.map((strat) => {
                 const isSelected = activeStrategies.includes(strat.id);

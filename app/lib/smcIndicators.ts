@@ -631,7 +631,7 @@ export function calculateSMCAnalysis(candles: Candle[], currentPrice?: number): 
 export interface StrategyLiveItem {
   id: string;
   name: string;
-  category: 'SMC' | 'ICT' | 'Matematika' | 'Price Action';
+  category: 'SMC' | 'ICT' | 'Scalping';
   icon: string;
   badge: string;
   description: string;
@@ -644,7 +644,7 @@ export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: numbe
   const p = Math.abs(price);
   const d = (n: number) => Math.abs(Number(n)).toFixed(decimals);
 
-  // 1. Order Block
+  // 1. Order Block (OB)
   const lastBullOB = analysis.orderBlocks.find(b => b.type === 'Bullish OB');
   const lastBearOB = analysis.orderBlocks.find(b => b.type === 'Bearish OB');
   const obDemandStr = lastBullOB ? `${d(Math.min(lastBullOB.bottom, lastBullOB.top))} - ${d(Math.max(lastBullOB.bottom, lastBullOB.top))}` : `${d(p * 0.993)} - ${d(p * 0.996)}`;
@@ -655,7 +655,7 @@ export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: numbe
   else if (lastBearOB && p >= lastBearOB.bottom * 0.999 && p <= lastBearOB.top * 1.001) obSignal = 'SELL';
   else if (p < (lastBullOB?.top || p * 0.996)) obSignal = 'BUY';
 
-  // 2. Breaker Block
+  // 2. Breaker Block (BB)
   const lastBreaker = analysis.breakerBlocks[analysis.breakerBlocks.length - 1];
   const bbVal = lastBreaker
     ? `${lastBreaker.type}: ${d(Math.min(lastBreaker.bottom, lastBreaker.top))} - ${d(Math.max(lastBreaker.bottom, lastBreaker.top))}`
@@ -664,10 +664,10 @@ export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: numbe
   if (lastBreaker?.type === 'Bullish Breaker') bbSignal = 'BUY';
   else if (lastBreaker?.type === 'Bearish Breaker') bbSignal = 'SELL';
 
-  // 3. FVG
+  // 3. Fair Value Gap (FVG)
   const lastFVG = analysis.fvgs[analysis.fvgs.length - 1];
   const fvgVal = lastFVG
-    ? `50% CE: ${d(lastFVG.midpoint)} | Imbalance: ${d(Math.min(lastFVG.bottom, lastFVG.top))} - ${d(Math.max(lastFVG.bottom, lastFVG.top))}`
+    ? `50% CE: ${d(lastFVG.midpoint)} | Bo'shliq: ${d(Math.min(lastFVG.bottom, lastFVG.top))} - ${d(Math.max(lastFVG.bottom, lastFVG.top))}`
     : `50% CE: ${d(p * 0.998)} | Imbalance: ${d(p * 0.996)} - ${d(p * 1.002)}`;
   let fvgSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
   if (lastFVG && !lastFVG.mitigated) {
@@ -676,44 +676,37 @@ export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: numbe
     fvgSignal = p < lastFVG.midpoint ? 'BUY' : 'SELL';
   }
 
-  // 4. iFVG
-  const lastIFVG = analysis.ifvgs[analysis.ifvgs.length - 1];
-  const ifvgVal = lastIFVG
-    ? `Invert 50%: ${d(lastIFVG.midpoint)} (${lastIFVG.type})`
-    : `Invert Zonalari: ${d(p * 0.997)} (Tayanch) / ${d(p * 1.003)} (Qarshilik)`;
-  let ifvgSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
-  if (lastIFVG?.type === 'Bullish FVG') ifvgSignal = 'BUY';
-  else if (lastIFVG?.type === 'Bearish FVG') ifvgSignal = 'SELL';
+  // 4. Liquidity Pools (BSL & SSL)
+  const bsl = analysis.liquidity.find(l => l.type.includes('BSL'));
+  const ssl = analysis.liquidity.find(l => l.type.includes('SSL'));
+  const bslPrice = bsl ? Math.abs(bsl.price) : p * 1.008;
+  const sslPrice = ssl ? Math.abs(ssl.price) : p * 0.992;
+  const liqVal = `BSL: ${d(bslPrice)} (${bsl?.swept ? 'Swept' : 'Ochiq'}) | SSL: ${d(sslPrice)} (${ssl?.swept ? 'Swept' : 'Ochiq'})`;
+  let liqSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
+  if (bsl?.swept) liqSignal = 'SELL';
+  else if (ssl?.swept) liqSignal = 'BUY';
+  else if (p < (bslPrice + sslPrice) / 2) liqSignal = 'BUY';
+  else liqSignal = 'SELL';
 
-  // 5. SMT
+  // 5. SMT Divergence (DXY vs Gold)
   const smtVal = `${analysis.smt.type} (${analysis.smt.strength})`;
   let smtSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
   if (analysis.smt.type.includes('Bullish')) smtSignal = 'BUY';
   else if (analysis.smt.type.includes('Bearish')) smtSignal = 'SELL';
 
-  // 6. Silver Bullet
+  // 6. ICT Silver Bullet (60m Window)
   const currentHour = new Date().getUTCHours();
   const isSBAwake = (currentHour >= 7 && currentHour <= 8) || (currentHour >= 14 && currentHour <= 15) || (currentHour >= 18 && currentHour <= 19);
   const sbVal = `${analysis.silverBullet.sessionWindow} • ${analysis.silverBullet.targetTicks}`;
   const sbSignal: 'BUY' | 'SELL' | 'NEUTRAL' = isSBAwake ? (p > (analysis.ictSession.dailyOpen || p) ? 'SELL' : 'BUY') : 'NEUTRAL';
 
-  // 7. Judas Swing
+  // 7. ICT Judas Swing (Sessiya Tuzog'i)
   const jsVal = `${analysis.judasSwing.stage} • Xavf: ${analysis.judasSwing.riskLevel}`;
   let jsSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
   if (analysis.judasSwing.stage.includes('Manipulation')) jsSignal = 'SELL';
   else if (analysis.judasSwing.stage.includes('Sweep')) jsSignal = 'BUY';
 
-  // 8. SNR
-  const sup = analysis.snrLevels.find(s => s.type === 'Support');
-  const res = analysis.snrLevels.find(s => s.type === 'Resistance');
-  const supPrice = sup ? Math.abs(sup.price) : p * 0.991;
-  const resPrice = res ? Math.abs(res.price) : p * 1.009;
-  const snrVal = `Support: ${d(supPrice)} | Resistance: ${d(resPrice)}`;
-  let snrSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
-  if (Math.abs(p - supPrice) < Math.abs(p - resPrice) * 0.4) snrSignal = 'BUY';
-  else if (Math.abs(p - resPrice) < Math.abs(p - supPrice) * 0.4) snrSignal = 'SELL';
-
-  // 9. Fib OTE
+  // 8. Fibonacci OTE (0.705 Sweet Spot)
   const fib = analysis.fibOte;
   const fib0705 = fib ? Math.abs(fib.levels.fib0705) : p * 0.994;
   const fib0618 = fib ? Math.abs(fib.levels.fib0618) : p * 0.996;
@@ -724,75 +717,24 @@ export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: numbe
   else if (fib?.trend.includes('Downtrend') && p >= fib0618 && p <= fib0705 * 1.002) fibSignal = 'SELL';
   else fibSignal = p < fib050 ? 'BUY' : 'SELL';
 
-  // 10. Ganna
-  const g = analysis.gann.degrees;
-  const gannVal = `90°=${d(g.deg90)} | 180°=${d(g.deg180)} | 270°=${d(g.deg270)} | 360°=${d(g.deg360)}`;
-  let gannSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
-  if (p < g.deg90) gannSignal = 'BUY';
-  else if (p > g.deg270) gannSignal = 'SELL';
-
-  // 11. Liquidity
-  const bsl = analysis.liquidity.find(l => l.type.includes('BSL'));
-  const ssl = analysis.liquidity.find(l => l.type.includes('SSL'));
-  const bslPrice = bsl ? Math.abs(bsl.price) : p * 1.008;
-  const sslPrice = ssl ? Math.abs(ssl.price) : p * 0.992;
-  const liqVal = `BSL: ${d(bslPrice)} (${bsl?.swept ? 'Swept' : 'Ochiq'}) | SSL: ${d(sslPrice)} (${ssl?.swept ? 'Swept' : 'Ochiq'})`;
-  let liqSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
-  if (bsl?.swept) liqSignal = 'SELL'; // Liquidity swept at high -> Reversal down
-  else if (ssl?.swept) liqSignal = 'BUY'; // Liquidity swept at low -> Reversal up
-  else if (p < (bslPrice + sslPrice) / 2) liqSignal = 'BUY';
-  else liqSignal = 'SELL';
-
-  // 12. Single Candle
-  const sc = analysis.singleCandles[analysis.singleCandles.length - 1];
-  const scVal = sc
-    ? `${sc.type} (${d(sc.bodySize)} pip impuls)`
-    : `Institutsional impuls: ${d(p * 0.005)} diapazon`;
-  let scSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
-  if (sc?.type === 'Bullish Displacement') scSignal = 'BUY';
-  else if (sc?.type === 'Bearish Displacement') scSignal = 'SELL';
-
-  // 13. ICT AMD
+  // 9. ICT Killzones & AMD
   const dailyOpen = analysis.ictSession.dailyOpen ? Math.abs(analysis.ictSession.dailyOpen) : p;
   const ictVal = `${analysis.ictSession.currentKillzone} | Open: ${d(dailyOpen)} | ${analysis.ictSession.bias}`;
   let ictSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
-  if (p < dailyOpen) ictSignal = 'BUY'; // Discount buying
-  else if (p > dailyOpen) ictSignal = 'SELL'; // Premium selling
+  if (p < dailyOpen) ictSignal = 'BUY';
+  else if (p > dailyOpen) ictSignal = 'SELL';
 
-  // 14. BOS
-  const lastBOS = analysis.structureBreaks.find(s => s.type.includes('BOS'));
-  const bosVal = lastBOS
-    ? `${lastBOS.type} darajasi: ${d(lastBOS.price)}`
-    : `Bullish BOS: ${d(p * 1.004)} | Bearish BOS: ${d(p * 0.996)}`;
-  let bosSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
-  if (lastBOS?.type.includes('Bullish')) bosSignal = 'BUY';
-  else if (lastBOS?.type.includes('Bearish')) bosSignal = 'SELL';
-
-  // 15. CHoCH
-  const lastCHoCH = analysis.structureBreaks.find(s => s.type.includes('CHoCH'));
-  const chochVal = lastCHoCH
-    ? `${lastCHoCH.type} trigger: ${d(lastCHoCH.price)}`
-    : `Bullish CHoCH: ${d(p * 1.005)} | Bearish CHoCH: ${d(p * 0.995)}`;
-  let chochSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
-  if (lastCHoCH?.type.includes('Bullish')) chochSignal = 'BUY';
-  else if (lastCHoCH?.type.includes('Bearish')) chochSignal = 'SELL';
-
-  // 16. MTF Matrix
+  // 10. Multi-Timeframe Matrix (H4 + M15 + M5)
   const mtfVal = `H4: ${analysis.mtf.h4Bias} | M15: ${analysis.mtf.m15Structure} | Confluence: ${analysis.mtf.confluenceScore}%`;
   let mtfSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
   if (analysis.mtf.h4Bias === 'BULLISH' && analysis.mtf.m15Structure === 'BOS Up') mtfSignal = 'BUY';
   else if (analysis.mtf.h4Bias === 'BEARISH' && analysis.mtf.m15Structure === 'BOS Down') mtfSignal = 'SELL';
 
-  // 17. Matematika
-  const m = analysis.math;
-  const mathVal = `ATR: ${d(m.atr)} | Ideal SL: ${d(m.idealSLDistance)} | TP1: ${d(m.idealTP1)} | TP2: ${d(m.idealTP2)} | R:R=1:3`;
-  const mathSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
-
-  // 18. Swing High & Low
-  const hlVal = `Swing High: ${d(resPrice)} | Swing Low: ${d(supPrice)}`;
-  let hlSignal: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
-  if (p < (resPrice + supPrice) / 2) hlSignal = 'BUY';
-  else hlSignal = 'SELL';
+  // 11. ⚡ Sniper Scalp (1m/5m Mikro-Impuls & Tezkor Skalping)
+  const isScalpBull = p >= (dailyOpen * 0.9995) || analysis.mtf.m15Structure.includes('Up');
+  const scalpTarget = isScalpBull ? p + (analysis.math.idealSLDistance * 0.75) : p - (analysis.math.idealSLDistance * 0.75);
+  const scalpVal = `${isScalpBull ? '▲ 1m/5m Bullish Scalp' : '▼ 1m/5m Bearish Scalp'} • Tezkor Nishon: ${d(scalpTarget)}`;
+  const scalpSignal: 'BUY' | 'SELL' | 'NEUTRAL' = isScalpBull ? 'BUY' : 'SELL';
 
   return [
     {
@@ -801,7 +743,7 @@ export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: numbe
       category: 'SMC',
       icon: '🧱',
       badge: 'OB',
-      description: 'Institutsional yirik banklar va fondlar buyurtma zonalari (Demand / Supply)',
+      description: 'Institutsional banklar va yirik o\'yinchilarning buyurtma zonalari (Demand / Supply)',
       liveValue: obVal,
       signal: obSignal,
       keyLevel: lastBullOB ? d(lastBullOB.top) : d(p * 0.995),
@@ -829,30 +771,30 @@ export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: numbe
       keyLevel: lastFVG ? d(lastFVG.midpoint) : d(p * 0.998),
     },
     {
-      id: 'ifvg',
-      name: 'iFVG (Inverted Fair Value Gap)',
+      id: 'liquidity',
+      name: 'Liquidity Pools (BSL & SSL Sweeps)',
       category: 'SMC',
-      icon: '🔄',
-      badge: 'iFVG',
-      description: 'Narx tomonidan buzib o\'tilgan va teskari (Support <-> Resistance) vazifasini bajaruvchi FVG',
-      liveValue: ifvgVal,
-      signal: ifvgSignal,
-      keyLevel: lastIFVG ? d(lastIFVG.midpoint) : d(p * 0.997),
+      icon: '🎯',
+      badge: 'Liq',
+      description: 'Likvidlik yig\'ilgan zonalar: Buy-side Liquidity (BSL) va Sell-side Liquidity (SSL) supurilishi',
+      liveValue: liqVal,
+      signal: liqSignal,
+      keyLevel: d(bslPrice),
     },
     {
       id: 'smt',
-      name: 'SMT Divergence (DXY vs Gold Korrelyatsiya)',
+      name: 'SMT Divergence (DXY vs Asset)',
       category: 'ICT',
       icon: '⚡',
       badge: 'SMT',
-      description: 'Dollar indeksi (DXY) va Oltin o\'rtasidagi nomutanosiblik — Yirik o\'yinchilarning tuzog\'i (Fakeout) aniqlash',
+      description: 'Dollar indeksi (DXY) va Oltin o\'rtasidagi nomutanosiblik — Yirik o\'yinchilar tuzog\'i',
       liveValue: smtVal,
       signal: smtSignal,
-      keyLevel: 'DXY/Gold Divergence',
+      keyLevel: 'DXY Divergence',
     },
     {
       id: 'silver_bullet',
-      name: 'ICT Silver Bullet (60 Daqiqalik Oyna)',
+      name: 'ICT Silver Bullet (60m Oyna)',
       category: 'ICT',
       icon: '🎯',
       badge: 'SB',
@@ -863,137 +805,61 @@ export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: numbe
     },
     {
       id: 'judas_swing',
-      name: 'ICT Judas Swing (Sessiya Ochilish Tuzog\'i)',
+      name: 'ICT Judas Swing (Sessiya Tuzog\'i)',
       category: 'ICT',
       icon: '🪤',
       badge: 'Judas',
-      description: 'London/NY ochilishining ilk 15-30 daqiqasidagi yolg\'on harakat (Manipulation) va undan keyingi haqiqiy trend',
+      description: 'London/NY ochilishining dastlabki yolg\'on harakati va undan keyingi haqiqiy trend',
       liveValue: jsVal,
       signal: jsSignal,
       keyLevel: analysis.judasSwing.stage,
     },
     {
-      id: 'snr',
-      name: 'SNR (Support & Resistance Darajalari)',
-      category: 'Price Action',
-      icon: '📊',
-      badge: 'SNR',
-      description: 'Statik va dinamik asosiy qo\'llab-quvvatlash va qarshilik gorizontal darajalari',
-      liveValue: snrVal,
-      signal: snrSignal,
-      keyLevel: d(supPrice),
-    },
-    {
       id: 'fib_ote',
-      name: 'Fibonacci OTE (Optimal Trade Entry 0.705)',
+      name: 'Fibonacci OTE (0.705 Sweet Spot)',
       category: 'SMC',
       icon: '📐',
       badge: 'OTE',
-      description: 'Fibonacci 0.50 (Eq), 0.618 (Golden), 0.705 (ICT OTE Sweet Spot) va 0.786 darajalari',
+      description: 'Fibonacci 0.50 (Discount), 0.618 (Golden) va 0.705 (Optimal Trade Entry) kirish zonalari',
       liveValue: fibVal,
       signal: fibSignal,
       keyLevel: d(fib0705),
     },
     {
-      id: 'ganna',
-      name: 'Ganna (Gann Square of 9 Darajalari)',
-      category: 'Matematika',
-      icon: '✨',
-      badge: 'Gann',
-      description: 'W.D. Gann matematik kvadrat ildiz va burchak darajalari (90°, 180°, 270°, 360°)',
-      liveValue: gannVal,
-      signal: gannSignal,
-      keyLevel: d(g.deg180),
-    },
-    {
-      id: 'liquidity',
-      name: 'Liquidity Pools (BSL & SSL Likvidlik)',
-      category: 'SMC',
-      icon: '🎯',
-      badge: 'Liq',
-      description: 'Likvidlik yig\'ilgan zonalar: Buy-side Liquidity (BSL) va Sell-side Liquidity (SSL)',
-      liveValue: liqVal,
-      signal: liqSignal,
-      keyLevel: d(bslPrice),
-    },
-    {
-      id: 'single_candle',
-      name: 'Yolg\'iz Sham (Displacement / Institutional Candle)',
-      category: 'Price Action',
-      icon: '🕯️',
-      badge: 'Sham',
-      description: 'Katta hajmli yakkaxon institutsional impuls shami (Imbalance / Katta tana)',
-      liveValue: scVal,
-      signal: scSignal,
-      keyLevel: sc ? d(sc.priceEnd) : d(p),
-    },
-    {
       id: 'ict',
-      name: 'ICT (Killzones & Power of 3 AMD)',
+      name: 'ICT Killzones & Power of 3 AMD',
       category: 'ICT',
       icon: '🏛️',
       badge: 'ICT',
-      description: 'London / New York Killzones, Midnight Open, Daily Open va Accumulation-Manipulation-Distribution',
+      description: 'London / NY Killzones, Midnight Open, Daily Open va Accumulation-Manipulation-Distribution',
       liveValue: ictVal,
       signal: ictSignal,
       keyLevel: analysis.ictSession.bias,
     },
     {
-      id: 'bos',
-      name: 'BOS (Break of Structure)',
-      category: 'SMC',
-      icon: '⚡',
-      badge: 'BOS',
-      description: 'Trend davom etishini tasdiqlovchi struktura buzilishi (Higher High / Lower Low)',
-      liveValue: bosVal,
-      signal: bosSignal,
-      keyLevel: lastBOS ? d(lastBOS.price) : d(p * 1.004),
-    },
-    {
-      id: 'choch',
-      name: 'CHoCH (Change of Character)',
-      category: 'SMC',
-      icon: '🔄',
-      badge: 'CHoCH',
-      description: 'Trend yo\'nalishi o\'zgarishini ko\'rsatuvchi dastlabki struktura o\'zgarishi',
-      liveValue: chochVal,
-      signal: chochSignal,
-      keyLevel: lastCHoCH ? d(lastCHoCH.price) : d(p * 1.005),
-    },
-    {
       id: 'mtf',
-      name: 'Multi-Timeframe Matrix (H4 + M15 + M5 Confluence)',
-      category: 'Price Action',
+      name: 'Multi-Timeframe Matrix (H4 + M15 + M5)',
+      category: 'SMC',
       icon: '🌐',
       badge: 'MTF',
-      description: 'H4 (Katta Trend) + M15 (Struktura & Likvidlik) + M5 (Kam xatarli aniq kirish) 100% uyg\'unligi',
+      description: 'H4 Katta Trend + M15 Struktura + M5 Kam xatarli aniq kirish 100% konfluensiyasi',
       liveValue: mtfVal,
       signal: mtfSignal,
       keyLevel: `${analysis.mtf.confluenceScore}% Confluence`,
     },
     {
-      id: 'matematika',
-      name: 'Matematika (ATR & Smart Risk Matrix)',
-      category: 'Matematika',
-      icon: '🧮',
-      badge: 'Math',
-      description: 'ATR volatilligi, Risk-Reward (1:3), ideal Stop Loss va Take Profit 1/2 masofalari',
-      liveValue: mathVal,
-      signal: mathSignal,
-      keyLevel: `R:R 1:3 • ATR ${d(m.atr)}`,
-    },
-    {
-      id: 'high_low',
-      name: 'High va Low (Swing High & Swing Low)',
-      category: 'Price Action',
-      icon: '📌',
-      badge: 'H/L',
-      description: 'Bozordagi eng so\'nggi muhim maksimal (High) va minimal (Low) burilish nuqtalari',
-      liveValue: hlVal,
-      signal: hlSignal,
-      keyLevel: d(resPrice),
+      id: 'scalping',
+      name: 'Sniper Scalp (1m/5m Tezkor Skalping)',
+      category: 'Scalping',
+      icon: '⚡',
+      badge: 'Scalp',
+      description: '1-5 daqiqalik mikro-impuls, Micro-FVG retesti va tezkor 5-15 pip skalping setupi',
+      liveValue: scalpVal,
+      signal: scalpSignal,
+      keyLevel: d(scalpTarget),
     },
   ];
 }
+
 
 

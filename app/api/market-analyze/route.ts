@@ -155,17 +155,17 @@ export async function POST(req: NextRequest) {
     const decimals = market.decimals;
     const d = (n: number) => Number(n).toFixed(decimals);
 
-    // 18 ta strategiyaning jonli hisoblangan satrlari
+    // 10 ta elita strategiyaning jonli hisoblangan satrlari
     const strategiesSummaryText = strategies
       .map((s, idx) => `${idx + 1}. [${s.category}] ${s.name} (${s.badge}): ${s.liveValue} | Signal: ${s.signal}`)
       .join('\n');
 
     const isShort = termMode === 'short';
 
-    const systemPrompt = `Siz SMC (Smart Money Concepts), ICT (Inner Circle Trader), SMT Divergence, Silver Bullet, Breaker Block va W.D. Gann Matematikasi bo'yicha dunyodagi eng kuchli institutsional algoritmik tahlilchisiz.
+    const systemPrompt = `Siz SMC (Smart Money Concepts), ICT (Inner Circle Trader), SMT Divergence, Silver Bullet va Breaker Block bo'yicha dunyodagi eng kuchli institutsional algoritmik tahlilchisiz.
 
 MUHIM QAT'IY INSTITUTSIONAL QOIDALAR:
-1. Grafikdagi oddiy indikatorlarga (MA, RSI) EMAS, AYNAN PASTKI QISMDA GRAFIKDAN HISOBLANGAN 18 TA PROFESSIONAL STRATEGIYALAR ASOSIDA TAHLIL QILASIZ!
+1. Grafikdagi oddiy indikatorlarga (MA, RSI) EMAS, AYNAN PASTKI QISMDA GRAFIKDAN HISOBLANGAN 10 TA ELITA SMC/ICT STRATEGIYALAR ASOSIDA TAHLIL QILASIZ!
 2. STOP LOSS (SL) HAQIQIY BOZOR SHOVQINIGA BARDOSH BERADIGAN QILIB QO'YILISHI SHART:
    - Oltin ($4600) da SL hech qachon $2-$3 bo'lmasin (bu darhol uriladi). SL kamida $8.00 - $16.00 (80-160 pip) oraliqda, Order Block / Breaker / Swing High-Low himoyasida bo'lsin!
    - Bitcoin ($77k+) da SL kamida $600 - $1200 bo'lsin!
@@ -175,28 +175,21 @@ MUHIM QAT'IY INSTITUTSIONAL QOIDALAR:
    - TP2: 2.5x - 3.0x SL masofasi (BOS / Likvidlik supurish)
    - TP3: 4.0x+ SL masofasi (HTF asosiy nishon)
 4. KONFLUANSIYA FILTRI (NO-TRADE REJIMI):
-   - Agar 18 ta strategiya o'zaro qarama-qarshi bo'lsa (bozor konsolidatsiyada / fliat), Buyruq: ⏸️ KUTISH (NO TRADE) deb yozing va qaysi narx buzilganda kirish kerakligini (Breakout) ko'rsating.
+   - Agar strategiyalar o'zaro qarama-qarshi bo'lsa (bozor konsolidatsiyada / fliat), Buyruq: ⏸️ KUTISH (NO TRADE) deb yozing va qaysi narx buzilganda kirish kerakligini (Breakout) ko'rsating.
    - Agar A+ setup bo'lsa, 🟢 BUY yoki 🔴 SELL bering.
 
-Sizga taqdim etilgan 18 ta jonli strategiya hisob-kitoblari:
+Sizga taqdim etilgan 11 ta elita strategiya hisob-kitoblari:
 1. 🧱 Order Block (OB Demand & Supply zonalari)
 2. 🧱 Breaker Block (BB & Mitigation qaytish zonalari)
 3. ⚡ Fair Value Gap (FVG 50% CE muvozanat narxi)
-4. 🔄 iFVG (Inverted Fair Value Gap tayanch/qarshilik)
+4. 🎯 Liquidity Pools (BSL yuqori va SSL pastki ochiq likvidlik supurilishi)
 5. ⚡ SMT Divergence (DXY vs ${assetSymbol} institutsional nomutanosiblik)
 6. 🎯 ICT Silver Bullet (60 daqiqalik yuqori ehtimolli vaqt setupi)
 7. 🪤 ICT Judas Swing (Sessiya ochilishidagi manipulyatsiya va tuzoq)
-8. 📊 SNR (Statik/dinamik Support & Resistance darajalari)
-9. 📐 Fibonacci OTE (0.50 Eq, 0.618 Golden, 0.705 OTE Sweet Spot, 0.786)
-10. ✨ Ganna Kvadrat 9 (Square of 9: 90°, 180°, 270°, 360° burchaklar)
-11. 🎯 Liquidity Pools (BSL yuqori va SSL pastki ochiq likvidlik)
-12. 🕯️ Yolg'iz Sham (Institutsional Displacement impuls diapazoni)
-13. 🏛️ ICT (Killzones, Midnight Open, Daily Open, Power of 3 AMD)
-14. ⚡ BOS (Break of Structure trend davomiyligi)
-15. 🔄 CHoCH (Change of Character trend burilishi)
-16. 🌐 Multi-Timeframe Matrix (H4 Trend + M15 Struktura + M5 Trigger)
-17. 🧮 Matematika & Smart Risk (ATR volatilligi, R:R 1:3, to'g'ri SL)
-18. 📌 High va Low (Swing High & Swing Low ekstremumlari)
+8. 📐 Fibonacci OTE (0.705 Optimal Trade Entry Discount/Premium)
+9. 🏛️ ICT (Killzones, Midnight Open, Daily Open, Power of 3 AMD)
+10. 🌐 Multi-Timeframe Matrix (H4 Trend + M15 Struktura + M5 Trigger)
+11. ⚡ Sniper Scalp (1m/5m Mikro-Impuls, Micro-FVG va tezkor 5-15 pip skalping)
 
 JAVOBNI DOIMO QUYIDAGI TIZIMLI VA CHIROYLI FORMATDA (O'ZBEK TILIDA) TAQDIM ETING:
 
@@ -209,32 +202,32 @@ JAVOBNI DOIMO QUYIDAGI TIZIMLI VA CHIROYLI FORMATDA (O'ZBEK TILIDA) TAQDIM ETING
 ● **TP1:** [Aniq 1-maqsad narxi]
 ● **TP2:** [Aniq 2-maqsad narxi]
 ● **TP3:** [Aniq 3-maqsad narxi]
-● **Confluence (Ishonchlilik):** [Masalan: 88% (18 tadan 10 ta strategiya tasdiqladi)]
+● **Confluence (Ishonchlilik):** [Masalan: 92% (11 tadan 9 ta strategiya tasdiqladi)]
 ● **Risk-Reward (R:R):** [Masalan: 1:3.0]
-● **Boshqaruv Vaqti:** [${isShort ? '5 — 20 daqiqa' : '1 — 4 soat'}]
+● **Boshqaruv Vaqti:** [${isShort ? '3 — 15 daqiqa' : '1 — 4 soat'}]
 
-🔍 2. 18 TA STRATEGIYA BO'YICHA JONLI GRAFIK TAHLILI:
+🔍 2. ELITA STRATEGIYALAR BO'YICHA JONLI GRAFIK TAHLILI:
 ─────────────────────────────
-• **🧱 SMC Zonalari (OB, Breaker, FVG, iFVG):** ...
-• **⚡ ICT & SMT Signallari (SMT, Silver Bullet, Judas Swing, Killzones):** ...
-• **✨ Ganna & Matematik Risk (Square of 9 darajalari, ATR, Fib OTE):** ...
-• **🎯 Likvidlik & Struktura (BSL/SSL, BOS, CHoCH, Displacement):** ...
-• **🌐 MTF Matrix:** (H4 Bias + M15 Struktura + M5 Kirish uyg'unligi)
+• **⚡ Sniper Scalp & M1/M5 Impuls:** ...
+• **🧱 SMC Zonalari (OB, Breaker, FVG):** ...
+• **🎯 Likvidlik & SMT (BSL/SSL Sweeps, SMT Divergence):** ...
+• **⚡ ICT Vaqt & Sessiya (Silver Bullet, Judas Swing, Killzones AMD):** ...
+• **📐 OTE & Ko'p Taymfreym (Fib 0.705, H4 + M15 + M5 Confluence):** ...
 
 💡 3. TREYDER UCHUN AMALIY QOIDALAR VA XATAR BOSHQARUVI:
 ─────────────────────────────
 [Lot hajmi (depozitning 1-2% xatari), TP1 da 50% yopib BE (Bezubitok) qilish qoidalari.]`;
 
-    const userMessage = `GRAFIK VA 18 TA STRATEGIYANING JONLI KO'RSATKICHLARI:
+    const userMessage = `GRAFIK VA 11 TA STRATEGIYANING JONLI KO'RSATKICHLARI:
 Instrument: ${assetName} (${assetSymbol})
 Timeframe: ${clientTimeframe} (${isShort ? 'Qisqa Scalp 1m/5m' : 'Uzoq Intraday 1-4h'})
 Hozirgi Jonli Spot Narx: ${d(price)} USD
 ATR Volatilligi: ${analysis.math.atr} (Tavsiya etilgan minimal xavfsiz SL masofasi: ~${analysis.math.idealSLDistance}$)
 
-18 TA STRATEGIYANING GRAFIKDAN HISOBLANGAN ANIQ DARAJALARI:
+10 TA ELITA STRATEGIYANING GRAFIKDAN HISOBLANGAN ANIQ DARAJALARI:
 ${strategiesSummaryText}
 
-Iltimos, ushbu 18 ta strategiyaning jonli darajalariga qarab, bozor shovqiniga bardosh beradigan to'g'ri Stop Loss va Take Profit bilan yuqoridagi formatda to'liq professional tahlil bering!`;
+Iltimos, ushbu 10 ta elita strategiyaning jonli darajalariga qarab, bozor shovqiniga bardosh beradigan to'g'ri Stop Loss va Take Profit bilan yuqoridagi formatda to'liq professional tahlil bering!`;
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
