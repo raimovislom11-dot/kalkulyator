@@ -80,7 +80,6 @@ export async function POST(req: NextRequest) {
           const claudeStream = await anthropic.messages.stream({
             model: "claude-fable-5",
             max_tokens: 4096,
-            temperature: 0.7,
             system: `Siz SMC (Smart Money Concepts), ICT, SMT Divergence, Silver Bullet, Breaker Block va Ganna Matematikasi bo'yicha eng kuchli xalqaro moliyaviy tahlilchisiz.
 
 Siz quyidagi 18 TA PROFESSIONAL STRATEGIYALAR bo'yicha rasm va grafikni tahlil qilasiz:
@@ -113,7 +112,6 @@ JAVOB FORMATI (O'ZBEK TILIDA):
                 content: contentBlocks,
               },
             ],
-            thinking: { type: "disabled" }
           });
 
           for await (const chunk of claudeStream) {

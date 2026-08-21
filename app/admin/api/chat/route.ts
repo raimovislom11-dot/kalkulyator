@@ -83,7 +83,6 @@ export async function POST(req: NextRequest) {
 Используйте структурированные ответы с форматированием markdown.
 Будьте конкретны, давайте практические рекомендации.`,
             messages,
-            thinking: { type: 'disabled' },
           });
 
           for await (const chunk of claudeStream) {
