@@ -5,90 +5,138 @@ import { calculateSMCAnalysis, Candle } from '../../lib/smcIndicators';
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
-// Jonli spot narxni eng tezkor va ishonchli manbadan olish
+// Joriy real narxni tezkor manbadan olish
 async function getRealLiveSpotPrice(symbolKey: string): Promise<number | null> {
   const sym = symbolKey.toUpperCase();
+
   try {
     if (sym.includes('XAU') || sym.includes('GOLD')) {
-      // PAXG — 1 unsiya sof oltin (Gold Spot) spot narxi
-      const res = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=PAXGUSDT', { next: { revalidate: 5 } });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.price) return parseFloat(json.price);
-      }
+      // 1. CoinGecko — PAXG (1 troy oz real gold spot) — ishonchli, CORS yo'q
+      try {
+        const r = await fetch(
+          'https://api.coingecko.com/api/v3/simple/price?ids=pax-gold&vs_currencies=usd',
+          { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(6000) }
+        );
+        if (r.ok) {
+          const j = await r.json();
+          const price = j?.['pax-gold']?.usd;
+          if (price && price > 500) {
+            console.log('Gold price from CoinGecko PAXG:', price);
+            return parseFloat(Number(price).toFixed(2));
+          }
+        }
+      } catch { /* fallthrough */ }
+
+      // 2. goldprice.org backup
+      try {
+        const r2 = await fetch(
+          'https://data-asg.goldprice.org/dbXRates/USD',
+          { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(5000) }
+        );
+        if (r2.ok) {
+          const j2 = await r2.json();
+          const price2 = j2?.items?.[0]?.xauPrice;
+          if (price2 && price2 > 500) {
+            console.log('Gold price from goldprice.org:', price2);
+            return parseFloat(Number(price2).toFixed(2));
+          }
+        }
+      } catch { /* fallthrough */ }
+
+      return null; // fallback to default below
+
     } else if (sym.includes('BTC')) {
-      const res = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT', { next: { revalidate: 5 } });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.price) return parseFloat(json.price);
+      const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT', {
+        signal: AbortSignal.timeout(4000),
+      });
+      if (r.ok) {
+        const j = await r.json();
+        if (j.price) return parseFloat(parseFloat(j.price).toFixed(2));
       }
     } else if (sym.includes('ETH')) {
-      const res = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT', { next: { revalidate: 5 } });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.price) return parseFloat(json.price);
+      const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT', {
+        signal: AbortSignal.timeout(4000),
+      });
+      if (r.ok) {
+        const j = await r.json();
+        if (j.price) return parseFloat(parseFloat(j.price).toFixed(2));
       }
-    } else if (sym.includes('EUR')) {
-      const res = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=EURUSDT', { next: { revalidate: 10 } });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.price) return parseFloat(json.price);
+    } else if (sym.includes('EUR') || sym === 'EURUSD') {
+      const r = await fetch('https://api.frankfurter.app/latest?from=EUR&to=USD', {
+        signal: AbortSignal.timeout(4000),
+      });
+      if (r.ok) {
+        const j = await r.json();
+        if (j?.rates?.USD) return parseFloat(Number(j.rates.USD).toFixed(5));
+      }
+    } else if (sym.includes('GBP')) {
+      const r = await fetch('https://api.frankfurter.app/latest?from=GBP&to=USD', {
+        signal: AbortSignal.timeout(4000),
+      });
+      if (r.ok) {
+        const j = await r.json();
+        if (j?.rates?.USD) return parseFloat(Number(j.rates.USD).toFixed(5));
       }
     }
   } catch (e) {
-    console.warn('Real-time spot price fetch fallback:', e);
+    console.warn('Price fetch error:', e);
   }
   return null;
 }
 
-// Yahoo Finance yoki Spot bo'yicha mikro-shamlarni shakllantirish
-async function fetchMarketData(symbolKey: string = 'XAUUSD', termMode: string = 'short', baseUserPrice?: number) {
+// Default narxlar (hozirgi bozor realligi — fallback uchun)
+function getDefaultPrice(symbolKey: string): number {
+  const sym = symbolKey.toUpperCase();
+  if (sym.includes('XAU') || sym.includes('GOLD')) return 4500.00; // 2026 real gold spot ~$4500
+  if (sym.includes('BTC')) return 98000;
+  if (sym.includes('ETH')) return 3850;
+  if (sym.includes('EUR')) return 1.0850;
+  if (sym.includes('GBP')) return 1.2650;
+  if (sym.includes('JPY')) return 154.50;
+  if (sym.includes('NAS') || sym.includes('NDX')) return 21500;
+  if (sym.includes('SPX') || sym.includes('SP500')) return 5600;
+  return 100;
+}
+
+async function fetchMarketData(symbolKey: string = 'XAUUSD', termMode: string = 'short') {
   try {
     const liveSpot = await getRealLiveSpotPrice(symbolKey);
-    const effectivePrice = baseUserPrice || liveSpot || (symbolKey.includes('XAU') ? 4492.5 : symbolKey.includes('BTC') ? 71950 : 1.085);
+    const effectivePrice = liveSpot ?? getDefaultPrice(symbolKey);
 
     const isShort = termMode === 'short';
     const interval = isShort ? '1m' : '1h';
     const candleCount = isShort ? 15 : 25;
 
-    // Real-time mikro-shamlar strukturasini tuzish
     const now = Date.now();
     const stepMs = isShort ? 60 * 1000 : 3600 * 1000;
     const parsedCandles: Candle[] = [];
     const recentCandles: { date: string; open: string; high: string; low: string; close: string }[] = [];
 
-    let currentWalk = effectivePrice;
-    const volatilityStep = effectivePrice > 100 ? (effectivePrice * 0.0006) : 0.0003;
+    // Volatillik: katta narxlar uchun foizli, kichik uchun absolyut
+    const volatilityPct = effectivePrice > 1000 ? 0.0005 : effectivePrice > 10 ? 0.0008 : 0.0003;
+    const volatilityStep = effectivePrice * volatilityPct;
+
+    let currentWalk = effectivePrice * (1 - volatilityStep * candleCount * 0.3);
 
     for (let i = candleCount; i >= 0; i--) {
       const dt = new Date(now - i * stepMs);
-      const dateStr = dt.toISOString().replace('T', ' ').slice(11, 16) + ' UTC';
+      const dateStr = dt.toISOString().slice(11, 16) + ' UTC';
 
-      const change = (Math.random() - 0.49) * volatilityStep;
-      const o = Number(currentWalk.toFixed(2));
-      const c = Number((currentWalk + change).toFixed(2));
-      const h = Number((Math.max(o, c) + Math.random() * (volatilityStep * 0.5)).toFixed(2));
-      const l = Number((Math.min(o, c) - Math.random() * (volatilityStep * 0.5)).toFixed(2));
-      currentWalk = c;
+      const change = (Math.random() - 0.48) * volatilityStep;
+      const o = parseFloat(currentWalk.toFixed(effectivePrice > 10 ? 2 : 5));
+      const c = parseFloat((currentWalk + change).toFixed(effectivePrice > 10 ? 2 : 5));
+      const h = parseFloat((Math.max(o, c) + Math.random() * volatilityStep * 0.4).toFixed(effectivePrice > 10 ? 2 : 5));
+      const l = parseFloat((Math.min(o, c) - Math.random() * volatilityStep * 0.4).toFixed(effectivePrice > 10 ? 2 : 5));
+      currentWalk = i === 0 ? effectivePrice : c;
 
-      if (i === 0) {
-        currentWalk = effectivePrice;
-      }
-
-      parsedCandles.push({ date: dateStr, open: o, high: h, low: l, close: c });
+      parsedCandles.push({ date: dateStr, open: o, high: h, low: l, close: i === 0 ? effectivePrice : c });
       recentCandles.push({
         date: dateStr,
-        open: o.toFixed(2),
-        high: h.toFixed(2),
-        low: l.toFixed(2),
-        close: c.toFixed(2),
+        open: String(o),
+        high: String(h),
+        low: String(l),
+        close: String(i === 0 ? effectivePrice : c),
       });
-    }
-
-    // Oxirgi shamni aynan real joriy spot narxga moslaymiz
-    if (parsedCandles.length > 0) {
-      parsedCandles[parsedCandles.length - 1].close = effectivePrice;
-      recentCandles[recentCandles.length - 1].close = effectivePrice.toFixed(2);
     }
 
     const smcAnalysis = calculateSMCAnalysis(parsedCandles, effectivePrice);
@@ -96,10 +144,12 @@ async function fetchMarketData(symbolKey: string = 'XAUUSD', termMode: string = 
     return {
       symbol: symbolKey,
       interval,
-      currentPrice: effectivePrice.toFixed(2),
+      currentPrice: effectivePrice,
+      currentPriceStr: effectivePrice > 10 ? effectivePrice.toFixed(2) : effectivePrice.toFixed(5),
       currency: 'USD',
       recentCandles,
       smcAnalysis,
+      priceSource: liveSpot ? 'live' : 'fallback',
     };
   } catch (err) {
     console.error('Market fetch error:', err);
@@ -120,60 +170,99 @@ export async function POST(req: NextRequest) {
     const anthropic = new Anthropic({ apiKey });
 
     const formData = await req.formData();
-    const calcContext = (formData.get('calcContext') as string) || '';
     const termMode = (formData.get('termMode') as string) || 'short';
     const assetSymbol = (formData.get('assetSymbol') as string) || 'XAUUSD';
     const assetName = (formData.get('assetName') as string) || 'Gold';
-    const userPriceRaw = formData.get('userCurrentPrice') as string;
 
-    const entryMatch = calcContext?.match(/(?:Kirish|Entry|Narx)\s*[:=]\s*([0-9.]+)/i);
-    const baseUserPrice = userPriceRaw ? parseFloat(userPriceRaw) : entryMatch ? parseFloat(entryMatch[1]) : undefined;
-
-    const marketData = await fetchMarketData(assetSymbol, termMode, baseUserPrice);
-    const actualEffectivePrice = marketData ? parseFloat(marketData.currentPrice) : (baseUserPrice || 4492.5);
+    const marketData = await fetchMarketData(assetSymbol, termMode);
+    const price = marketData?.currentPrice ?? getDefaultPrice(assetSymbol);
+    const priceStr = marketData?.currentPriceStr ?? String(price);
+    const decimals = price > 10 ? 2 : 5;
 
     let systemPrompt = '';
     let userMessage = '';
 
     if (termMode === 'short') {
-      // ⚡ ULTRA-QISQA 1M / 5M SCALPING
+      // ⚡ ULTRA-QISQA 1M/5M SCALPING
       const isGold = assetSymbol.includes('XAU') || assetName.toLowerCase().includes('gold');
-      const slDist = isGold ? 1.8 : Number((actualEffectivePrice * 0.0015).toFixed(2));
-      const tp1Dist = isGold ? 2.5 : Number((actualEffectivePrice * 0.0025).toFixed(2));
-      const tp2Dist = isGold ? 5.0 : Number((actualEffectivePrice * 0.0050).toFixed(2));
-      const tp3Dist = isGold ? 7.5 : Number((actualEffectivePrice * 0.0075).toFixed(2));
+      const slDist  = isGold ? parseFloat((price * 0.00055).toFixed(decimals)) : parseFloat((price * 0.0015).toFixed(decimals));
+      const tp1Dist = isGold ? parseFloat((price * 0.00075).toFixed(decimals)) : parseFloat((price * 0.002).toFixed(decimals));
+      const tp2Dist = isGold ? parseFloat((price * 0.0015).toFixed(decimals)) : parseFloat((price * 0.004).toFixed(decimals));
+      const tp3Dist = isGold ? parseFloat((price * 0.0025).toFixed(decimals)) : parseFloat((price * 0.006).toFixed(decimals));
+
+      // Yo'nalishni SMC dan aniqlash
+      const bias = marketData?.smcAnalysis?.ictSession?.bias || 'Bullish AMD';
+      const direction = bias === 'Bearish AMD' ? 'SELL' : 'BUY';
+      const dirEmoji = direction === 'BUY' ? '🟢' : '🔴';
+      const entryPrice = parseFloat(priceStr);
+      const slPrice = direction === 'BUY'
+        ? parseFloat((entryPrice - slDist).toFixed(decimals))
+        : parseFloat((entryPrice + slDist).toFixed(decimals));
+      const tp1Price = direction === 'BUY'
+        ? parseFloat((entryPrice + tp1Dist).toFixed(decimals))
+        : parseFloat((entryPrice - tp1Dist).toFixed(decimals));
+      const tp2Price = direction === 'BUY'
+        ? parseFloat((entryPrice + tp2Dist).toFixed(decimals))
+        : parseFloat((entryPrice - tp2Dist).toFixed(decimals));
+      const tp3Price = direction === 'BUY'
+        ? parseFloat((entryPrice + tp3Dist).toFixed(decimals))
+        : parseFloat((entryPrice - tp3Dist).toFixed(decimals));
 
       systemPrompt =
         `Siz professional 1-5 DAQIQALIK (1m/5m) ULTRA-QISQA SCALPING treydersiz.\n\n` +
-        `🎯 QAT'IY TALAB:\n` +
-        `- Kirish narxi (Entry) AYNAN GRAFIKDAGI JORIY NARX: ${actualEffectivePrice} USD bo'lishi SHART!\n` +
-        `- Boshqa hech qanday eskirgan yoki chetdagi narxlarni aralashtirmang!\n` +
-        `- Javobingiz faqat quyidagi 7-8 qatordan iborat bo'lsin (ortiqcha gaplarsiz):\n\n` +
+        `🎯 QAT'IY QOIDA — Javobni AYNAN quyidagi formatda yozing:\n\n` +
         `⚡ **1M/5M TEZKOR SCALP SIGNALI**\n` +
         `─────────────────────────────\n` +
         `● **Instrument:** ${assetName} (${assetSymbol}) • 1m/5m\n` +
-        `● **Buyruq:** 🟢 BUY yoki 🔴 SELL\n` +
-        `● **Kirish (Entry):** ${actualEffectivePrice} (Joriy narxda)\n` +
-        `● **Stop Loss (SL):** [Narx, ${actualEffectivePrice} dan ${slDist}$ masofada]\n` +
-        `● **TP1 (1-3 daqiqa):** [Narx, +${tp1Dist}$ foyda]\n` +
-        `● **TP2 (5-10 daqiqa):** [Narx, +${tp2Dist}$ foyda]\n` +
-        `● **TP3 (15 daqiqa):** [Narx, +${tp3Dist}$ foyda]\n` +
+        `● **Buyruq:** ${dirEmoji} ${direction}\n` +
+        `● **Kirish (Entry):** ${entryPrice}\n` +
+        `● **Stop Loss (SL):** ${slPrice}\n` +
+        `● **TP1 (1-3 daqiqa):** ${tp1Price}\n` +
+        `● **TP2 (5-10 daqiqa):** ${tp2Price}\n` +
+        `● **TP3 (15 daqiqa):** ${tp3Price}\n` +
         `● **R:R:** 1:2.5 | **Vaqt:** 1 — 15 daqiqa\n\n` +
-        `🎯 **1m/5m Sabab:** [1 jumlalik tezkor 1m FVG/likvidlik sababi]`;
+        `🎯 **1m/5m Sabab:** [Bu yerda 1 jumlada FVG/BOS/CHoCH/Likvidlik sababini yozing]\n\n` +
+        `MUHIM: Entry, SL, TP narxlarini AYNAN yuqoridagi raqamlar bilan yozing. O'zgartirishga ruxsat yo'q!`;
 
       userMessage =
-        `Grafikdagi haqiqiy joriy narx: ${actualEffectivePrice} USD (${assetSymbol}).\n` +
-        `Iltimos, aynan shu ${actualEffectivePrice} narxi bo'yicha 1m/5m ultra-qisqa scalp signalini bering.`;
+        `Joriy narx: ${entryPrice} USD (${assetSymbol}). ` +
+        `Yuqoridagi formatda aynan shu narxlar bilan signal bering. Faqat format bo'yicha yozing.`;
     } else {
       // 🏛️ UZOQ MUDDATLI (1-4 SOAT INTRADAY)
+      const decimals2 = price > 10 ? 2 : 5;
+      const bias2 = marketData?.smcAnalysis?.ictSession?.bias || 'Bullish AMD';
+      const dir2 = bias2 === 'Bearish AMD' ? 'SELL' : 'BUY';
+      const dirEmoji2 = dir2 === 'BUY' ? '🟢' : '🔴';
+      const ep = parseFloat(priceStr);
+      const slD = parseFloat((price * 0.004).toFixed(decimals2));
+      const t1 = parseFloat((price * 0.006).toFixed(decimals2));
+      const t2 = parseFloat((price * 0.012).toFixed(decimals2));
+      const t3 = parseFloat((price * 0.020).toFixed(decimals2));
+
+      const slP  = dir2 === 'BUY' ? parseFloat((ep - slD).toFixed(decimals2)) : parseFloat((ep + slD).toFixed(decimals2));
+      const tp1P = dir2 === 'BUY' ? parseFloat((ep + t1).toFixed(decimals2)) : parseFloat((ep - t1).toFixed(decimals2));
+      const tp2P = dir2 === 'BUY' ? parseFloat((ep + t2).toFixed(decimals2)) : parseFloat((ep - t2).toFixed(decimals2));
+      const tp3P = dir2 === 'BUY' ? parseFloat((ep + t3).toFixed(decimals2)) : parseFloat((ep - t3).toFixed(decimals2));
+
       systemPrompt =
-        `Siz professional INTRADAY treydersiz.\n` +
-        `Grafikdagi joriy narx: ${actualEffectivePrice} USD.\n` +
-        `Aniq Entry (${actualEffectivePrice} atrofida), H1 himoyalangan SL va kunlik TP1, TP2, TP3 maqsadlarini O'zbek tilida bering.`;
+        `Siz professional INTRADAY treydersiz (1-4 soatlik tahlil).\n\n` +
+        `🎯 QAT'IY QOIDA — Javobni AYNAN quyidagi formatda yozing:\n\n` +
+        `📈 **INTRADAY SIGNAL (1-4H)**\n` +
+        `─────────────────────────────\n` +
+        `● **Instrument:** ${assetName} (${assetSymbol}) • H1/H4\n` +
+        `● **Buyruq:** ${dirEmoji2} ${dir2}\n` +
+        `● **Kirish (Entry):** ${ep}\n` +
+        `● **Stop Loss (SL):** ${slP}\n` +
+        `● **TP1 (1-2 soat):** ${tp1P}\n` +
+        `● **TP2 (2-4 soat):** ${tp2P}\n` +
+        `● **TP3 (Kunlik maqsad):** ${tp3P}\n` +
+        `● **R:R:** 1:3 | **Vaqt:** 1 — 4 soat\n\n` +
+        `📊 **H1/H4 Tahlil:** [Qisqa SMC tahlil: order block, FVG, tuzilma]\n\n` +
+        `MUHIM: Entry, SL, TP narxlarini AYNAN yuqoridagi raqamlar bilan yozing!`;
 
       userMessage =
-        `Grafikdagi haqiqiy joriy narx: ${actualEffectivePrice} USD (${assetSymbol}).\n` +
-        `Iltimos, 1 — 4 soatlik INTRADAY tahlil va signallarni bering.`;
+        `Joriy narx: ${ep} USD (${assetSymbol}). ` +
+        `Yuqoridagi formatda aynan shu narxlar bilan intraday signal bering.`;
     }
 
     const encoder = new TextEncoder();
@@ -182,8 +271,8 @@ export async function POST(req: NextRequest) {
         try {
           const claudeStream = await anthropic.messages.stream({
             model: 'claude-opus-4-5',
-            max_tokens: 1024,
-            temperature: 0.5,
+            max_tokens: 800,
+            temperature: 0.2,
             system: systemPrompt,
             messages: [{ role: 'user', content: userMessage }],
             thinking: { type: 'disabled' },
