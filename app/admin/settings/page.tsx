@@ -405,7 +405,7 @@ export default function SettingsPage() {
           {[
             ['Versiya', '1.0.0'],
             ['Framework', 'Next.js 16'],
-            ['AI modeli', 'claude-sonnet-5'],
+            ['AI modeli', 'claude-fable-5'],
             ['Grafiklar', 'lightweight-charts v5'],
           ].map(([k, v]) => (
             <div key={k} className="flex justify-between items-center text-xs">

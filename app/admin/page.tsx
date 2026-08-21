@@ -521,7 +521,7 @@ export default function AdminDashboard() {
           <QuickNavCard
             href="/admin/ai-analysis"
             label="AI Tahlil Paneli"
-            sub="Claude 3.5 / Opus"
+            sub="Claude Fable 5"
             accent="#8b5cf6"
             icon={
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">

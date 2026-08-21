@@ -456,7 +456,7 @@ export default function AIAnalysisPage() {
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-black text-white tracking-tight">SUN&apos;IY INTELLEKT TAHLIL PANELI</h1>
             <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/40 font-mono font-bold">
-              Claude Opus 4.5
+              Claude Fable 5
             </span>
           </div>
           <p className="mt-1 text-sm text-slate-400">

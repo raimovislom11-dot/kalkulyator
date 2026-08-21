@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
       async start(controller) {
         try {
           const claudeStream = await anthropic.messages.stream({
-            model: 'claude-sonnet-5',
+            model: 'claude-fable-5',
             max_tokens: 4096,
             system: `Вы — эксперт-трейдер XAU/USD (золото) и аналитик торговых стратегий.
 Вы работаете в Admin Panel торгового калькулятора.

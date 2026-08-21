@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
       async start(controller) {
         try {
           const claudeStream = await anthropic.messages.stream({
-            model: "claude-opus-4-5",
+            model: "claude-fable-5",
             max_tokens: 4096,
             temperature: 0.7,
             system: `Siz SMC (Smart Money Concepts), ICT, SMT Divergence, Silver Bullet, Breaker Block va Ganna Matematikasi bo'yicha eng kuchli xalqaro moliyaviy tahlilchisiz.
