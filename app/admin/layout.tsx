@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import TelegramShareModal from '../components/TelegramShareModal';
+import ThemeLanguageSwitcher from '../components/ThemeLanguageSwitcher';
+import { useThemeLanguage } from '../context/ThemeLanguageContext';
 import { clearSession } from '../lib/users';
 
 export interface NavItem {
@@ -623,12 +625,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
 
             <div className="flex items-center gap-2">
+              {/* 🌐 Til & 🌓 Dark/Light Mode Switcher */}
+              <ThemeLanguageSwitcher />
+
               <button
                 onClick={() => setIsTelegramModalOpen(true)}
                 className="px-3 py-1.5 rounded-xl text-xs font-bold bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 transition-all flex items-center gap-1.5 shadow-sm active:scale-95"
               >
                 <span>✈️</span>
-                <span>Telegram</span>
+                <span className="hidden sm:inline">Telegram</span>
               </button>
 
               <a

@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, memo } from 'react';
+import { useThemeLanguage } from '../context/ThemeLanguageContext';
+import ThemeLanguageSwitcher from './ThemeLanguageSwitcher';
 
 interface HeaderBarProps {
   currentUsername: string;
@@ -21,11 +23,12 @@ function HeaderBar({
   onOpenTelegram,
   onRefreshPrices,
 }: HeaderBarProps) {
+  const { t } = useThemeLanguage();
   const [time, setTime] = useState<Date | null>(null);
   const [isSoundOn, setIsSoundOn] = useState(true);
   const [prices, setPrices] = useState({
-    gold: '4492.50',
-    btc: '71950',
+    gold: '4506.39',
+    btc: '72298',
     eur: '1.0852',
     dxy: '104.25',
   });
@@ -94,6 +97,26 @@ function HeaderBar({
     uzbTimeStr = time.toLocaleTimeString('uz-UZ', { timeZone: 'Asia/Tashkent', hour12: false });
   }
 
+  const NAV_TABS = [
+    { id: 'calc', icon: '🧮', labelKey: 'calc' },
+    { id: 'trap', icon: '🚨', labelKey: 'trap' },
+    { id: 'radar', icon: '🧬', labelKey: 'radar' },
+    { id: 'delta', icon: '🌊', labelKey: 'delta' },
+    { id: 'chart', icon: '📊', labelKey: 'chart' },
+    { id: 'multichart', icon: '🪟', labelKey: 'multichart' },
+    { id: 'autopsy', icon: '🧠', labelKey: 'autopsy' },
+    { id: 'checklist', icon: '📝', labelKey: 'checklist' },
+    { id: 'risk', icon: '🎯', labelKey: 'risk' },
+    { id: 'proprisk', icon: '🛡️', labelKey: 'proprisk' },
+    { id: 'heatmap', icon: '🔥', labelKey: 'heatmap' },
+    { id: 'backtest', icon: '🧬', labelKey: 'backtest' },
+    { id: 'encyclopedia', icon: '📖', labelKey: 'encyclopedia' },
+    { id: 'killzones', icon: '⏰', labelKey: 'killzones' },
+    { id: 'journal', icon: '📓', labelKey: 'journal' },
+    { id: 'calendar', icon: '📰', labelKey: 'calendar' },
+    ...(isAdmin ? [{ id: 'admin', icon: '👑', labelKey: 'adminBadge' }] : []),
+  ];
+
   return (
     <header className="bg-slate-900/90 border border-slate-700/90 rounded-2xl p-2.5 sm:p-3 mb-4 backdrop-blur-xl shadow-2xl space-y-2.5">
       {/* 🔴 1. JONLI TIKERLAR VA BOZOR SESSIYALARI TASMASI */}
@@ -128,11 +151,11 @@ function HeaderBar({
           <div className="hidden sm:flex items-center gap-2 border-r border-slate-800 pr-2.5">
             <span className="flex items-center gap-1">
               <span className={`w-2 h-2 rounded-full ${londonOpen ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`} />
-              <span className={londonOpen ? 'text-emerald-300 font-bold' : 'text-slate-500'}>🇬🇧 London</span>
+              <span className={londonOpen ? 'text-emerald-300 font-bold' : 'text-slate-500'}>🇬🇧 {t('london')}</span>
             </span>
             <span className="flex items-center gap-1">
               <span className={`w-2 h-2 rounded-full ${nyOpen ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`} />
-              <span className={nyOpen ? 'text-emerald-300 font-bold' : 'text-slate-500'}>🇺🇸 NY</span>
+              <span className={nyOpen ? 'text-emerald-300 font-bold' : 'text-slate-500'}>🇺🇸 {t('newyork')}</span>
             </span>
           </div>
 
@@ -146,7 +169,7 @@ function HeaderBar({
           <button
             onClick={refreshLivePrices}
             disabled={isRefreshing}
-            title="Narxlarni yangilash"
+            title={t('refresh')}
             className="p-1 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-all active:scale-95"
           >
             <span className={`inline-block ${isRefreshing ? 'animate-spin text-orange-400' : ''}`}>🔄</span>
@@ -154,8 +177,8 @@ function HeaderBar({
         </div>
       </div>
 
-      {/* 👤 2. USER PROFILE, BALANS VA TEZKOR BOSHQARUV TUGMALARI */}
-      <div className="flex items-center justify-between px-1">
+      {/* 👤 2. USER PROFILE, BALANS, TIL, THEME VA TEZKOR BOSHQARUV TUGMALARI */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5 px-1">
         {/* User & Balans */}
         <div className="flex items-center gap-2.5">
           <div className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black shadow-md ${
@@ -168,25 +191,28 @@ function HeaderBar({
               <span className="text-white text-xs font-bold">{currentUsername}</span>
               {isAdmin && (
                 <span className="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.2 rounded-full font-bold border border-amber-500/40">
-                  👑 Admin
+                  👑 {t('adminBadge')}
                 </span>
               )}
             </div>
             <div className="text-[10px] text-slate-400 flex items-center gap-1">
-              <span>💰 Balans:</span>
+              <span>💰 {t('balance')}:</span>
               <span className="text-emerald-400 font-mono font-bold">${balance}</span>
             </div>
           </div>
         </div>
 
-        {/* Tezkor Tugmalar (Telegram, Sound, Logout) */}
-        <div className="flex items-center gap-1.5">
+        {/* O'ng tomon: Til & Dark/Light Switcher, Telegram, Sound, Logout */}
+        <div className="flex items-center gap-1.5 sm:gap-2 ml-auto">
+          {/* 🌐 & 🌓 Til va Dark/Light Mode Switcher */}
+          <ThemeLanguageSwitcher />
+
           {/* Telegram Havolasi */}
           <a
             href="https://t.me/+U5pPkneGmM1mMjYy"
             target="_blank"
             rel="noopener noreferrer"
-            className="px-2.5 py-1 rounded-xl text-xs font-bold bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 transition-all flex items-center gap-1 active:scale-95 shadow-sm"
+            className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 transition-all flex items-center gap-1 active:scale-95 shadow-sm"
             title="Telegram kanaliga o'tish"
           >
             <span>✈️</span>
@@ -199,7 +225,7 @@ function HeaderBar({
             className={`p-1.5 rounded-xl text-xs border transition-all ${
               isSoundOn ? 'bg-slate-800 text-emerald-400 border-slate-700' : 'bg-slate-800/60 text-slate-500 border-slate-800'
             }`}
-            title={isSoundOn ? 'Ovoz yoqilgan' : "Ovoz o'chirilgan"}
+            title={isSoundOn ? t('soundOn') : t('soundOff')}
           >
             {isSoundOn ? '🔊' : '🔇'}
           </button>
@@ -207,37 +233,20 @@ function HeaderBar({
           {/* Chiqish */}
           <button
             onClick={onLogout}
-            className="px-2.5 py-1 text-slate-400 hover:text-red-300 hover:bg-red-950/30 rounded-xl text-xs transition-all flex items-center gap-1 border border-transparent hover:border-red-500/30"
-            title="Tizimdan chiqish"
+            className="px-2.5 py-1.5 text-slate-400 hover:text-red-300 hover:bg-red-950/30 rounded-xl text-xs transition-all flex items-center gap-1 border border-transparent hover:border-red-500/30 active:scale-95"
+            title={t('logout')}
           >
             <span>🚪</span>
-            <span className="hidden sm:inline">Chiqish</span>
+            <span className="hidden sm:inline">{t('logout')}</span>
           </button>
         </div>
       </div>
 
       {/* 🗂️ 3. ASOSIY NAVIGATSIYA TABLARI */}
       <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-12 gap-1 sm:gap-1.5 text-xs font-bold pt-1 border-t border-slate-800/80">
-        {[
-          { id: 'calc', icon: '🧮', label: 'Kalkulyator' },
-          { id: 'trap', icon: '🚨', label: 'Trap Hunter' },
-          { id: 'radar', icon: '🧬', label: '18-Radar' },
-          { id: 'delta', icon: '🌊', label: 'Vol Delta' },
-          { id: 'chart', icon: '📊', label: 'Grafik' },
-          { id: 'multichart', icon: '🪟', label: 'Multi-Grid' },
-          { id: 'autopsy', icon: '🧠', label: 'Xatolar' },
-          { id: 'checklist', icon: '📝', label: 'Checklist' },
-          { id: 'risk', icon: '🎯', label: 'Risk & Lot' },
-          { id: 'proprisk', icon: '🛡️', label: 'Prop Guard' },
-          { id: 'heatmap', icon: '🔥', label: 'Heatmap' },
-          { id: 'backtest', icon: '🧬', label: 'Backtest' },
-          { id: 'encyclopedia', icon: '📖', label: 'Lug\'at' },
-          { id: 'killzones', icon: '⏰', label: 'Killzones' },
-          { id: 'journal', icon: '📓', label: 'Jurnal' },
-          { id: 'calendar', icon: '📰', label: 'Taqvim' },
-          ...(isAdmin ? [{ id: 'admin', icon: '👑', label: 'Admin' }] : []),
-        ].map((tab) => {
+        {NAV_TABS.map((tab) => {
           const isActive = activeMainTab === tab.id;
+          const labelText = t(tab.labelKey);
           return (
             <button
               key={tab.id}
@@ -257,7 +266,7 @@ function HeaderBar({
               }`}
             >
               <span className="text-base">{tab.icon}</span>
-              <span className="text-[10px] sm:text-[11px] font-bold truncate w-full">{tab.label}</span>
+              <span className="text-[10px] sm:text-[11px] font-bold truncate w-full">{labelText}</span>
             </button>
           );
         })}
