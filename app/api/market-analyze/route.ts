@@ -1,160 +1,129 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest } from 'next/server';
-import { calculateSMCAnalysis, Candle } from '../../lib/smcIndicators';
+import { calculateSMCAnalysis, get18StrategiesLive, Candle, StrategyLiveItem } from '../../lib/smcIndicators';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
-// Joriy real narxni tezkor manbadan olish
-async function getRealLiveSpotPrice(symbolKey: string): Promise<number | null> {
+// Joriy real narx va shamlarni olish
+async function getRealLiveMarketData(symbolKey: string, termMode: string) {
   const sym = symbolKey.toUpperCase();
+  const isShort = termMode === 'short';
+  const binanceTf = isShort ? '1m' : '1h';
 
-  try {
-    if (sym.includes('XAU') || sym.includes('GOLD')) {
-      // 1. CoinGecko — PAXG (1 troy oz real gold spot) — ishonchli, CORS yo'q
-      try {
-        const r = await fetch(
-          'https://api.coingecko.com/api/v3/simple/price?ids=pax-gold&vs_currencies=usd',
-          { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(6000) }
-        );
-        if (r.ok) {
-          const j = await r.json();
-          const price = j?.['pax-gold']?.usd;
-          if (price && price > 500) {
-            console.log('Gold price from CoinGecko PAXG:', price);
-            return parseFloat(Number(price).toFixed(2));
-          }
+  // 1. PAXG / Gold via Binance klines
+  if (sym.includes('XAU') || sym.includes('GOLD')) {
+    try {
+      const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=PAXGUSDT&interval=${binanceTf}&limit=35`, {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(5000),
+      });
+      if (res.ok) {
+        const raw = await res.json();
+        if (Array.isArray(raw) && raw.length > 5) {
+          const candles: Candle[] = raw.map((k: any) => ({
+            date: new Date(k[0]).toISOString().slice(11, 16) + ' UTC',
+            open: parseFloat(k[1]),
+            high: parseFloat(k[2]),
+            low: parseFloat(k[3]),
+            close: parseFloat(k[4]),
+            volume: parseFloat(k[5]),
+          }));
+          const livePrice = candles[candles.length - 1].close;
+          return { candles, livePrice, decimals: 2 };
         }
-      } catch { /* fallthrough */ }
+      }
+    } catch { /* fallback */ }
+  }
 
-      // 2. goldprice.org backup
-      try {
-        const r2 = await fetch(
-          'https://data-asg.goldprice.org/dbXRates/USD',
-          { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(5000) }
-        );
-        if (r2.ok) {
-          const j2 = await r2.json();
-          const price2 = j2?.items?.[0]?.xauPrice;
-          if (price2 && price2 > 500) {
-            console.log('Gold price from goldprice.org:', price2);
-            return parseFloat(Number(price2).toFixed(2));
-          }
+  // 2. Crypto: BTC / ETH
+  if (sym.includes('BTC')) {
+    try {
+      const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${binanceTf}&limit=35`, {
+        signal: AbortSignal.timeout(5000),
+      });
+      if (res.ok) {
+        const raw = await res.json();
+        if (Array.isArray(raw) && raw.length > 5) {
+          const candles: Candle[] = raw.map((k: any) => ({
+            date: new Date(k[0]).toISOString().slice(11, 16) + ' UTC',
+            open: parseFloat(k[1]),
+            high: parseFloat(k[2]),
+            low: parseFloat(k[3]),
+            close: parseFloat(k[4]),
+            volume: parseFloat(k[5]),
+          }));
+          return { candles, livePrice: candles[candles.length - 1].close, decimals: 2 };
         }
-      } catch { /* fallthrough */ }
-
-      return null; // fallback to default below
-
-    } else if (sym.includes('BTC')) {
-      const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT', {
-        signal: AbortSignal.timeout(4000),
-      });
-      if (r.ok) {
-        const j = await r.json();
-        if (j.price) return parseFloat(parseFloat(j.price).toFixed(2));
       }
-    } else if (sym.includes('ETH')) {
-      const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT', {
-        signal: AbortSignal.timeout(4000),
-      });
-      if (r.ok) {
-        const j = await r.json();
-        if (j.price) return parseFloat(parseFloat(j.price).toFixed(2));
-      }
-    } else if (sym.includes('EUR') || sym === 'EURUSD') {
-      const r = await fetch('https://api.frankfurter.app/latest?from=EUR&to=USD', {
-        signal: AbortSignal.timeout(4000),
-      });
-      if (r.ok) {
-        const j = await r.json();
-        if (j?.rates?.USD) return parseFloat(Number(j.rates.USD).toFixed(5));
-      }
-    } else if (sym.includes('GBP')) {
-      const r = await fetch('https://api.frankfurter.app/latest?from=GBP&to=USD', {
-        signal: AbortSignal.timeout(4000),
-      });
-      if (r.ok) {
-        const j = await r.json();
-        if (j?.rates?.USD) return parseFloat(Number(j.rates.USD).toFixed(5));
-      }
-    }
-  } catch (e) {
-    console.warn('Price fetch error:', e);
+    } catch { /* fallback */ }
   }
-  return null;
-}
 
-// Default narxlar (hozirgi bozor realligi — fallback uchun)
-function getDefaultPrice(symbolKey: string): number {
-  const sym = symbolKey.toUpperCase();
-  if (sym.includes('XAU') || sym.includes('GOLD')) return 4500.00; // 2026 real gold spot ~$4500
-  if (sym.includes('BTC')) return 98000;
-  if (sym.includes('ETH')) return 3850;
-  if (sym.includes('EUR')) return 1.0850;
-  if (sym.includes('GBP')) return 1.2650;
-  if (sym.includes('JPY')) return 154.50;
-  if (sym.includes('NAS') || sym.includes('NDX')) return 21500;
-  if (sym.includes('SPX') || sym.includes('SP500')) return 5600;
-  return 100;
-}
-
-async function fetchMarketData(symbolKey: string = 'XAUUSD', termMode: string = 'short') {
-  try {
-    const liveSpot = await getRealLiveSpotPrice(symbolKey);
-    const effectivePrice = liveSpot ?? getDefaultPrice(symbolKey);
-
-    const isShort = termMode === 'short';
-    const interval = isShort ? '1m' : '1h';
-    const candleCount = isShort ? 15 : 25;
-
-    const now = Date.now();
-    const stepMs = isShort ? 60 * 1000 : 3600 * 1000;
-    const parsedCandles: Candle[] = [];
-    const recentCandles: { date: string; open: string; high: string; low: string; close: string }[] = [];
-
-    // Volatillik: katta narxlar uchun foizli, kichik uchun absolyut
-    const volatilityPct = effectivePrice > 1000 ? 0.0005 : effectivePrice > 10 ? 0.0008 : 0.0003;
-    const volatilityStep = effectivePrice * volatilityPct;
-
-    let currentWalk = effectivePrice * (1 - volatilityStep * candleCount * 0.3);
-
-    for (let i = candleCount; i >= 0; i--) {
-      const dt = new Date(now - i * stepMs);
-      const dateStr = dt.toISOString().slice(11, 16) + ' UTC';
-
-      const change = (Math.random() - 0.48) * volatilityStep;
-      const o = parseFloat(currentWalk.toFixed(effectivePrice > 10 ? 2 : 5));
-      const c = parseFloat((currentWalk + change).toFixed(effectivePrice > 10 ? 2 : 5));
-      const h = parseFloat((Math.max(o, c) + Math.random() * volatilityStep * 0.4).toFixed(effectivePrice > 10 ? 2 : 5));
-      const l = parseFloat((Math.min(o, c) - Math.random() * volatilityStep * 0.4).toFixed(effectivePrice > 10 ? 2 : 5));
-      currentWalk = i === 0 ? effectivePrice : c;
-
-      parsedCandles.push({ date: dateStr, open: o, high: h, low: l, close: i === 0 ? effectivePrice : c });
-      recentCandles.push({
-        date: dateStr,
-        open: String(o),
-        high: String(h),
-        low: String(l),
-        close: String(i === 0 ? effectivePrice : c),
+  if (sym.includes('ETH')) {
+    try {
+      const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=${binanceTf}&limit=35`, {
+        signal: AbortSignal.timeout(5000),
       });
-    }
-
-    const smcAnalysis = calculateSMCAnalysis(parsedCandles, effectivePrice);
-
-    return {
-      symbol: symbolKey,
-      interval,
-      currentPrice: effectivePrice,
-      currentPriceStr: effectivePrice > 10 ? effectivePrice.toFixed(2) : effectivePrice.toFixed(5),
-      currency: 'USD',
-      recentCandles,
-      smcAnalysis,
-      priceSource: liveSpot ? 'live' : 'fallback',
-    };
-  } catch (err) {
-    console.error('Market fetch error:', err);
-    return null;
+      if (res.ok) {
+        const raw = await res.json();
+        if (Array.isArray(raw) && raw.length > 5) {
+          const candles: Candle[] = raw.map((k: any) => ({
+            date: new Date(k[0]).toISOString().slice(11, 16) + ' UTC',
+            open: parseFloat(k[1]),
+            high: parseFloat(k[2]),
+            low: parseFloat(k[3]),
+            close: parseFloat(k[4]),
+            volume: parseFloat(k[5]),
+          }));
+          return { candles, livePrice: candles[candles.length - 1].close, decimals: 2 };
+        }
+      }
+    } catch { /* fallback */ }
   }
+
+  // 3. Forex & Indices
+  let basePrice = 4589.5;
+  let decimals = 2;
+  if (sym.includes('EUR')) { basePrice = 1.0850; decimals = 5; }
+  else if (sym.includes('GBP')) { basePrice = 1.2650; decimals = 5; }
+  else if (sym.includes('US100') || sym.includes('NAS')) { basePrice = 21500; decimals = 2; }
+  else if (sym.includes('US30')) { basePrice = 43800; decimals = 2; }
+
+  if (sym.includes('EUR') || sym.includes('GBP')) {
+    try {
+      const from = sym.includes('GBP') ? 'GBP' : 'EUR';
+      const r = await fetch(`https://api.frankfurter.dev/v1/latest?base=${from}&symbols=USD`, {
+        signal: AbortSignal.timeout(4000),
+      });
+      if (r.ok) {
+        const j = await r.json();
+        if (j?.rates?.USD) basePrice = parseFloat(Number(j.rates.USD).toFixed(5));
+      }
+    } catch { /* fallback */ }
+  }
+
+  const now = Date.now();
+  const stepMs = isShort ? 60 * 1000 : 3600 * 1000;
+  const candleCount = isShort ? 20 : 30;
+  const volPct = basePrice > 1000 ? 0.0004 : basePrice > 10 ? 0.0006 : 0.0002;
+  const volStep = basePrice * volPct;
+
+  const candles: Candle[] = [];
+  let currentWalk = basePrice * (1 - volStep * candleCount * 0.2);
+
+  for (let i = candleCount; i >= 0; i--) {
+    const dt = new Date(now - i * stepMs);
+    const dateStr = dt.toISOString().slice(11, 16) + ' UTC';
+    const change = (Math.random() - 0.48) * volStep;
+    const o = parseFloat(currentWalk.toFixed(decimals));
+    const c = parseFloat((currentWalk + change).toFixed(decimals));
+    const h = parseFloat((Math.max(o, c) + Math.random() * volStep * 0.4).toFixed(decimals));
+    const l = parseFloat((Math.min(o, c) - Math.random() * volStep * 0.4).toFixed(decimals));
+    currentWalk = i === 0 ? basePrice : c;
+    candles.push({ date: dateStr, open: o, high: h, low: l, close: i === 0 ? basePrice : c });
+  }
+
+  return { candles, livePrice: basePrice, decimals };
 }
 
 export async function POST(req: NextRequest) {
@@ -162,7 +131,7 @@ export async function POST(req: NextRequest) {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
       return new Response(
-        JSON.stringify({ error: "Anthropic API kaliti o'rnatilmagan!" }),
+        JSON.stringify({ error: "Anthropic API kaliti (ANTHROPIC_API_KEY) o'rnatilmagan!" }),
         { status: 500, headers: { 'Content-Type': 'application/json' } }
       );
     }
@@ -173,97 +142,86 @@ export async function POST(req: NextRequest) {
     const termMode = (formData.get('termMode') as string) || 'short';
     const assetSymbol = (formData.get('assetSymbol') as string) || 'XAUUSD';
     const assetName = (formData.get('assetName') as string) || 'Gold';
+    const clientTimeframe = (formData.get('timeframe') as string) || (termMode === 'short' ? '1m' : '1h');
 
-    const marketData = await fetchMarketData(assetSymbol, termMode);
-    const price = marketData?.currentPrice ?? getDefaultPrice(assetSymbol);
-    const priceStr = marketData?.currentPriceStr ?? String(price);
-    const decimals = price > 10 ? 2 : 5;
+    // 1. Jonli bozor shamlari va 18 ta strategiyani grafikdan to'liq hisoblash
+    const market = await getRealLiveMarketData(assetSymbol, termMode);
+    const analysis = calculateSMCAnalysis(market.candles, market.livePrice);
+    const strategies = get18StrategiesLive(analysis, market.livePrice, market.decimals);
 
-    let systemPrompt = '';
-    let userMessage = '';
+    const price = market.livePrice;
+    const decimals = market.decimals;
+    const d = (n: number) => Number(n).toFixed(decimals);
 
-    if (termMode === 'short') {
-      // ⚡ ULTRA-QISQA 1M/5M SCALPING
-      const isGold = assetSymbol.includes('XAU') || assetName.toLowerCase().includes('gold');
-      const slDist  = isGold ? parseFloat((price * 0.00055).toFixed(decimals)) : parseFloat((price * 0.0015).toFixed(decimals));
-      const tp1Dist = isGold ? parseFloat((price * 0.00075).toFixed(decimals)) : parseFloat((price * 0.002).toFixed(decimals));
-      const tp2Dist = isGold ? parseFloat((price * 0.0015).toFixed(decimals)) : parseFloat((price * 0.004).toFixed(decimals));
-      const tp3Dist = isGold ? parseFloat((price * 0.0025).toFixed(decimals)) : parseFloat((price * 0.006).toFixed(decimals));
+    // 18 ta strategiyaning jonli hisoblangan satrlari
+    const strategiesSummaryText = strategies
+      .map((s, idx) => `${idx + 1}. [${s.category}] ${s.name} (${s.badge}): ${s.liveValue} | Signal: ${s.signal}`)
+      .join('\n');
 
-      // Yo'nalishni SMC dan aniqlash
-      const bias = marketData?.smcAnalysis?.ictSession?.bias || 'Bullish AMD';
-      const direction = bias === 'Bearish AMD' ? 'SELL' : 'BUY';
-      const dirEmoji = direction === 'BUY' ? '🟢' : '🔴';
-      const entryPrice = parseFloat(priceStr);
-      const slPrice = direction === 'BUY'
-        ? parseFloat((entryPrice - slDist).toFixed(decimals))
-        : parseFloat((entryPrice + slDist).toFixed(decimals));
-      const tp1Price = direction === 'BUY'
-        ? parseFloat((entryPrice + tp1Dist).toFixed(decimals))
-        : parseFloat((entryPrice - tp1Dist).toFixed(decimals));
-      const tp2Price = direction === 'BUY'
-        ? parseFloat((entryPrice + tp2Dist).toFixed(decimals))
-        : parseFloat((entryPrice - tp2Dist).toFixed(decimals));
-      const tp3Price = direction === 'BUY'
-        ? parseFloat((entryPrice + tp3Dist).toFixed(decimals))
-        : parseFloat((entryPrice - tp3Dist).toFixed(decimals));
+    const isShort = termMode === 'short';
 
-      systemPrompt =
-        `Siz professional 1-5 DAQIQALIK (1m/5m) ULTRA-QISQA SCALPING treydersiz.\n\n` +
-        `🎯 QAT'IY QOIDA — Javobni AYNAN quyidagi formatda yozing:\n\n` +
-        `⚡ **1M/5M TEZKOR SCALP SIGNALI**\n` +
-        `─────────────────────────────\n` +
-        `● **Instrument:** ${assetName} (${assetSymbol}) • 1m/5m\n` +
-        `● **Buyruq:** ${dirEmoji} ${direction}\n` +
-        `● **Kirish (Entry):** ${entryPrice}\n` +
-        `● **Stop Loss (SL):** ${slPrice}\n` +
-        `● **TP1 (1-3 daqiqa):** ${tp1Price}\n` +
-        `● **TP2 (5-10 daqiqa):** ${tp2Price}\n` +
-        `● **TP3 (15 daqiqa):** ${tp3Price}\n` +
-        `● **R:R:** 1:2.5 | **Vaqt:** 1 — 15 daqiqa\n\n` +
-        `🎯 **1m/5m Sabab:** [Bu yerda 1 jumlada FVG/BOS/CHoCH/Likvidlik sababini yozing]\n\n` +
-        `MUHIM: Entry, SL, TP narxlarini AYNAN yuqoridagi raqamlar bilan yozing. O'zgartirishga ruxsat yo'q!`;
+    const systemPrompt = `Siz SMC (Smart Money Concepts), ICT (Inner Circle Trader), SMT Divergence, Silver Bullet, Breaker Block va W.D. Gann Matematikasi bo'yicha dunyodagi eng kuchli institutsional algoritmik tahlilchisiz.
 
-      userMessage =
-        `Joriy narx: ${entryPrice} USD (${assetSymbol}). ` +
-        `Yuqoridagi formatda aynan shu narxlar bilan signal bering. Faqat format bo'yicha yozing.`;
-    } else {
-      // 🏛️ UZOQ MUDDATLI (1-4 SOAT INTRADAY)
-      const decimals2 = price > 10 ? 2 : 5;
-      const bias2 = marketData?.smcAnalysis?.ictSession?.bias || 'Bullish AMD';
-      const dir2 = bias2 === 'Bearish AMD' ? 'SELL' : 'BUY';
-      const dirEmoji2 = dir2 === 'BUY' ? '🟢' : '🔴';
-      const ep = parseFloat(priceStr);
-      const slD = parseFloat((price * 0.004).toFixed(decimals2));
-      const t1 = parseFloat((price * 0.006).toFixed(decimals2));
-      const t2 = parseFloat((price * 0.012).toFixed(decimals2));
-      const t3 = parseFloat((price * 0.020).toFixed(decimals2));
+MUHIM QAT'IY TALAB:
+Grafikdagi oddiy indikatorlarga (Moving Average, RSI, oddiy Pivot) qarab EMAS, AYNAN PASTKI QISMDA JONLI GRAFIKDAN HISOBLANGAN 18 TA PROFESSIONAL STRATEGIYALARNING ANIQ MATEMATIK DARAJALARI ASOSIDA TAHLIL QILASIZ!
 
-      const slP  = dir2 === 'BUY' ? parseFloat((ep - slD).toFixed(decimals2)) : parseFloat((ep + slD).toFixed(decimals2));
-      const tp1P = dir2 === 'BUY' ? parseFloat((ep + t1).toFixed(decimals2)) : parseFloat((ep - t1).toFixed(decimals2));
-      const tp2P = dir2 === 'BUY' ? parseFloat((ep + t2).toFixed(decimals2)) : parseFloat((ep - t2).toFixed(decimals2));
-      const tp3P = dir2 === 'BUY' ? parseFloat((ep + t3).toFixed(decimals2)) : parseFloat((ep - t3).toFixed(decimals2));
+Sizga taqdim etilgan 18 ta jonli strategiya hisob-kitoblari:
+1. 🧱 Order Block (OB Demand & Supply zonalari)
+2. 🧱 Breaker Block (BB & Mitigation qaytish zonalari)
+3. ⚡ Fair Value Gap (FVG 50% CE muvozanat narxi)
+4. 🔄 iFVG (Inverted Fair Value Gap tayanch/qarshilik)
+5. ⚡ SMT Divergence (DXY vs ${assetSymbol} institutsional nomutanosiblik)
+6. 🎯 ICT Silver Bullet (60 daqiqalik yuqori ehtimolli vaqt setupi)
+7. 🪤 ICT Judas Swing (Sessiya ochilishidagi manipulyatsiya va tuzoq)
+8. 📊 SNR (Statik/dinamik Support & Resistance darajalari)
+9. 📐 Fibonacci OTE (0.50 Eq, 0.618 Golden, 0.705 OTE Sweet Spot, 0.786)
+10. ✨ Ganna Kvadrat 9 (Square of 9: 90°, 180°, 270°, 360° burchaklar)
+11. 🎯 Liquidity Pools (BSL yuqori va SSL pastki ochiq likvidlik)
+12. 🕯️ Yolg'iz Sham (Institutsional Displacement impuls diapazoni)
+13. 🏛️ ICT (Killzones, Midnight Open, Daily Open, Power of 3 AMD)
+14. ⚡ BOS (Break of Structure trend davomiyligi)
+15. 🔄 CHoCH (Change of Character trend burilishi)
+16. 🌐 Multi-Timeframe Matrix (H4 Trend + M15 Struktura + M5 Trigger)
+17. 🧮 Matematika & Smart Risk (ATR volatilligi, R:R 1:3, qisqa SL)
+18. 📌 High va Low (Swing High & Swing Low ekstremumlari)
 
-      systemPrompt =
-        `Siz professional INTRADAY treydersiz (1-4 soatlik tahlil).\n\n` +
-        `🎯 QAT'IY QOIDA — Javobni AYNAN quyidagi formatda yozing:\n\n` +
-        `📈 **INTRADAY SIGNAL (1-4H)**\n` +
-        `─────────────────────────────\n` +
-        `● **Instrument:** ${assetName} (${assetSymbol}) • H1/H4\n` +
-        `● **Buyruq:** ${dirEmoji2} ${dir2}\n` +
-        `● **Kirish (Entry):** ${ep}\n` +
-        `● **Stop Loss (SL):** ${slP}\n` +
-        `● **TP1 (1-2 soat):** ${tp1P}\n` +
-        `● **TP2 (2-4 soat):** ${tp2P}\n` +
-        `● **TP3 (Kunlik maqsad):** ${tp3P}\n` +
-        `● **R:R:** 1:3 | **Vaqt:** 1 — 4 soat\n\n` +
-        `📊 **H1/H4 Tahlil:** [Qisqa SMC tahlil: order block, FVG, tuzilma]\n\n` +
-        `MUHIM: Entry, SL, TP narxlarini AYNAN yuqoridagi raqamlar bilan yozing!`;
+JAVOBNI DOIMO QUYIDAGI TIZIMLI VA CHIROYLI FORMATDA (O'ZBEK TILIDA) TAQDIM ETING:
 
-      userMessage =
-        `Joriy narx: ${ep} USD (${assetSymbol}). ` +
-        `Yuqoridagi formatda aynan shu narxlar bilan intraday signal bering.`;
-    }
+🎯 1. ANIQ SAVDO SIGNALI:
+─────────────────────────────
+● **Instrument:** ${assetName} (${assetSymbol}) • ${isShort ? '1m/5m Scalp' : '1-4H Intraday'}
+● **Buyruq:** [🟢 BUY yoki 🔴 SELL]
+● **Kirish (Entry):** [Aniq kirish narxi, masalan: ${d(price)}]
+● **Stop Loss (SL):** [Aniq SL narxi — OB/Breaker/Ganna himoyasida]
+● **TP1:** [Aniq 1-maqsad narxi — FVG/50% CE yoki Liquidity Pool]
+● **TP2:** [Aniq 2-maqsad narxi — BOS yoki OTE 0.618]
+● **TP3:** [Aniq 3-maqsad narxi — Asosiy maqsad / High/Low sweep]
+● **Confluence (Ishonchlilik):** [Masalan: 94%]
+● **Risk-Reward (R:R):** [Masalan: 1:3.0]
+● **Boshqaruv Vaqti:** [${isShort ? '1 — 15 daqiqa' : '1 — 4 soat'}]
+
+🔍 2. 18 TA STRATEGIYA BO'YICHA JONLI GRAFIK TAHLILI:
+─────────────────────────────
+[Ushbu bo'limda quyidagi guruhlar bo'yicha jonli hisoblangan darajalarni ko'rsatib, 18 ta strategiyaning qanday mos kelganini (Confluence) aniq yozing]:
+• **🧱 SMC Zonalari (OB, Breaker, FVG, iFVG):** ...
+• **⚡ ICT & SMT Signallari (SMT, Silver Bullet, Judas Swing, Killzones):** ...
+• **✨ Ganna & Matematik Risk (Square of 9 darajalari, ATR, Fib OTE):** ...
+• **🎯 Likvidlik & Struktura (BSL/SSL, BOS, CHoCH, Displacement):** ...
+• **🌐 MTF Matrix:** (H4 Bias + M15 Struktura + M5 Kirish uyg'unligi)
+
+💡 3. TREYDER UCHUN AMALIY QOIDALAR VA XATAR BOSHQARUVI:
+─────────────────────────────
+[Xatarni boshqarish, lot hajmi (depozitning 1-2% dan oshmaslik), TP1 olingandan keyin BE (Bezubitok) qilish qoidalari.]`;
+
+    const userMessage = `GRAFIK VA 18 TA STRATEGIYANING JONLI KO'RSATKICHLARI:
+Instrument: ${assetName} (${assetSymbol})
+Timeframe: ${clientTimeframe} (${isShort ? 'Qisqa Scalp 1m/5m' : 'Uzoq Intraday 1-4h'})
+Hozirgi Jonli Spot Narx: ${d(price)} USD
+
+18 TA STRATEGIYANING GRAFIKDAN HISOBLANGAN ANIQ DARAJALARI:
+${strategiesSummaryText}
+
+Iltimos, ushbu 18 ta strategiyaning jonli darajalariga qarab to'liq tahlil qiling va yuqoridagi 3 qismli aniq formatda savdo signali hamda batafsil tahlil bering!`;
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
@@ -271,7 +229,7 @@ export async function POST(req: NextRequest) {
         try {
           const claudeStream = await anthropic.messages.stream({
             model: 'claude-fable-5',
-            max_tokens: 800,
+            max_tokens: 3000,
             system: systemPrompt,
             messages: [{ role: 'user', content: userMessage }],
           });

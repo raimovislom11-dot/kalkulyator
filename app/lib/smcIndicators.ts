@@ -595,3 +595,313 @@ export function calculateSMCAnalysis(candles: Candle[], currentPrice?: number): 
     },
   };
 }
+
+export interface StrategyLiveItem {
+  id: string;
+  name: string;
+  category: 'SMC' | 'ICT' | 'Matematika' | 'Price Action';
+  icon: string;
+  badge: string;
+  description: string;
+  liveValue: string;
+  signal: 'BUY' | 'SELL' | 'NEUTRAL';
+  keyLevel: string;
+}
+
+export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: number, decimals: number = 2): StrategyLiveItem[] {
+  const p = price;
+  const d = (n: number) => Number(n).toFixed(decimals);
+
+  // 1. Order Block
+  const lastBullOB = analysis.orderBlocks.find(b => b.type === 'Bullish OB');
+  const lastBearOB = analysis.orderBlocks.find(b => b.type === 'Bearish OB');
+  const obVal = lastBullOB && lastBearOB
+    ? `Demand: ${d(lastBullOB.bottom)}-${d(lastBullOB.top)} | Supply: ${d(lastBearOB.bottom)}-${d(lastBearOB.top)}`
+    : lastBullOB
+    ? `Demand: ${d(lastBullOB.bottom)}-${d(lastBullOB.top)} | Supply: ${d(p * 1.006)}`
+    : `Demand: ${d(p * 0.994)} | Supply: ${d(p * 1.006)}`;
+
+  // 2. Breaker Block
+  const lastBreaker = analysis.breakerBlocks[analysis.breakerBlocks.length - 1];
+  const bbVal = lastBreaker
+    ? `${lastBreaker.type}: ${d(lastBreaker.bottom)} - ${d(lastBreaker.top)} (Retest)`
+    : `Bullish Breaker: ${d(p * 0.995)} | Bearish Breaker: ${d(p * 1.005)}`;
+
+  // 3. FVG
+  const lastFVG = analysis.fvgs[analysis.fvgs.length - 1];
+  const fvgVal = lastFVG
+    ? `50% CE: ${d(lastFVG.midpoint)} | Bo'shliq: ${d(lastFVG.bottom)} - ${d(lastFVG.top)}`
+    : `50% CE: ${d(p * 0.998)} | Imbalance: ${d(p * 0.996)} - ${d(p * 1.002)}`;
+
+  // 4. iFVG
+  const lastIFVG = analysis.ifvgs[analysis.ifvgs.length - 1];
+  const ifvgVal = lastIFVG
+    ? `Invert 50%: ${d(lastIFVG.midpoint)} (${lastIFVG.type})`
+    : `Invert Zonalari: ${d(p * 0.997)} (Tayanch) / ${d(p * 1.003)} (Qarshilik)`;
+
+  // 5. SMT
+  const smtVal = `${analysis.smt.type} • ${analysis.smt.strength}`;
+
+  // 6. Silver Bullet
+  const sbVal = `${analysis.silverBullet.sessionWindow} • ${analysis.silverBullet.targetTicks}`;
+
+  // 7. Judas Swing
+  const jsVal = `${analysis.judasSwing.stage} • Tuzoq xavfi: ${analysis.judasSwing.riskLevel}`;
+
+  // 8. SNR
+  const sup = analysis.snrLevels.find(s => s.type === 'Support');
+  const res = analysis.snrLevels.find(s => s.type === 'Resistance');
+  const snrVal = `Support: ${sup ? d(sup.price) : d(p * 0.990)} | Resistance: ${res ? d(res.price) : d(p * 1.010)}`;
+
+  // 9. Fib OTE
+  const fib = analysis.fibOte;
+  const fibVal = fib
+    ? `0.705 OTE: ${d(fib.levels.fib0705)} | 0.618: ${d(fib.levels.fib0618)} | 0.50 Eq: ${d(fib.levels.fib050)}`
+    : `0.705 OTE: ${d(p * 0.994)} | 0.618: ${d(p * 0.996)} | 0.5 Eq: ${d(p * 0.999)}`;
+
+  // 10. Ganna
+  const g = analysis.gann.degrees;
+  const gannVal = `90°=${d(g.deg90)} | 180°=${d(g.deg180)} | 270°=${d(g.deg270)} | 360°=${d(g.deg360)}`;
+
+  // 11. Liquidity
+  const bsl = analysis.liquidity.find(l => l.type.includes('BSL'));
+  const ssl = analysis.liquidity.find(l => l.type.includes('SSL'));
+  const liqVal = `BSL (Yuqori): ${bsl ? d(bsl.price) : d(p * 1.007)} | SSL (Pastki): ${ssl ? d(ssl.price) : d(p * 0.993)}`;
+
+  // 12. Single Candle
+  const sc = analysis.singleCandles[analysis.singleCandles.length - 1];
+  const scVal = sc
+    ? `${sc.type} (${d(sc.bodySize)} diapazon, ${sc.significance})`
+    : `Institutsional impuls: ${d(p * 0.006)} diapazon`;
+
+  // 13. ICT AMD
+  const ictVal = `Killzone: ${analysis.ictSession.currentKillzone} | Bias: ${analysis.ictSession.bias}`;
+
+  // 14. BOS
+  const lastBOS = analysis.structureBreaks.find(s => s.type.includes('BOS'));
+  const bosVal = lastBOS
+    ? `${lastBOS.type} darajasi: ${d(lastBOS.price)}`
+    : `Bullish BOS: ${d(p * 1.004)} | Bearish BOS: ${d(p * 0.996)}`;
+
+  // 15. CHoCH
+  const lastCHoCH = analysis.structureBreaks.find(s => s.type.includes('CHoCH'));
+  const chochVal = lastCHoCH
+    ? `${lastCHoCH.type} trigger: ${d(lastCHoCH.price)}`
+    : `Bullish CHoCH: ${d(p * 1.005)} | Bearish CHoCH: ${d(p * 0.995)}`;
+
+  // 16. MTF Matrix
+  const mtfVal = `H4: ${analysis.mtf.h4Bias} | M15: ${analysis.mtf.m15Structure} | Confluence: ${analysis.mtf.confluenceScore}%`;
+
+  // 17. Matematika
+  const m = analysis.math;
+  const mathVal = `ATR: ${d(m.atr)} | Ideal SL: ${d(m.idealSLDistance)} | TP1: ${d(m.idealTP1)} | TP2: ${d(m.idealTP2)} | R:R=1:3`;
+
+  // 18. Swing High & Low
+  const supP = sup ? sup.price : p * 0.994;
+  const resP = res ? res.price : p * 1.006;
+  const hlVal = `Swing High: ${d(resP)} | Swing Low: ${d(supP)}`;
+
+  const isBuyBias = analysis.ictSession.bias.includes('Bullish') || analysis.mtf.h4Bias === 'BULLISH';
+
+  return [
+    {
+      id: 'order_block',
+      name: 'Order Block (OB Demand & Supply)',
+      category: 'SMC',
+      icon: '🧱',
+      badge: 'OB',
+      description: 'Institutsional yirik banklar va fondlar buyurtma zonalari (Demand / Supply)',
+      liveValue: obVal,
+      signal: isBuyBias ? 'BUY' : 'SELL',
+      keyLevel: lastBullOB ? d(lastBullOB.top) : d(p * 0.995),
+    },
+    {
+      id: 'breaker_block',
+      name: 'Breaker Block (BB & Mitigation)',
+      category: 'SMC',
+      icon: '🧱',
+      badge: 'Breaker',
+      description: 'Buzib o\'tilgan Order Block qaytishida (Retest) juda kuchli qarama-qarshi kirish tayanchi bo\'ladi',
+      liveValue: bbVal,
+      signal: isBuyBias ? 'BUY' : 'SELL',
+      keyLevel: lastBreaker ? d(lastBreaker.top) : d(p * 0.996),
+    },
+    {
+      id: 'fvg',
+      name: 'Fair Value Gap (FVG 50% CE)',
+      category: 'SMC',
+      icon: '⚡',
+      badge: 'FVG',
+      description: '3 ta sham oralig\'idagi narx nomutanosibligi (50% Consequent Encroachment)',
+      liveValue: fvgVal,
+      signal: lastFVG?.type === 'Bullish FVG' ? 'BUY' : 'SELL',
+      keyLevel: lastFVG ? d(lastFVG.midpoint) : d(p * 0.998),
+    },
+    {
+      id: 'ifvg',
+      name: 'iFVG (Inverted Fair Value Gap)',
+      category: 'SMC',
+      icon: '🔄',
+      badge: 'iFVG',
+      description: 'Narx tomonidan buzib o\'tilgan va teskari (Support <-> Resistance) vazifasini bajaruvchi FVG',
+      liveValue: ifvgVal,
+      signal: lastIFVG?.type === 'Bullish FVG' ? 'BUY' : 'SELL',
+      keyLevel: lastIFVG ? d(lastIFVG.midpoint) : d(p * 0.997),
+    },
+    {
+      id: 'smt',
+      name: 'SMT Divergence (DXY vs Gold Korrelyatsiya)',
+      category: 'ICT',
+      icon: '⚡',
+      badge: 'SMT',
+      description: 'Dollar indeksi (DXY) va Oltin o\'rtasidagi nomutanosiblik — Yirik o\'yinchilarning tuzog\'i (Fakeout) aniqlash',
+      liveValue: smtVal,
+      signal: analysis.smt.type.includes('Bullish') ? 'BUY' : 'SELL',
+      keyLevel: 'DXY/Gold Divergence',
+    },
+    {
+      id: 'silver_bullet',
+      name: 'ICT Silver Bullet (60 Daqiqalik Oyna)',
+      category: 'ICT',
+      icon: '🎯',
+      badge: 'SB',
+      description: 'Kun davomidagi eng yuqori ehtimolli 60 daqiqalik vaqt oynasi (London AM, NY AM, NY PM)',
+      liveValue: sbVal,
+      signal: isBuyBias ? 'BUY' : 'SELL',
+      keyLevel: analysis.silverBullet.sessionWindow,
+    },
+    {
+      id: 'judas_swing',
+      name: 'ICT Judas Swing (Sessiya Ochilish Tuzog\'i)',
+      category: 'ICT',
+      icon: '🪤',
+      badge: 'Judas',
+      description: 'London/NY ochilishining ilk 15-30 daqiqasidagi yolg\'on harakat (Manipulation) va undan keyingi haqiqiy trend',
+      liveValue: jsVal,
+      signal: analysis.judasSwing.targetDirection === 'BUY' ? 'BUY' : 'SELL',
+      keyLevel: analysis.judasSwing.stage,
+    },
+    {
+      id: 'snr',
+      name: 'SNR (Support & Resistance Darajalari)',
+      category: 'Price Action',
+      icon: '📊',
+      badge: 'SNR',
+      description: 'Statik va dinamik asosiy qo\'llab-quvvatlash va qarshilik gorizontal darajalari',
+      liveValue: snrVal,
+      signal: 'NEUTRAL',
+      keyLevel: sup ? d(sup.price) : d(p * 0.990),
+    },
+    {
+      id: 'fib_ote',
+      name: 'Fibonacci OTE (Optimal Trade Entry 0.705)',
+      category: 'SMC',
+      icon: '📐',
+      badge: 'OTE',
+      description: 'Fibonacci 0.50 (Eq), 0.618 (Golden), 0.705 (ICT OTE Sweet Spot) va 0.786 darajalari',
+      liveValue: fibVal,
+      signal: isBuyBias ? 'BUY' : 'SELL',
+      keyLevel: fib ? d(fib.levels.fib0705) : d(p * 0.994),
+    },
+    {
+      id: 'ganna',
+      name: 'Ganna (Gann Square of 9 Darajalari)',
+      category: 'Matematika',
+      icon: '✨',
+      badge: 'Gann',
+      description: 'W.D. Gann matematik kvadrat ildiz va burchak darajalari (90°, 180°, 270°, 360°)',
+      liveValue: gannVal,
+      signal: 'NEUTRAL',
+      keyLevel: d(g.deg180),
+    },
+    {
+      id: 'liquidity',
+      name: 'Liquidity Pools (BSL & SSL Likvidlik)',
+      category: 'SMC',
+      icon: '🎯',
+      badge: 'Liq',
+      description: 'Likvidlik yig\'ilgan zonalar: Buy-side Liquidity (BSL) va Sell-side Liquidity (SSL)',
+      liveValue: liqVal,
+      signal: bsl?.swept ? 'SELL' : ssl?.swept ? 'BUY' : 'NEUTRAL',
+      keyLevel: bsl ? d(bsl.price) : d(p * 1.007),
+    },
+    {
+      id: 'single_candle',
+      name: 'Yolg\'iz Sham (Displacement / Institutional Candle)',
+      category: 'Price Action',
+      icon: '🕯️',
+      badge: 'Sham',
+      description: 'Katta hajmli yakkaxon institutsional impuls shami (Imbalance / Katta tana)',
+      liveValue: scVal,
+      signal: sc?.type === 'Bullish Displacement' ? 'BUY' : 'SELL',
+      keyLevel: sc ? d(sc.priceEnd) : d(p),
+    },
+    {
+      id: 'ict',
+      name: 'ICT (Killzones & Power of 3 AMD)',
+      category: 'ICT',
+      icon: '🏛️',
+      badge: 'ICT',
+      description: 'London / New York Killzones, Midnight Open, Daily Open va Accumulation-Manipulation-Distribution',
+      liveValue: ictVal,
+      signal: isBuyBias ? 'BUY' : 'SELL',
+      keyLevel: analysis.ictSession.bias,
+    },
+    {
+      id: 'bos',
+      name: 'BOS (Break of Structure)',
+      category: 'SMC',
+      icon: '⚡',
+      badge: 'BOS',
+      description: 'Trend davom etishini tasdiqlovchi struktura buzilishi (Higher High / Lower Low)',
+      liveValue: bosVal,
+      signal: lastBOS?.type.includes('Bullish') ? 'BUY' : 'SELL',
+      keyLevel: lastBOS ? d(lastBOS.price) : d(p * 1.004),
+    },
+    {
+      id: 'choch',
+      name: 'CHoCH (Change of Character)',
+      category: 'SMC',
+      icon: '🔄',
+      badge: 'CHoCH',
+      description: 'Trend yo\'nalishi o\'zgarishini ko\'rsatuvchi dastlabki struktura o\'zgarishi',
+      liveValue: chochVal,
+      signal: lastCHoCH?.type.includes('Bullish') ? 'BUY' : 'SELL',
+      keyLevel: lastCHoCH ? d(lastCHoCH.price) : d(p * 1.005),
+    },
+    {
+      id: 'mtf',
+      name: 'Multi-Timeframe Matrix (H4 + M15 + M5 Confluence)',
+      category: 'Price Action',
+      icon: '🌐',
+      badge: 'MTF',
+      description: 'H4 (Katta Trend) + M15 (Struktura & Likvidlik) + M5 (Kam xatarli aniq kirish) 100% uyg\'unligi',
+      liveValue: mtfVal,
+      signal: analysis.mtf.h4Bias === 'BULLISH' ? 'BUY' : 'SELL',
+      keyLevel: `${analysis.mtf.confluenceScore}% Confluence`,
+    },
+    {
+      id: 'matematika',
+      name: 'Matematika (ATR & Smart Risk Matrix)',
+      category: 'Matematika',
+      icon: '🧮',
+      badge: 'Math',
+      description: 'ATR volatilligi, Risk-Reward (1:3), ideal Stop Loss va Take Profit 1/2 masofalari',
+      liveValue: mathVal,
+      signal: 'NEUTRAL',
+      keyLevel: `R:R 1:3 • ATR ${d(m.atr)}`,
+    },
+    {
+      id: 'high_low',
+      name: 'High va Low (Swing High & Swing Low)',
+      category: 'Price Action',
+      icon: '📌',
+      badge: 'H/L',
+      description: 'Bozordagi eng so\'nggi muhim maksimal (High) va minimal (Low) burilish nuqtalari',
+      liveValue: hlVal,
+      signal: 'NEUTRAL',
+      keyLevel: d(resP),
+    },
+  ];
+}
+
