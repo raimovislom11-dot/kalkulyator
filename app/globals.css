@@ -2,7 +2,7 @@
 
 :root {
   --background: #07070e;
-  --foreground: #f1f5f9;
+  --foreground: #f8fafc;
   --card-bg: #0f172a;
   --card-border: #1e293b;
 }
@@ -12,13 +12,15 @@ html.light {
   --foreground: #0f172a;
   --card-bg: #ffffff;
   --card-border: #e2e8f0;
+  color-scheme: light;
 }
 
 html.dark {
   --background: #07070e;
-  --foreground: #f1f5f9;
+  --foreground: #f8fafc;
   --card-bg: #0f172a;
   --card-border: #1e293b;
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -29,50 +31,88 @@ html.dark {
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
 }
 
-/* Light theme overrides for better contrast and elegance */
-html.light body {
-  background-color: #f1f5f9;
-  color: #0f172a;
-}
-
-html.light .bg-slate-900\/90,
-html.light .bg-slate-900,
-html.light .bg-slate-950\/80,
-html.light .bg-slate-950 {
-  background-color: rgba(255, 255, 255, 0.94) !important;
+/* =========================================================================
+   LIGHT MODE TOTAL OVERRIDES (Barcha sahifalar va komponentlar uchun)
+   ========================================================================= */
+html.light body,
+html.light main {
+  background-color: #f1f5f9 !important;
   color: #0f172a !important;
-  border-color: rgba(203, 213, 225, 0.8) !important;
 }
 
+/* Barcha Cardlar, Bloklar, Modallar va Konteynerlar */
+html.light article,
+html.light .bg-slate-900\/95,
+html.light .bg-slate-900\/90,
+html.light .bg-slate-900\/80,
+html.light .bg-slate-900\/60,
+html.light .bg-slate-900\/40,
+html.light .bg-slate-900,
+html.light .bg-slate-950\/95,
+html.light .bg-slate-950\/90,
+html.light .bg-slate-950\/80,
+html.light .bg-slate-950\/60,
+html.light .bg-slate-950\/40,
+html.light .bg-slate-950,
+html.light [style*="background: linear-gradient(145deg, rgba(255, 255, 255, 0.04)"],
+html.light [style*="background: linear-gradient(145deg, #0e0e1a"],
+html.light [style*="background: linear-gradient(180deg, #0e0e1a"] {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.04) !important;
+}
+
+html.light .bg-slate-800\/90,
 html.light .bg-slate-800\/80,
 html.light .bg-slate-800\/60,
 html.light .bg-slate-800\/40,
-html.light .bg-slate-800 {
-  background-color: rgba(241, 245, 249, 0.95) !important;
+html.light .bg-slate-800,
+html.light [style*="background: rgba(255, 255, 255, 0.03)"],
+html.light [style*="background: rgba(255, 255, 255, 0.04)"],
+html.light [style*="background: rgba(255, 255, 255, 0.05)"],
+html.light [style*="background: rgba(255, 255, 255, 0.02)"] {
+  background: #f8fafc !important;
+  background-color: #f8fafc !important;
   color: #1e293b !important;
-  border-color: rgba(203, 213, 225, 0.9) !important;
+  border-color: #e2e8f0 !important;
 }
 
+/* Chegaralar (Borders) */
+html.light .border-slate-800\/90,
 html.light .border-slate-800\/80,
 html.light .border-slate-800,
 html.light .border-slate-700\/90,
-html.light .border-slate-700 {
-  border-color: rgba(203, 213, 225, 0.85) !important;
+html.light .border-slate-700\/80,
+html.light .border-slate-700\/60,
+html.light .border-slate-700,
+html.light .border-slate-600,
+html.light [style*="border: 1px solid rgba(255, 255, 255, 0.06)"],
+html.light [style*="border: 1px solid rgba(255, 255, 255, 0.07)"],
+html.light [style*="border: 1px solid rgba(255, 255, 255, 0.08)"],
+html.light [style*="border: 1px solid rgba(255, 255, 255, 0.1)"] {
+  border-color: #e2e8f0 !important;
 }
 
+/* Matnlar (Typography) */
 html.light .text-white {
   color: #0f172a !important;
 }
 
-html.light .text-slate-200,
-html.light .text-slate-300 {
+html.light .text-slate-100,
+html.light .text-slate-200 {
   color: #1e293b !important;
+}
+
+html.light .text-slate-300 {
+  color: #334155 !important;
 }
 
 html.light .text-slate-400 {
@@ -80,15 +120,84 @@ html.light .text-slate-400 {
 }
 
 html.light .text-slate-500 {
-  color: #94a3b8 !important;
+  color: #64748b !important;
 }
 
+html.light [style*="color: rgba(255, 255, 255, 0.4)"],
+html.light [style*="color: rgba(255, 255, 255, 0.35)"],
+html.light [style*="color: rgba(255, 255, 255, 0.3)"],
+html.light [style*="color: rgba(255, 255, 255, 0.25)"] {
+  color: #64748b !important;
+}
+
+/* Jadvallar (Tables) */
+html.light table th {
+  background-color: #f8fafc !important;
+  color: #475569 !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light table td {
+  color: #1e293b !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light table tr:hover td {
+  background-color: #f1f5f9 !important;
+}
+
+/* Inputlar, Selectlar va Textarealar */
 html.light input,
 html.light select,
 html.light textarea {
   background-color: #ffffff !important;
   color: #0f172a !important;
   border-color: #cbd5e1 !important;
+}
+
+html.light input::placeholder,
+html.light textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+html.light input:focus,
+html.light select:focus,
+html.light textarea:focus {
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2) !important;
+}
+
+/* Tugmalar (Buttons) */
+html.light button.bg-slate-800,
+html.light .bg-slate-800\/80 button {
+  background-color: #f1f5f9 !important;
+  color: #334155 !important;
+  border-color: #cbd5e1 !important;
+}
+
+html.light button.bg-slate-800:hover {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* Modallarning qorong'u orqa qatlami */
+html.light .fixed.inset-0.bg-black\/80,
+html.light .fixed.inset-0[style*="background: rgba(0, 0, 0, 0.85)"],
+html.light .fixed.inset-0[style*="background: rgba(0, 0, 0, 0.8)"] {
+  background: rgba(15, 23, 42, 0.65) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+/* Scrollbarlar */
+html.light ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+html.light ::-webkit-scrollbar-track {
+  background: #f1f5f9;
 }
 
 /* No scrollbar utility */

@@ -290,19 +290,25 @@ const NAV_SECTIONS: NavSection[] = [
 
 function Sidebar({ onClose, onLogout }: { onClose?: () => void; onLogout?: () => void }) {
   const pathname = usePathname();
+  const { theme, t } = useThemeLanguage();
+  const isLight = theme === 'light';
 
   return (
     <aside
-      className="flex flex-col h-full overflow-hidden"
+      className="flex flex-col h-full overflow-hidden transition-colors duration-300"
       style={{
-        background: 'linear-gradient(180deg, #090912 0%, #06060c 100%)',
-        borderRight: '1px solid rgba(255,255,255,0.07)',
+        background: isLight
+          ? 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)'
+          : 'linear-gradient(180deg, #090912 0%, #06060c 100%)',
+        borderRight: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255,255,255,0.07)',
       }}
     >
       {/* Brand Header */}
       <div
         className="flex items-center justify-between px-5 h-16 flex-shrink-0"
-        style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+        style={{
+          borderBottom: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255,255,255,0.06)',
+        }}
       >
         <Link href="/admin" className="flex items-center gap-3 group">
           <div
@@ -315,10 +321,16 @@ function Sidebar({ onClose, onLogout }: { onClose?: () => void; onLogout?: () =>
             <span className="text-base font-black text-slate-950">👑</span>
           </div>
           <div>
-            <div className="text-white text-sm font-black tracking-tight leading-none flex items-center gap-1.5">
+            <div
+              className="text-sm font-black tracking-tight leading-none flex items-center gap-1.5"
+              style={{ color: isLight ? '#0f172a' : '#ffffff' }}
+            >
               <span>ELIF TRADING</span>
             </div>
-            <div className="text-[10px] mt-1 font-bold tracking-wider uppercase" style={{ color: 'rgba(245,158,11,0.9)' }}>
+            <div
+              className="text-[10px] mt-1 font-bold tracking-wider uppercase"
+              style={{ color: isLight ? '#d97706' : 'rgba(245,158,11,0.9)' }}
+            >
               Pro Admin Panel
             </div>
           </div>
@@ -326,8 +338,8 @@ function Sidebar({ onClose, onLogout }: { onClose?: () => void; onLogout?: () =>
         {onClose && (
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg transition-colors hover:bg-white/5"
-            style={{ color: 'rgba(255,255,255,0.4)' }}
+            className="p-1.5 rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+            style={{ color: isLight ? '#64748b' : 'rgba(255,255,255,0.4)' }}
             aria-label="Close sidebar"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -343,7 +355,7 @@ function Sidebar({ onClose, onLogout }: { onClose?: () => void; onLogout?: () =>
           <div key={section.group} className="mb-5">
             <p
               className="px-3 mb-1.5 text-[10px] font-black uppercase tracking-widest"
-              style={{ color: 'rgba(255,255,255,0.25)' }}
+              style={{ color: isLight ? '#64748b' : 'rgba(255,255,255,0.3)' }}
             >
               {section.group}
             </p>
@@ -359,11 +371,17 @@ function Sidebar({ onClose, onLogout }: { onClose?: () => void; onLogout?: () =>
                       style={
                         active
                           ? {
-                              color: 'white',
-                              background: 'linear-gradient(135deg, rgba(245,158,11,0.18) 0%, rgba(217,119,6,0.12) 100%)',
-                              boxShadow: 'inset 0 0 0 1px rgba(245,158,11,0.3)',
+                              color: isLight ? '#b45309' : '#ffffff',
+                              background: isLight
+                                ? 'linear-gradient(135deg, rgba(245,158,11,0.18) 0%, rgba(217,119,6,0.12) 100%)'
+                                : 'linear-gradient(135deg, rgba(245,158,11,0.18) 0%, rgba(217,119,6,0.12) 100%)',
+                              boxShadow: isLight
+                                ? 'inset 0 0 0 1px rgba(245,158,11,0.4)'
+                                : 'inset 0 0 0 1px rgba(245,158,11,0.3)',
                             }
-                          : { color: 'rgba(255,255,255,0.45)' }
+                          : {
+                              color: isLight ? '#475569' : 'rgba(255,255,255,0.45)',
+                            }
                       }
                       aria-current={active ? ('page' as const) : undefined}
                     >
@@ -376,7 +394,9 @@ function Sidebar({ onClose, onLogout }: { onClose?: () => void; onLogout?: () =>
                       )}
                       <span
                         className="transition-colors duration-200"
-                        style={{ color: active ? '#f59e0b' : 'rgba(255,255,255,0.4)' }}
+                        style={{
+                          color: active ? '#f59e0b' : isLight ? '#64748b' : 'rgba(255,255,255,0.4)',
+                        }}
                       >
                         {item.icon}
                       </span>
@@ -386,7 +406,7 @@ function Sidebar({ onClose, onLogout }: { onClose?: () => void; onLogout?: () =>
                           className="px-1.5 py-0.5 rounded text-[9px] font-black tracking-wider"
                           style={{
                             background: item.badge === 'AI' ? 'rgba(99,102,241,0.2)' : 'rgba(239,68,68,0.2)',
-                            color: item.badge === 'AI' ? '#a5b4fc' : '#fca5a5',
+                            color: item.badge === 'AI' ? '#6366f1' : '#ef4444',
                             border: `1px solid ${item.badge === 'AI' ? 'rgba(99,102,241,0.3)' : 'rgba(239,68,68,0.3)'}`,
                           }}
                         >
@@ -405,11 +425,16 @@ function Sidebar({ onClose, onLogout }: { onClose?: () => void; onLogout?: () =>
       {/* Footer Profile & Exit */}
       <footer
         className="p-3 flex-shrink-0"
-        style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
+        style={{
+          borderTop: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255,255,255,0.06)',
+        }}
       >
         <div
-          className="flex items-center gap-3 p-2 rounded-xl"
-          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}
+          className="flex items-center gap-3 p-2 rounded-xl transition-colors duration-300"
+          style={{
+            background: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.03)',
+            border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255,255,255,0.05)',
+          }}
         >
           <div
             className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black"
@@ -422,13 +447,18 @@ function Sidebar({ onClose, onLogout }: { onClose?: () => void; onLogout?: () =>
             A
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-bold text-white truncate">Admin</div>
-            <div className="text-[10px] text-emerald-400 font-mono font-bold">● Online</div>
+            <div
+              className="text-xs font-bold truncate"
+              style={{ color: isLight ? '#0f172a' : '#ffffff' }}
+            >
+              Admin
+            </div>
+            <div className="text-[10px] text-emerald-500 font-mono font-bold">● Online</div>
           </div>
           <button
             type="button"
             onClick={onLogout}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-white/5 transition-all text-xs"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-black/5 dark:hover:bg-white/5 transition-all text-xs"
             title="Tizimdan chiqish (Login sahifasiga)"
           >
             🚪
@@ -440,6 +470,8 @@ function Sidebar({ onClose, onLogout }: { onClose?: () => void; onLogout?: () =>
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const { theme, t } = useThemeLanguage();
+  const isLight = theme === 'light';
   const [mobileOpen, setMobileOpen] = useState(false);
   const [time, setTime] = useState<Date | null>(null);
   const [isTelegramModalOpen, setIsTelegramModalOpen] = useState(false);
@@ -509,7 +541,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   };
 
   return (
-    <div className="flex h-screen overflow-hidden text-slate-100" style={{ background: '#07070e' }}>
+    <div
+      className="flex h-screen overflow-hidden transition-colors duration-300"
+      style={{
+        background: isLight ? '#f1f5f9' : '#07070e',
+        color: isLight ? '#0f172a' : '#f8fafc',
+      }}
+    >
       {/* Desktop sidebar */}
       <div className="hidden lg:flex w-64 flex-shrink-0 h-full">
         <Sidebar onLogout={handleLogout} />
@@ -533,19 +571,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Top Header with Live Ticker Bar */}
         <header
-          className="flex-shrink-0 px-4 py-2.5 space-y-2 border-b"
+          className="flex-shrink-0 px-4 py-2.5 space-y-2 border-b transition-colors duration-300"
           style={{
-            background: 'rgba(10,10,18,0.9)',
-            borderColor: 'rgba(255,255,255,0.06)',
+            background: isLight ? 'rgba(255,255,255,0.92)' : 'rgba(10,10,18,0.9)',
+            borderColor: isLight ? '#e2e8f0' : 'rgba(255,255,255,0.06)',
             backdropFilter: 'blur(12px)',
           }}
         >
           {/* Row 1: Live Tickers & World Clock */}
-          <div className="flex flex-wrap items-center justify-between gap-2 bg-black/40 px-3 py-1.5 rounded-xl border border-white/5 text-xs">
+          <div
+            className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 rounded-xl text-xs transition-colors duration-300"
+            style={{
+              background: isLight ? '#f8fafc' : 'rgba(0,0,0,0.4)',
+              border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255,255,255,0.05)',
+            }}
+          >
             {/* Mobile Hamburger */}
             <button
               onClick={() => setMobileOpen(true)}
-              className="lg:hidden p-1 rounded-lg text-slate-400 hover:text-white"
+              className="lg:hidden p-1 rounded-lg text-slate-400 hover:text-slate-950 dark:hover:text-white"
               aria-label="Open navigation menu"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -558,46 +602,63 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             {/* Live Tickers */}
             <div className="flex items-center gap-3 overflow-x-auto no-scrollbar font-mono text-[11px]">
               <div className="flex items-center gap-1">
-                <span className="text-amber-400 font-bold">🥇 XAU:</span>
-                <span className="text-white font-bold">${prices.gold}</span>
-                <span className="text-[9px] text-emerald-400">▲</span>
+                <span className="text-amber-500 font-bold">🥇 XAU:</span>
+                <span className="font-bold" style={{ color: isLight ? '#0f172a' : '#ffffff' }}>
+                  ${prices.gold}
+                </span>
+                <span className="text-[9px] text-emerald-500">▲</span>
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-orange-400 font-bold">₿ BTC:</span>
-                <span className="text-white font-bold">${prices.btc}</span>
+                <span className="text-orange-500 font-bold">₿ BTC:</span>
+                <span className="font-bold" style={{ color: isLight ? '#0f172a' : '#ffffff' }}>
+                  ${prices.btc}
+                </span>
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-sky-400 font-bold">💶 EUR:</span>
-                <span className="text-white font-bold">${prices.eur}</span>
+                <span className="text-sky-500 font-bold">💶 EUR:</span>
+                <span className="font-bold" style={{ color: isLight ? '#0f172a' : '#ffffff' }}>
+                  ${prices.eur}
+                </span>
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-emerald-400 font-bold">💵 DXY:</span>
-                <span className="text-white font-bold">{prices.dxy}</span>
+                <span className="text-emerald-500 font-bold">💵 DXY:</span>
+                <span className="font-bold" style={{ color: isLight ? '#0f172a' : '#ffffff' }}>
+                  {prices.dxy}
+                </span>
               </div>
             </div>
 
             {/* Sessions & Tashkent Time */}
             <div className="flex items-center gap-3 ml-auto text-[11px]">
-              <div className="hidden sm:flex items-center gap-2 border-r border-white/10 pr-3">
+              <div
+                className="hidden sm:flex items-center gap-2 pr-3"
+                style={{ borderRight: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255,255,255,0.1)' }}
+              >
                 <span className="flex items-center gap-1">
-                  <span className={`w-2 h-2 rounded-full ${londonOpen ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`} />
-                  <span className={londonOpen ? 'text-emerald-300 font-bold' : 'text-slate-500'}>🇬🇧 London</span>
+                  <span className={`w-2 h-2 rounded-full ${londonOpen ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                  <span className={londonOpen ? 'text-emerald-600 dark:text-emerald-300 font-bold' : 'text-slate-500'}>
+                    🇬🇧 {t('london')}
+                  </span>
                 </span>
                 <span className="flex items-center gap-1">
-                  <span className={`w-2 h-2 rounded-full ${nyOpen ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`} />
-                  <span className={nyOpen ? 'text-emerald-300 font-bold' : 'text-slate-500'}>🇺🇸 NY</span>
+                  <span className={`w-2 h-2 rounded-full ${nyOpen ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                  <span className={nyOpen ? 'text-emerald-600 dark:text-emerald-300 font-bold' : 'text-slate-500'}>
+                    🇺🇸 {t('newyork')}
+                  </span>
                 </span>
               </div>
 
-              <div className="font-mono text-slate-300 flex items-center gap-1">
+              <div className="font-mono flex items-center gap-1" style={{ color: isLight ? '#475569' : '#cbd5e1' }}>
                 <span>🇺🇿</span>
-                <span className="font-bold text-white">{uzbTimeStr}</span>
+                <span className="font-bold" style={{ color: isLight ? '#0f172a' : '#ffffff' }}>
+                  {uzbTimeStr}
+                </span>
               </div>
 
               <button
                 onClick={refreshLivePrices}
-                title="Narxlarni yangilash"
-                className="p-1 text-slate-400 hover:text-white rounded hover:bg-white/5 transition-all text-xs"
+                title={t('refresh')}
+                className="p-1 text-slate-400 hover:text-slate-950 dark:hover:text-white rounded hover:bg-black/5 dark:hover:bg-white/5 transition-all text-xs"
               >
                 🔄
               </button>
@@ -612,14 +673,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-white text-xs font-bold">admin</span>
-                  <span className="text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.2 rounded-full font-bold border border-amber-500/40">
-                    👑 Admin
+                  <span className="text-xs font-bold" style={{ color: isLight ? '#0f172a' : '#ffffff' }}>
+                    admin
+                  </span>
+                  <span className="text-[9px] bg-amber-500/20 text-amber-600 dark:text-amber-300 px-1.5 py-0.2 rounded-full font-bold border border-amber-500/40">
+                    👑 {t('adminBadge')}
                   </span>
                 </div>
-                <div className="text-[10px] text-slate-400 flex items-center gap-1">
-                  <span>💰 Balans:</span>
-                  <span className="text-emerald-400 font-mono font-bold">${balance}</span>
+                <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                  <span>💰 {t('balance')}:</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-mono font-bold">${balance}</span>
                 </div>
               </div>
             </div>
@@ -630,7 +693,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
               <button
                 onClick={() => setIsTelegramModalOpen(true)}
-                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 transition-all flex items-center gap-1.5 shadow-sm active:scale-95"
+                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-sky-500/20 hover:bg-sky-500/30 text-sky-600 dark:text-sky-300 border border-sky-500/40 transition-all flex items-center gap-1.5 shadow-sm active:scale-95"
               >
                 <span>✈️</span>
                 <span className="hidden sm:inline">Telegram</span>
@@ -640,7 +703,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 href="https://t.me/+U5pPkneGmM1mMjYy"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-1.5 rounded-xl text-xs border border-slate-700 bg-slate-800 text-slate-300 hover:text-white transition-all"
+                className="p-1.5 rounded-xl text-xs border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white transition-all"
                 title="Kanalga ulanish"
               >
                 📡
@@ -649,11 +712,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <button
                 type="button"
                 onClick={handleLogout}
-                className="px-2.5 py-1.5 text-slate-400 hover:text-red-300 hover:bg-red-950/30 rounded-xl text-xs transition-all flex items-center gap-1 border border-transparent hover:border-red-500/30 active:scale-95"
-                title="Tizimdan chiqish"
+                className="px-2.5 py-1.5 text-slate-500 dark:text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-xl text-xs transition-all flex items-center gap-1 border border-transparent hover:border-red-500/30 active:scale-95"
+                title={t('logout')}
               >
                 <span>🚪</span>
-                <span className="hidden sm:inline">Chiqish</span>
+                <span className="hidden sm:inline">{t('logout')}</span>
               </button>
             </div>
           </div>
@@ -661,10 +724,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Dynamic Page Content */}
         <main
-          className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8"
+          className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 transition-colors duration-300"
           style={{
             scrollbarWidth: 'thin',
-            scrollbarColor: 'rgba(255,255,255,0.08) transparent',
+            scrollbarColor: isLight ? 'rgba(0,0,0,0.15) transparent' : 'rgba(255,255,255,0.08) transparent',
           }}
         >
           {children}
