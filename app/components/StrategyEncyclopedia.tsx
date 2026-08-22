@@ -14,6 +14,20 @@ interface StrategyDetail {
 
 const STRATEGIES_DATA: StrategyDetail[] = [
   {
+    id: 'smart_money',
+    name: 'Smart Money (SMC Tezkor & Aniq Kirish)',
+    category: 'SMC',
+    icon: '🏛️',
+    summary: 'Institutsional likvidlik supurilishi (Liquidity Sweep), 1m/5m CHoCH va unmitigated OB orqali signallarni kechikmasdan, o\'z vaqtida berish tizimi.',
+    rules: [
+      'Likvidlik Supurilishi (Sweep): Narx avvalgi High (BSL) yoki Low (SSL) ni supurib, darhol rad etish (Rejection Wick) hosil qiladi.',
+      'CHoCH (Change of Character): Kichik taymfreymda (1m/5m) bozor strukturasining ilk burilishi — eng erta signal signali.',
+      'Order Block Retest: Katta impuls hosil qilgan OB ga narx qaytganda Limit yoki tezkor bozor buyrug\'i orqali o\'z vaqtida kiriladi.',
+      'Kechikish yo\'q (Zero Lag): Narx katta sham hosil qilib ketgandan keyin emas, balki aynan burilish / rad etish nuqtasida kiriladi.',
+    ],
+    keyLevel: 'Liquidity Sweep Wick / CHoCH Level / 50% OB',
+  },
+  {
     id: 'order_block',
     name: 'Order Block (OB Demand & Supply)',
     category: 'SMC',

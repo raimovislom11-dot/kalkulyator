@@ -29,6 +29,19 @@ export const ASSET_LIST: AssetConfig[] = [
     category: 'Metals',
   },
   {
+    id: 'XAGUSD',
+    name: 'Kumush (XAG/USD)',
+    symbol: 'XAGUSD',
+    tvSymbol: 'OANDA:XAGUSD',
+    icon: '🥈',
+    pipSize: 0.01,
+    pipMultiplier: 100,
+    digits: 3,
+    contractSize: 5000,
+    defaultMaxRange: 2.0,
+    category: 'Metals',
+  },
+  {
     id: 'EURUSD',
     name: 'EUR / USD',
     symbol: 'EURUSD',
@@ -126,7 +139,7 @@ export default function MultiAssetSelector({ selectedAsset, onSelectAsset }: Mul
       </div>
 
       {/* Responsive Grid / Flex on Mobile */}
-      <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-7 gap-1 sm:gap-1.5">
+      <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-8 gap-1 sm:gap-1.5">
         {ASSET_LIST.map((asset) => {
           const isSelected = asset.id === selectedAsset.id;
           return (

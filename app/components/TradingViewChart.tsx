@@ -16,6 +16,17 @@ interface TradingViewChartProps {
 
 const DEFAULT_STRATEGIES: StrategyLiveItem[] = [
   {
+    id: 'smart_money',
+    name: 'Smart Money (SMC Tezkor & Aniq Kirish)',
+    category: 'SMC',
+    icon: '🏛️',
+    badge: 'SMC',
+    description: 'Likvidlik supurilishi (Sweep), CHoCH va unmitigated Order Block orqali kechikmasdan, o\'z vaqtida snayper kirish signali',
+    liveValue: 'Yuklanmoqda...',
+    signal: 'BUY',
+    keyLevel: 'SMC Early Timing',
+  },
+  {
     id: 'order_block',
     name: 'Order Block (OB Demand & Supply)',
     category: 'SMC',
@@ -167,6 +178,7 @@ function TradingViewWidget({
   const [lastSyncTime, setLastSyncTime] = useState<string>('');
 
   const [activeStrategies, setActiveStrategies] = useState<string[]>([
+    'smart_money',
     'order_block',
     'breaker_block',
     'fvg',

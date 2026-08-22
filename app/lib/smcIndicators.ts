@@ -18,6 +18,7 @@ export interface Candle {
 }
 
 export interface IndicatorToggleState {
+  smartMoney: boolean;
   orderBlock: boolean;
   fvg: boolean;
   ifvg: boolean;
@@ -37,6 +38,7 @@ export interface IndicatorToggleState {
 }
 
 export const DEFAULT_INDICATOR_STATE: IndicatorToggleState = {
+  smartMoney: true,
   orderBlock: true,
   fvg: true,
   ifvg: true,
@@ -644,9 +646,21 @@ export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: numbe
   const p = Math.abs(price);
   const d = (n: number) => Math.abs(Number(n)).toFixed(decimals);
 
-  // 1. Order Block (OB)
+  // 0. SMART MONEY (SMC Tezkor & Aniq Kirish — Zero Lag Timing)
   const lastBullOB = analysis.orderBlocks.find(b => b.type === 'Bullish OB');
   const lastBearOB = analysis.orderBlocks.find(b => b.type === 'Bearish OB');
+  const bsl = analysis.liquidity.find(l => l.type.includes('BSL'));
+  const ssl = analysis.liquidity.find(l => l.type.includes('SSL'));
+  const isSMCBull = Boolean(ssl?.swept) || (Boolean(lastBullOB) && p <= (lastBullOB?.top || p) * 1.002) || analysis.mtf.m15Structure.includes('Up');
+  const smcEntryPrice = isSMCBull
+    ? (lastBullOB ? Number(lastBullOB.top) : (ssl ? Number(ssl.price) : p))
+    : (lastBearOB ? Number(lastBearOB.bottom) : (bsl ? Number(bsl.price) : p));
+  const smcTimingStr = isSMCBull
+    ? `⚡ O'Z VAQTIDA (SMC BUY): ${d(smcEntryPrice)} • Likvidlik supurildi (Rejection)`
+    : `⚡ O'Z VAQTIDA (SMC SELL): ${d(smcEntryPrice)} • Likvidlik supurildi (Rejection)`;
+  const smcSignal: 'BUY' | 'SELL' | 'NEUTRAL' = isSMCBull ? 'BUY' : 'SELL';
+
+  // 1. Order Block (OB)
   const obDemandStr = lastBullOB ? `${d(Math.min(lastBullOB.bottom, lastBullOB.top))} - ${d(Math.max(lastBullOB.bottom, lastBullOB.top))}` : `${d(p * 0.993)} - ${d(p * 0.996)}`;
   const obSupplyStr = lastBearOB ? `${d(Math.min(lastBearOB.bottom, lastBearOB.top))} - ${d(Math.max(lastBearOB.bottom, lastBearOB.top))}` : `${d(p * 1.004)} - ${d(p * 1.007)}`;
   const obVal = `Demand: ${obDemandStr} | Supply: ${obSupplyStr}`;
@@ -677,8 +691,6 @@ export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: numbe
   }
 
   // 4. Liquidity Pools (BSL & SSL)
-  const bsl = analysis.liquidity.find(l => l.type.includes('BSL'));
-  const ssl = analysis.liquidity.find(l => l.type.includes('SSL'));
   const bslPrice = bsl ? Math.abs(bsl.price) : p * 1.008;
   const sslPrice = ssl ? Math.abs(ssl.price) : p * 0.992;
   const liqVal = `BSL: ${d(bslPrice)} (${bsl?.swept ? 'Swept' : 'Ochiq'}) | SSL: ${d(sslPrice)} (${ssl?.swept ? 'Swept' : 'Ochiq'})`;
@@ -737,6 +749,17 @@ export function get18StrategiesLive(analysis: SMCTechnicalAnalysis, price: numbe
   const scalpSignal: 'BUY' | 'SELL' | 'NEUTRAL' = isScalpBull ? 'BUY' : 'SELL';
 
   return [
+    {
+      id: 'smart_money',
+      name: 'Smart Money (SMC Tezkor & Aniq Kirish)',
+      category: 'SMC',
+      icon: '🏛️',
+      badge: 'SMC',
+      description: 'Likvidlik supurilishi (Sweep), CHoCH va unmitigated Order Block orqali kechikmasdan, o\'z vaqtida snayper kirish signali',
+      liveValue: smcTimingStr,
+      signal: smcSignal,
+      keyLevel: d(smcEntryPrice),
+    },
     {
       id: 'order_block',
       name: 'Order Block (OB Demand & Supply)',

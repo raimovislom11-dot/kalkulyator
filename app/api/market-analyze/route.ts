@@ -86,10 +86,40 @@ async function getRealLiveMarketData(symbolKey: string, termMode: string) {
   let decimals = 2;
   if (sym.includes('EUR')) { basePrice = 1.0852; decimals = 5; }
   else if (sym.includes('GBP')) { basePrice = 1.2650; decimals = 5; }
+  else if (sym.includes('XAG') || sym.includes('SILVER')) { basePrice = 69.10; decimals = 3; }
   else if (sym.includes('US100') || sym.includes('NAS')) { basePrice = 21500; decimals = 2; }
   else if (sym.includes('US30')) { basePrice = 43800; decimals = 2; }
   else if (sym.includes('BTC')) { basePrice = 77554; decimals = 2; }
   else if (sym.includes('ETH')) { basePrice = 2950; decimals = 2; }
+
+  // Try live spot for Metals (Gold / Silver)
+  if (sym.includes('XAG') || sym.includes('SILVER')) {
+    try {
+      const r = await fetch('https://api.gold-api.com/price/XAG', {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(4000),
+      });
+      if (r.ok) {
+        const j = await r.json();
+        if (typeof j?.price === 'number' && j.price > 0) {
+          basePrice = parseFloat(j.price.toFixed(3));
+        }
+      }
+    } catch { /* fallback */ }
+  } else if (sym.includes('XAU') || sym.includes('GOLD')) {
+    try {
+      const r = await fetch('https://api.gold-api.com/price/XAU', {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(4000),
+      });
+      if (r.ok) {
+        const j = await r.json();
+        if (typeof j?.price === 'number' && j.price > 0) {
+          basePrice = parseFloat(j.price.toFixed(2));
+        }
+      }
+    } catch { /* fallback */ }
+  }
 
   if (sym.includes('EUR') || sym.includes('GBP')) {
     try {
@@ -165,31 +195,38 @@ export async function POST(req: NextRequest) {
     const systemPrompt = `Siz SMC (Smart Money Concepts), ICT (Inner Circle Trader), SMT Divergence, Silver Bullet va Breaker Block bo'yicha dunyodagi eng kuchli institutsional algoritmik tahlilchisiz.
 
 MUHIM QAT'IY INSTITUTSIONAL QOIDALAR:
-1. Grafikdagi oddiy indikatorlarga (MA, RSI) EMAS, AYNAN PASTKI QISMDA GRAFIKDAN HISOBLANGAN 10 TA ELITA SMC/ICT STRATEGIYALAR ASOSIDA TAHLIL QILASIZ!
-2. STOP LOSS (SL) HAQIQIY BOZOR SHOVQINIGA BARDOSH BERADIGAN QILIB QO'YILISHI SHART:
+1. SMART MONEY (SMC) O'Z VAQTIDA SIGNAL BERISH (ZERO-LAG SNAYPER ENTRY):
+   - Signallarni narx allaqachon uzoqqa ketgandan keyin KECH BERMANG!
+   - Signal berish vaqti aynan joyida bo'lishi shart:
+     a) Likvidlik supurilgan va rad etilgan zahoti (Liquidity Sweep & Rejection Wick);
+     b) 1m/5m CHoCH (Change of Character) mikrostuktura burilishida;
+     c) Mitigatsiya qilinmagan Order Block yoki 50% FVG retestida Limit / Jonli kirish.
+2. Grafikdagi oddiy indikatorlarga (MA, RSI) EMAS, AYNAN PASTKI QISMDA GRAFIKDAN HISOBLANGAN ELITA SMC/ICT STRATEGIYALAR ASOSIDA TAHLIL QILASIZ!
+3. STOP LOSS (SL) HAQIQIY BOZOR SHOVQINIGA BARDOSH BERADIGAN QILIB QO'YILISHI SHART:
    - Oltin ($4600) da SL hech qachon $2-$3 bo'lmasin (bu darhol uriladi). SL kamida $8.00 - $16.00 (80-160 pip) oraliqda, Order Block / Breaker / Swing High-Low himoyasida bo'lsin!
    - Bitcoin ($77k+) da SL kamida $600 - $1200 bo'lsin!
    - Forex juftliklarida SL 25-45 pip bo'lsin!
-3. RISK-REWARD (R:R) KAMIDA 1:2.5 - 1:3.5 BO'LSIN:
+4. RISK-REWARD (R:R) KAMIDA 1:2.5 - 1:3.5 BO'LSIN:
    - TP1: 1.5x SL masofasi (FVG yoki 50% CE)
    - TP2: 2.5x - 3.0x SL masofasi (BOS / Likvidlik supurish)
    - TP3: 4.0x+ SL masofasi (HTF asosiy nishon)
-4. KONFLUANSIYA FILTRI (NO-TRADE REJIMI):
+5. KONFLUANSIYA FILTRI (NO-TRADE REJIMI):
    - Agar strategiyalar o'zaro qarama-qarshi bo'lsa (bozor konsolidatsiyada / fliat), Buyruq: ⏸️ KUTISH (NO TRADE) deb yozing va qaysi narx buzilganda kirish kerakligini (Breakout) ko'rsating.
    - Agar A+ setup bo'lsa, 🟢 BUY yoki 🔴 SELL bering.
 
-Sizga taqdim etilgan 11 ta elita strategiya hisob-kitoblari:
-1. 🧱 Order Block (OB Demand & Supply zonalari)
-2. 🧱 Breaker Block (BB & Mitigation qaytish zonalari)
-3. ⚡ Fair Value Gap (FVG 50% CE muvozanat narxi)
-4. 🎯 Liquidity Pools (BSL yuqori va SSL pastki ochiq likvidlik supurilishi)
-5. ⚡ SMT Divergence (DXY vs ${assetSymbol} institutsional nomutanosiblik)
-6. 🎯 ICT Silver Bullet (60 daqiqalik yuqori ehtimolli vaqt setupi)
-7. 🪤 ICT Judas Swing (Sessiya ochilishidagi manipulyatsiya va tuzoq)
-8. 📐 Fibonacci OTE (0.705 Optimal Trade Entry Discount/Premium)
-9. 🏛️ ICT (Killzones, Midnight Open, Daily Open, Power of 3 AMD)
-10. 🌐 Multi-Timeframe Matrix (H4 Trend + M15 Struktura + M5 Trigger)
-11. ⚡ Sniper Scalp (1m/5m Mikro-Impuls, Micro-FVG va tezkor 5-15 pip skalping)
+Sizga taqdim etilgan elita strategiyalar hisob-kitoblari:
+1. 🏛️ Smart Money (SMC Tezkor & Aniq Kirish, Sweep + CHoCH)
+2. 🧱 Order Block (OB Demand & Supply zonalari)
+3. 🧱 Breaker Block (BB & Mitigation qaytish zonalari)
+4. ⚡ Fair Value Gap (FVG 50% CE muvozanat narxi)
+5. 🎯 Liquidity Pools (BSL yuqori va SSL pastki ochiq likvidlik supurilishi)
+6. ⚡ SMT Divergence (DXY vs ${assetSymbol} institutsional nomutanosiblik)
+7. 🎯 ICT Silver Bullet (60 daqiqalik yuqori ehtimolli vaqt setupi)
+8. 🪤 ICT Judas Swing (Sessiya ochilishidagi manipulyatsiya va tuzoq)
+9. 📐 Fibonacci OTE (0.705 Optimal Trade Entry Discount/Premium)
+10. 🏛️ ICT (Killzones, Midnight Open, Daily Open, Power of 3 AMD)
+11. 🌐 Multi-Timeframe Matrix (H4 Trend + M15 Struktura + M5 Trigger)
+12. ⚡ Sniper Scalp (1m/5m Mikro-Impuls, Micro-FVG va tezkor 5-15 pip skalping)
 
 JAVOBNI DOIMO QUYIDAGI TIZIMLI VA CHIROYLI FORMATDA (O'ZBEK TILIDA) TAQDIM ETING:
 
@@ -197,17 +234,19 @@ JAVOBNI DOIMO QUYIDAGI TIZIMLI VA CHIROYLI FORMATDA (O'ZBEK TILIDA) TAQDIM ETING
 ─────────────────────────────
 ● **Instrument:** ${assetName} (${assetSymbol}) • ${isShort ? '1m/5m Scalp' : '1-4H Intraday'}
 ● **Buyruq:** [🟢 BUY yoki 🔴 SELL yoki ⏸️ KUTISH (NO TRADE)]
+● **⚡ Kirish Vaqti:** [AYNAN HOZIR (SMC Rejection) yoki Limit Buyurtma: ${d(price)}]
 ● **Kirish (Entry):** [Aniq kirish narxi, masalan: ${d(price)}]
 ● **Stop Loss (SL):** [Aniq xavfsiz SL narxi — himoyalangan zona orqasida]
 ● **TP1:** [Aniq 1-maqsad narxi]
 ● **TP2:** [Aniq 2-maqsad narxi]
 ● **TP3:** [Aniq 3-maqsad narxi]
-● **Confluence (Ishonchlilik):** [Masalan: 92% (11 tadan 9 ta strategiya tasdiqladi)]
+● **Confluence (Ishonchlilik):** [Masalan: 94% (Smart Money + OB + FVG tasdiqladi)]
 ● **Risk-Reward (R:R):** [Masalan: 1:3.0]
 ● **Boshqaruv Vaqti:** [${isShort ? '3 — 15 daqiqa' : '1 — 4 soat'}]
 
 🔍 2. ELITA STRATEGIYALAR BO'YICHA JONLI GRAFIK TAHLILI:
 ─────────────────────────────
+• **🏛️ Smart Money & Timing:** ...
 • **⚡ Sniper Scalp & M1/M5 Impuls:** ...
 • **🧱 SMC Zonalari (OB, Breaker, FVG):** ...
 • **🎯 Likvidlik & SMT (BSL/SSL Sweeps, SMT Divergence):** ...

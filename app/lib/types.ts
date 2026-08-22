@@ -5,6 +5,7 @@ export type TradeStrategy =
   | 'Elif trading'
   | 'AB TRADE'
   | '2.6 STRATEGY'
+  | 'SMART MONEY'
   | 'ORDER BLOCK'
   | 'IFVG'
   | 'SNR_ICT'

@@ -25,7 +25,7 @@ import MetaTraderCommandGenerator from './components/MetaTraderCommandGenerator'
 import VolumeDeltaPower from './components/VolumeDeltaPower';
 import { findUser, saveSession, loadSession, clearSession, updateUserLogin, addTokensUsed, addActiveMinutes, SessionData } from './lib/users';
 
-type Preset = 'Elif trading' | 'AB TRADE' | '2.6 STRATEGY' | 'ORDER BLOCK' | 'IFVG' | 'SNR_ICT' | 'SMT' | 'FIBONACCI';
+type Preset = 'Elif trading' | 'AB TRADE' | '2.6 STRATEGY' | 'SMART MONEY' | 'ORDER BLOCK' | 'IFVG' | 'SNR_ICT' | 'SMT' | 'FIBONACCI';
 type CandleType = 'bullish_engulfing' | 'hammer' | 'bullish_pinbar' | 'bearish_engulfing' | 'shooting_star' | 'bearish_pinbar';
 type Timeframe = '1m' | '5m' | '15m' | '1h' | '4h' | '1d';
 type OBType = 'bullish' | 'bearish';
@@ -1099,6 +1099,13 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
   const [fibDirection, setFibDirection] = useState<'auto' | 'bullish' | 'bearish'>('auto');
   const [fibEntryLevel, setFibEntryLevel] = useState<'0.5' | '0.618' | '0.705' | '0.786'>('0.618');
 
+  // Smart Money (SMC) specific states
+  const [smcSweepPrice, setSmcSweepPrice] = useState('');
+  const [smcObHigh, setSmcObHigh] = useState('');
+  const [smcObLow, setSmcObLow] = useState('');
+  const [smcType, setSmcType] = useState<OBType>('bullish');
+  const [smcTimingMode, setSmcTimingMode] = useState<'SWEEP_REJECTION' | 'OB_LIMIT' | 'CHOCH_M5'>('SWEEP_REJECTION');
+
   // Modals & notifications
   const [telegramModalData, setTelegramModalData] = useState<any | null>(null);
   const [isTelegramModalOpen, setIsTelegramModalOpen] = useState(false);
@@ -1175,6 +1182,50 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
       S1: gann.S1.toFixed(selectedAsset.digits), S2: gann.S2.toFixed(selectedAsset.digits), S3: gann.S3.toFixed(selectedAsset.digits), S4: gann.S4.toFixed(selectedAsset.digits),
       R1: gann.R1.toFixed(selectedAsset.digits), R2: gann.R2.toFixed(selectedAsset.digits), R3: gann.R3.toFixed(selectedAsset.digits), R4: gann.R4.toFixed(selectedAsset.digits),
     };
+
+    // ── SMART MONEY (SMC TEZKOR KIRISH — ZERO LAG) ──
+    if (preset === 'SMART MONEY') {
+      const isBuy = smcType === 'bullish';
+      const sweepP = parseFloat(smcSweepPrice) || (isBuy ? (low || current * 0.996) : (high || current * 1.004));
+      const obH = parseFloat(smcObHigh) || (isBuy ? current : current * 1.002);
+      const obL = parseFloat(smcObLow) || (isBuy ? current * 0.998 : current);
+      const obMid = (obH + obL) / 2;
+
+      let entry: number;
+      let timingLabel: string;
+      if (smcTimingMode === 'SWEEP_REJECTION') {
+        entry = isBuy ? sweepP + buf : sweepP - buf;
+        timingLabel = "⚡ O'z vaqtida: Likvidlik supurilgan nuqtada (Rejection Wick)";
+      } else if (smcTimingMode === 'OB_LIMIT') {
+        entry = isBuy ? obH : obL;
+        timingLabel = "⏳ Limit buyurtma: Order Block chegarasida";
+      } else {
+        entry = isBuy ? obMid : obMid;
+        timingLabel = "⚡ 1m/5m CHoCH tasdiqlanishi bilan";
+      }
+
+      const sl = isBuy ? sweepP - buf : sweepP + buf;
+      const risk = Math.abs(entry - sl) || (buf * 2);
+
+      const tp1 = isBuy ? entry + risk * 2.0 : entry - risk * 2.0;
+      const tp2 = isBuy ? entry + risk * 3.5 : entry - risk * 3.5;
+      const tp3 = isBuy ? entry + (rangeVal > 0 ? rangeVal : risk * 5.0) : entry - (rangeVal > 0 ? rangeVal : risk * 5.0);
+
+      const gRes = checkGann(isBuy, Math.min(sl, entry) - buf, Math.max(sl, entry) + buf, 'SMC ');
+
+      return {
+        preset: 'SMART MONEY' as const, isBuy,
+        entry: fmt(entry), entryPct: pct(entry, current),
+        stopLoss: fmt(sl), slPct: pct(sl, current),
+        tp1: fmt(tp1), tp1Pct: pct(tp1, current), rr1: calcRR(entry, sl, tp1),
+        tp2: fmt(tp2), tp2Pct: pct(tp2, current), rr2: calcRR(entry, sl, tp2),
+        tp3: fmt(tp3), tp3Pct: pct(tp3, current), rr3: calcRR(entry, sl, tp3),
+        rangeVal: fmt(rangeVal), gann: gFmt,
+        gannConfluence: `${timingLabel} • ${gRes.text}`,
+        isStrongSignal: true,
+        pipBuffer: buf,
+      };
+    }
 
     // ── ORDER BLOCK ──
     if (preset === 'ORDER BLOCK') {
@@ -1444,7 +1495,7 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
       gannConfluence: gRes.text, isStrongSignal: gRes.strong,
       liquidityInfo, pipBuffer: buf,
     };
-  }, [effectiveHigh, effectiveLow, effectiveCurrent, preset, timeframe, hhPrice, llPrice, obHigh, obLow, obType, fvgHigh, fvgLow, fvgType, snrEntry, snrSL, snrType, candleType, smtEntry, smtSL, smtType, fibHigh, fibLow, fibDirection, fibEntryLevel, selectedAsset]);
+  }, [effectiveHigh, effectiveLow, effectiveCurrent, preset, timeframe, hhPrice, llPrice, obHigh, obLow, obType, fvgHigh, fvgLow, fvgType, snrEntry, snrSL, snrType, candleType, smtEntry, smtSL, smtType, fibHigh, fibLow, fibDirection, fibEntryLevel, smcSweepPrice, smcObHigh, smcObLow, smcType, smcTimingMode, selectedAsset]);
 
   const isBuy = calculations?.isBuy ?? false;
   const rangeVal = parseFloat(effectiveHigh) - parseFloat(effectiveLow);
@@ -1911,6 +1962,7 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
                   onChange={(e) => setPreset(e.target.value as Preset)}
                   className="w-full px-4 py-3 bg-slate-700/80 border border-slate-600 rounded-xl text-white font-bold focus:border-orange-500 focus:outline-none"
                 >
+                  <option value="SMART MONEY">⚡ SMART MONEY (SMC Tezkor & Aniq Kirish)</option>
                   <option value="Elif trading">Elif trading</option>
                   <option value="AB TRADE">AB TRADE</option>
                   <option value="2.6 STRATEGY">2.6 STRATEGY</option>
@@ -1921,6 +1973,87 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
                   <option value="FIBONACCI">FIBONACCI (Retracement & OTE)</option>
                 </select>
               </div>
+
+              {/* SMART MONEY (SMC) */}
+              {preset === 'SMART MONEY' && (
+                <div className="mt-4 p-4 bg-gradient-to-br from-emerald-950/40 via-slate-900/60 to-emerald-950/30 border border-emerald-500/50 rounded-xl space-y-3 shadow-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg animate-pulse">🏛️</span>
+                      <div>
+                        <p className="text-emerald-400 text-xs font-bold tracking-widest">SMART MONEY CONCEPTS (SMC)</p>
+                        <p className="text-slate-400 text-[10px]">Likvidlik supurilishi (Sweep) & 0-kechikish snayper kirish</p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono font-bold border border-emerald-500/40">
+                      ⚡ ZERO-LAG
+                    </span>
+                  </div>
+
+                  <TypeToggle value={smcType} onChange={setSmcType} isBuyLabel="Bullish SMC (Sweep & BUY)" isSellLabel="Bearish SMC (Sweep & SELL)" />
+
+                  <div className="grid grid-cols-3 gap-1.5 pt-1">
+                    {[
+                      { key: 'SWEEP_REJECTION' as const, label: '⚡ Rejection Wick', desc: 'Supurilgan nuqtada' },
+                      { key: 'OB_LIMIT' as const, label: '🧱 Order Block', desc: 'Unmitigated OB' },
+                      { key: 'CHOCH_M5' as const, label: '🔄 1m/5m CHoCH', desc: 'Mikro-struktura' },
+                    ].map(item => (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => setSmcTimingMode(item.key)}
+                        className={`p-2 rounded-lg text-center transition-all ${
+                          smcTimingMode === item.key
+                            ? 'bg-emerald-500 text-slate-950 font-black shadow-md'
+                            : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'
+                        }`}
+                      >
+                        <div className="text-[11px] font-bold">{item.label}</div>
+                        <div className="text-[9px] opacity-75">{item.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <label className="text-emerald-300 text-xs font-bold mb-1 block">
+                        {smcType === 'bullish' ? 'SSL (Pastki Supurilgan Likvidlik)' : 'BSL (Yuqori Supurilgan Likvidlik)'}
+                      </label>
+                      <input
+                        type="number"
+                        value={smcSweepPrice}
+                        onChange={(e) => setSmcSweepPrice(e.target.value)}
+                        className="w-full px-3 py-2.5 bg-slate-700/80 border border-emerald-600/50 rounded-lg text-white text-lg font-bold focus:border-emerald-400 focus:outline-none"
+                        step={selectedAsset.pipSize}
+                        placeholder={smcType === 'bullish' ? (effectiveLow || "Low narx") : (effectiveHigh || "High narx")}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-slate-300 text-xs font-bold mb-1 block">
+                        UNMITIGATED ORDER BLOCK (OB ZONE)
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="number"
+                          value={smcObHigh}
+                          onChange={(e) => setSmcObHigh(e.target.value)}
+                          className="w-full px-2 py-2 bg-slate-700/80 border border-slate-600 rounded-lg text-white text-xs font-bold focus:border-emerald-400 focus:outline-none"
+                          step={selectedAsset.pipSize}
+                          placeholder="OB High"
+                        />
+                        <input
+                          type="number"
+                          value={smcObLow}
+                          onChange={(e) => setSmcObLow(e.target.value)}
+                          className="w-full px-2 py-2 bg-slate-700/80 border border-slate-600 rounded-lg text-white text-xs font-bold focus:border-emerald-400 focus:outline-none"
+                          step={selectedAsset.pipSize}
+                          placeholder="OB Low"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* 2.6 HH/LL */}
               {preset === '2.6 STRATEGY' && (

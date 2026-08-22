@@ -92,10 +92,40 @@ async function fetchLiveCandles(symbolKey: string, timeframe: string): Promise<{
   let decimals = 2;
   if (sym.includes('EUR')) { basePrice = 1.0852; decimals = 5; }
   else if (sym.includes('GBP')) { basePrice = 1.2650; decimals = 5; }
+  else if (sym.includes('XAG') || sym.includes('SILVER')) { basePrice = 69.10; decimals = 3; }
   else if (sym.includes('US100') || sym.includes('NAS')) { basePrice = 21500; decimals = 2; }
   else if (sym.includes('US30')) { basePrice = 43800; decimals = 2; }
   else if (sym.includes('BTC')) { basePrice = 77554; decimals = 2; }
   else if (sym.includes('ETH')) { basePrice = 2950; decimals = 2; }
+
+  // Try live spot for Metals (Gold / Silver)
+  if (sym.includes('XAG') || sym.includes('SILVER')) {
+    try {
+      const r = await fetch('https://api.gold-api.com/price/XAG', {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(4000),
+      });
+      if (r.ok) {
+        const j = await r.json();
+        if (typeof j?.price === 'number' && j.price > 0) {
+          basePrice = parseFloat(j.price.toFixed(3));
+        }
+      }
+    } catch { /* fallback */ }
+  } else if (sym.includes('XAU') || sym.includes('GOLD')) {
+    try {
+      const r = await fetch('https://api.gold-api.com/price/XAU', {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(4000),
+      });
+      if (r.ok) {
+        const j = await r.json();
+        if (typeof j?.price === 'number' && j.price > 0) {
+          basePrice = parseFloat(j.price.toFixed(2));
+        }
+      }
+    } catch { /* fallback */ }
+  }
 
   // Try live spot for Forex from frankfurter
   if (sym.includes('EUR') || sym.includes('GBP')) {

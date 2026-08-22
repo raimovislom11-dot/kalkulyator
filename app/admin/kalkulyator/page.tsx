@@ -8,7 +8,7 @@ import MetaTraderCommandGenerator from '../../components/MetaTraderCommandGenera
 
 const RiskCalculator = dynamic(() => import('../../components/RiskCalculator'), { ssr: false });
 
-type Preset = 'Elif trading' | 'AB TRADE' | '2.6 STRATEGY' | 'ORDER BLOCK' | 'IFVG' | 'SNR_ICT' | 'SMT' | 'FIBONACCI';
+type Preset = 'Elif trading' | 'AB TRADE' | '2.6 STRATEGY' | 'SMART MONEY' | 'ORDER BLOCK' | 'IFVG' | 'SNR_ICT' | 'SMT' | 'FIBONACCI';
 type Timeframe = '1m' | '5m' | '15m' | '1h' | '4h' | '1d';
 type OBType = 'bullish' | 'bearish';
 
@@ -130,6 +130,7 @@ export default function KalkulyatorPage() {
                 onChange={(e) => setPreset(e.target.value as Preset)}
                 className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white text-xs font-bold focus:outline-none focus:border-amber-500"
               >
+                <option value="SMART MONEY">⚡ SMART MONEY (SMC Tezkor & Aniq Kirish)</option>
                 <option value="Elif trading">Elif trading (Gann & SMC)</option>
                 <option value="AB TRADE">AB TRADE</option>
                 <option value="2.6 STRATEGY">2.6 STRATEGY</option>
