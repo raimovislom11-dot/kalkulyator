@@ -4,9 +4,9 @@ import type {
   Note,
   AdminSettings,
   AnalyticsData,
-  DEFAULT_SETTINGS as DefaultSettingsType,
 } from './types';
 import { DEFAULT_SETTINGS } from './types';
+import { tradesApi, notesApi, settingsApi } from './api';
 
 // ─── Keys ────────────────────────────────────────────────────────────────────
 const KEYS = {
@@ -51,6 +51,19 @@ export const tradesStore = {
     const newTrade: Trade = { ...trade, id: genId() };
     const trades = this.getAll();
     save(KEYS.TRADES, [newTrade, ...trades]);
+
+    // Asynchronously sync with Backend API
+    tradesApi.create(trade).then((res) => {
+      if (res && res.id) {
+        const current = this.getAll();
+        const item = current.find(t => t.id === newTrade.id);
+        if (item) {
+          item.id = String(res.id);
+          save(KEYS.TRADES, current);
+        }
+      }
+    }).catch(() => {});
+
     return newTrade;
   },
 
@@ -60,16 +73,24 @@ export const tradesStore = {
     if (idx === -1) return null;
     trades[idx] = { ...trades[idx], ...patch };
     save(KEYS.TRADES, trades);
+
+    // Sync with Backend
+    tradesApi.update(id, patch).catch(() => {});
+
     return trades[idx];
   },
 
   remove(id: string): void {
     const trades = this.getAll().filter(t => t.id !== id);
     save(KEYS.TRADES, trades);
+
+    // Sync with Backend
+    tradesApi.delete(id).catch(() => {});
   },
 
   clear(): void {
     save(KEYS.TRADES, []);
+    tradesApi.clearAll().catch(() => {});
   },
 };
 
@@ -120,7 +141,6 @@ export const chatStore = {
     sessions[idx].messages.push(msg);
     sessions[idx].updatedAt = new Date().toISOString();
     if (sessions[idx].messages.length === 2 && sessions[idx].title.startsWith('Сессия')) {
-      // Auto-title from first user message
       const firstUser = sessions[idx].messages.find(m => m.role === 'user');
       if (firstUser) {
         sessions[idx].title = firstUser.content.slice(0, 40) + (firstUser.content.length > 40 ? '...' : '');
@@ -154,6 +174,19 @@ export const notesStore = {
     const newNote: Note = { ...note, id: genId(), createdAt: now, updatedAt: now };
     const notes = this.getAll();
     save(KEYS.NOTES, [newNote, ...notes]);
+
+    // Sync with backend
+    notesApi.create(note).then(res => {
+      if (res && res.id) {
+        const cur = this.getAll();
+        const item = cur.find(n => n.id === newNote.id);
+        if (item) {
+          item.id = String(res.id);
+          save(KEYS.NOTES, cur);
+        }
+      }
+    }).catch(() => {});
+
     return newNote;
   },
 
@@ -163,11 +196,15 @@ export const notesStore = {
     if (idx === -1) return null;
     notes[idx] = { ...notes[idx], ...patch, updatedAt: new Date().toISOString() };
     save(KEYS.NOTES, notes);
+
+    notesApi.update(id, patch).catch(() => {});
+
     return notes[idx];
   },
 
   remove(id: string): void {
     save(KEYS.NOTES, this.getAll().filter(n => n.id !== id));
+    notesApi.delete(id).catch(() => {});
   },
 };
 
@@ -181,11 +218,15 @@ export const settingsStore = {
     const current = this.get();
     const updated = { ...current, ...patch };
     save(KEYS.SETTINGS, updated);
+
+    settingsApi.update(patch).catch(() => {});
+
     return updated;
   },
 
   reset(): AdminSettings {
     save(KEYS.SETTINGS, DEFAULT_SETTINGS);
+    settingsApi.reset().catch(() => {});
     return DEFAULT_SETTINGS;
   },
 };

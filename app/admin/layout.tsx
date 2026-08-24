@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import TelegramShareModal from '../components/TelegramShareModal';
 import ThemeLanguageSwitcher from '../components/ThemeLanguageSwitcher';
 import { useThemeLanguage } from '../context/ThemeLanguageContext';
-import { clearSession } from '../lib/users';
+import { clearSession, loadSession } from '../lib/users';
 
 export interface NavItem {
   href: string;
@@ -488,6 +488,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     setTime(new Date());
     const interval = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const s = loadSession();
+    if (!s || s.role !== 'admin') {
+      window.location.href = '/';
+    }
   }, []);
 
   useEffect(() => {

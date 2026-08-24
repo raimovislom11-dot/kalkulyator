@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   loadUsers,
+  fetchUsersFromBackend,
   addUser,
   removeUser,
   formatActiveTime,
@@ -23,7 +24,7 @@ function AddUserModal({
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     setError('');
     setSuccess('');
     if (!login.trim() || !password.trim()) {
@@ -38,7 +39,7 @@ function AddUserModal({
       setError('Parol kamida 3 ta belgi bo\'lishi kerak!');
       return;
     }
-    const result = addUser(login.trim(), password.trim());
+    const result = await addUser(login.trim(), password.trim());
     if (!result.ok) {
       setError(result.error || 'Xatolik yuz berdi');
       return;
@@ -322,7 +323,7 @@ export default function UsersPage() {
   const [mounted, setMounted] = useState(false);
 
   const refresh = useCallback(() => {
-    setUsers(loadUsers());
+    fetchUsersFromBackend().then(setUsers);
   }, []);
 
   useEffect(() => {
@@ -332,9 +333,9 @@ export default function UsersPage() {
     return () => clearInterval(id);
   }, [refresh]);
 
-  const handleDelete = (username: string) => {
+  const handleDelete = async (username: string) => {
     if (deleteConfirm === username) {
-      removeUser(username);
+      await removeUser(username);
       setDeleteConfirm(null);
       refresh();
     } else {

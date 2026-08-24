@@ -23,7 +23,8 @@ import ConfluenceRadar from './components/ConfluenceRadar';
 import TradeAutopsy from './components/TradeAutopsy';
 import MetaTraderCommandGenerator from './components/MetaTraderCommandGenerator';
 import VolumeDeltaPower from './components/VolumeDeltaPower';
-import { findUser, saveSession, loadSession, clearSession, updateUserLogin, addTokensUsed, addActiveMinutes, SessionData } from './lib/users';
+import { authenticateUser, saveSession, loadSession, clearSession, updateUserLogin, addTokensUsed, addActiveMinutes, SessionData, AppUser } from './lib/users';
+
 
 type Preset = 'Elif trading' | 'AB TRADE' | '2.6 STRATEGY' | 'SMART MONEY' | 'ORDER BLOCK' | 'IFVG' | 'SNR_ICT' | 'SMT' | 'FIBONACCI';
 type CandleType = 'bullish_engulfing' | 'hammer' | 'bullish_pinbar' | 'bearish_engulfing' | 'shooting_star' | 'bearish_pinbar';
@@ -946,30 +947,29 @@ function LoginScreen({ onAuthenticate }: { onAuthenticate: (session: SessionData
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!loginInput.trim() || !passwordInput.trim()) {
+    const cleanLogin = loginInput.trim();
+    const cleanPass = passwordInput.trim();
+    if (!cleanLogin || !cleanPass) {
       setError("Login va parol bo'sh bo'lmasligi kerak!");
       return;
     }
     setIsLoading(true);
-    setTimeout(() => {
-      const user = findUser(loginInput.trim(), passwordInput.trim());
-      if (user) {
-        updateUserLogin(user.username);
-        saveSession(user);
-        if (user.role === 'admin') {
-          window.location.href = '/admin';
-          return;
-        }
-        onAuthenticate({ username: user.username, role: user.role, loginAt: new Date().toISOString() });
-      } else {
-        setError("Login yoki parol noto'g'ri!");
-        setPasswordInput('');
+
+    const res = await authenticateUser(cleanLogin, cleanPass);
+    if (res.ok && res.session) {
+      if (res.session.role === 'admin') {
+        window.location.href = '/admin';
+        return;
       }
-      setIsLoading(false);
-    }, 400);
+      onAuthenticate(res.session);
+    } else {
+      setError(res.error || "Login yoki parol noto'g'ri!");
+      setPasswordInput('');
+    }
+    setIsLoading(false);
   };
 
   return (

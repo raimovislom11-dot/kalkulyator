@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   loadUsers,
+  fetchUsersFromBackend,
   addUser,
   removeUser,
   formatActiveTime,
@@ -20,7 +21,7 @@ export default function AdminPanel() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
-    setUsers(loadUsers());
+    fetchUsersFromBackend().then(setUsers);
   }, []);
 
   useEffect(() => {
@@ -32,7 +33,7 @@ export default function AdminPanel() {
   const totalTokens = users.reduce((s, u) => s + u.tokensUsed, 0);
   const totalMinutes = users.reduce((s, u) => s + u.totalActiveMinutes, 0);
 
-  const handleAddUser = () => {
+  const handleAddUser = async () => {
     setAddError('');
     setAddSuccess('');
     if (!newLogin.trim() || !newPassword.trim()) {
@@ -47,7 +48,7 @@ export default function AdminPanel() {
       setAddError('Parol kamida 3 ta belgi bolishi kerak!');
       return;
     }
-    const result = addUser(newLogin.trim(), newPassword.trim());
+    const result = await addUser(newLogin.trim(), newPassword.trim());
     if (!result.ok) {
       setAddError(result.error || 'Xatolik yuz berdi');
       return;
@@ -62,9 +63,9 @@ export default function AdminPanel() {
     }, 2000);
   };
 
-  const handleDelete = (username: string) => {
+  const handleDelete = async (username: string) => {
     if (deleteConfirm === username) {
-      removeUser(username);
+      await removeUser(username);
       setDeleteConfirm(null);
       refresh();
     } else {
