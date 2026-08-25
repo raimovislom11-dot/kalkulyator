@@ -215,8 +215,9 @@ export default function ChatPage() {
         buf += dec.decode(value, { stream: true });
         const lines = buf.split('\n'); buf = lines.pop() ?? '';
         for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const p = line.slice(6).trim();
+          const trimmed = line.trim();
+          if (!trimmed.startsWith('data:')) continue;
+          const p = trimmed.replace(/^data:\s*/, '').trim();
           if (p === '[DONE]') { done = true; break; }
           try {
             const parsed = JSON.parse(p);

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, memo } from 'react';
+import { signalsStore } from '../lib/signalsStore';
 
 interface AITrapHunterProps {
   currentPrice?: number;
@@ -15,6 +16,7 @@ function AITrapHunter({
 }: AITrapHunterProps) {
   const [isScanning, setIsScanning] = useState(false);
   const [trapDetected, setTrapDetected] = useState(true);
+  const [savedToSignals, setSavedToSignals] = useState(false);
   const [trapData, setTrapData] = useState({
     session: 'London / NY Overlap',
     type: 'Judas Swing Manipulation' as 'Judas Swing Manipulation' | 'Asian High Sweep' | 'EQL Liquidity Trap',
@@ -22,6 +24,8 @@ function AITrapHunter({
     sweptLevel: (currentPrice - 2.5).toFixed(2),
     entryZone: currentPrice.toFixed(2),
     slLevel: (currentPrice - 1.8).toFixed(2),
+    tp1: (currentPrice + 4.5).toFixed(2),
+    tp2: (currentPrice + 8.0).toFixed(2),
     confidence: '95% (A+ Institutional Trap)',
   });
 
@@ -42,6 +46,31 @@ function AITrapHunter({
       setTrapDetected(true);
       speakAlert();
     }, 1200);
+  };
+
+  const handleSaveToSignals = () => {
+    signalsStore.add({
+      asset: assetSymbol,
+      symbol: assetSymbol,
+      timeframe: '1m/5m',
+      termMode: 'trap',
+      strategy: `Trap Hunter: ${trapData.type}`,
+      direction: trapData.direction,
+      entry: trapData.entryZone,
+      sl: trapData.slLevel,
+      tp1: trapData.tp1,
+      tp2: trapData.tp2,
+      outcome: 'PENDING',
+      source: 'trap-hunter',
+    });
+
+    setSavedToSignals(true);
+    setTimeout(() => setSavedToSignals(false), 2500);
+
+    const el = document.getElementById('ai-signals-section');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   return (
@@ -102,7 +131,7 @@ function AITrapHunter({
           </div>
 
           <p className="text-xs text-slate-200 leading-relaxed">
-            ⚡ <strong>Tuzoq mexanizmi:</strong> Narx Osiyo sessiyasi pastki likvidligini (<strong>${trapData.sweptLevel}</strong>) supurib, chakana sotuvchilarni chalg'itdi va darhol 1m FVG da rad etish (rejection) hosil qildi. Yirik banklar <strong>${trapData.entryZone}</strong> atrofida xarid buyurtmalarini to'ldirdi.
+            ⚡ <strong>Tuzoq mexanizmi:</strong> Narx Osiyo sessiyasi pastki likvidligini (<strong>${trapData.sweptLevel}</strong>) supurib, chakana sotuvchilarni chalg&apos;itdi va darhol 1m FVG da rad etish (rejection) hosil qildi. Yirik banklar <strong>${trapData.entryZone}</strong> atrofida xarid buyurtmalarini to&apos;ldirdi.
           </p>
 
           <div className="grid grid-cols-3 gap-2 text-center text-xs font-mono">
@@ -119,6 +148,21 @@ function AITrapHunter({
               <span className="text-red-300 font-bold">${trapData.slLevel}</span>
             </div>
           </div>
+
+          {/* Action to Save to Signals */}
+          <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-800/80">
+            <button
+              onClick={handleSaveToSignals}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-lg active:scale-95 ${
+                savedToSignals
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-600 hover:to-rose-700 text-white shadow-rose-500/20'
+              }`}
+            >
+              <span>{savedToSignals ? '✓' : '📥'}</span>
+              <span>{savedToSignals ? 'Signallarga qo\'shildi!' : 'Signallar bo\'limiga qo\'shish'}</span>
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -126,3 +170,4 @@ function AITrapHunter({
 }
 
 export default memo(AITrapHunter);
+

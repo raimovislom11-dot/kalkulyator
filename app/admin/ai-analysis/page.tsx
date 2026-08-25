@@ -4,6 +4,8 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import MultiAssetSelector, { ASSET_LIST, AssetConfig } from '../../components/MultiAssetSelector';
 import TelegramShareModal from '../../components/TelegramShareModal';
+import AISignalsSection from '../../components/AISignalsSection';
+import { signalsStore } from '../../lib/signalsStore';
 
 const TradingViewChart = dynamic(() => import('../../components/TradingViewChart'), { ssr: false });
 
@@ -131,6 +133,7 @@ function SignalCard({
   const [direction, setDirection] = useState<'BUY' | 'SELL' | 'WAIT'>(parsed.direction);
   const [editMode, setEditMode] = useState(!parsed.hasSignal);
   const [copied, setCopied] = useState(false);
+  const [savedToSignals, setSavedToSignals] = useState(false);
 
   // Matn kelganda yoki o'zgarganda Signal Card qiymatlarini yangilash
   useEffect(() => {
@@ -170,6 +173,38 @@ function SignalCard({
     tp3: tp3 || '—',
   };
 
+  const handleSaveToSignals = () => {
+    if (!entry || !sl) {
+      alert("Kirish (Entry) va Stop Loss bo'sh bo'lmasligi kerak!");
+      return;
+    }
+
+    signalsStore.add({
+      asset: asset.name,
+      symbol: asset.symbol || 'XAUUSD',
+      timeframe: isShort ? '1m/5m' : '1H',
+      termMode: isShort ? 'short' : 'long',
+      strategy: parsed.strategy || (isShort ? '1m/5m Scalp (10 Strategiya)' : 'Intraday 1-4H (10 Strategiya)'),
+      direction: direction,
+      entry: entry,
+      sl: sl,
+      tp1: tp1 || '—',
+      tp2: tp2 || '—',
+      tp3: tp3 || '—',
+      outcome: 'PENDING',
+      fullAnalysisText: text,
+      source: 'ai-analysis',
+    });
+
+    setSavedToSignals(true);
+    setTimeout(() => setSavedToSignals(false), 2500);
+
+    const el = document.getElementById('ai-signals-section');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   const copyText = () => {
     const dirStr = isBuy ? '🟢 BUY' : isSell ? '🔴 SELL' : '⏸️ KUTISH (NO TRADE)';
     const t =
@@ -189,7 +224,7 @@ function SignalCard({
   return (
     <div className={`mt-4 p-4 rounded-xl bg-slate-900/95 border ${accentBorder} shadow-2xl space-y-3`}>
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
         <div className="flex items-center gap-2">
           <span className="text-xl">🎯</span>
           <div>
@@ -202,7 +237,20 @@ function SignalCard({
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {/* Signallar bo'limiga qo'shish */}
+          <button
+            onClick={handleSaveToSignals}
+            className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-all shadow-md flex items-center gap-1 active:scale-95 ${
+              savedToSignals
+                ? 'bg-emerald-600 text-white'
+                : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white'
+            }`}
+          >
+            <span>{savedToSignals ? '✓' : '📥'}</span>
+            <span>{savedToSignals ? 'Qo\'shildi!' : 'Signallar bo\'limiga qo\'shish'}</span>
+          </button>
+
           {/* AI dan qayta yuklash */}
           {parsed.hasSignal && (
             <button
@@ -415,8 +463,9 @@ export default function AIAnalysisPage() {
       const lines = buffer.split('\n');
       buffer = lines.pop() ?? '';
       for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const payload = line.slice(6).trim();
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('data:')) continue;
+        const payload = trimmed.replace(/^data:\s*/, '').trim();
         if (payload === '[DONE]') { done = true; break; }
         try {
           const parsed = JSON.parse(payload);
@@ -823,14 +872,23 @@ export default function AIAnalysisPage() {
             )}
           </div>
         )}
+
+        {/* Telegram Share Modal */}
+        <TelegramShareModal
+          isOpen={isTelegramOpen}
+          onClose={() => setIsTelegramOpen(false)}
+          tradeData={telegramModalData}
+        />
       </div>
 
-      {/* Telegram Share Modal */}
-      <TelegramShareModal
-        isOpen={isTelegramOpen}
-        onClose={() => setIsTelegramOpen(false)}
-        tradeData={telegramModalData}
+      {/* ── AI SIGNALLAR VA NATIJALAR BO'LIMI ── */}
+      <AISignalsSection
+        currentAssetSymbol={selectedAsset.symbol}
+        isAdmin={true}
+        onOpenTelegram={openTelegram}
       />
     </div>
   );
 }
+
+

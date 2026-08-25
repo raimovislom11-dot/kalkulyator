@@ -23,6 +23,8 @@ import ConfluenceRadar from './components/ConfluenceRadar';
 import TradeAutopsy from './components/TradeAutopsy';
 import MetaTraderCommandGenerator from './components/MetaTraderCommandGenerator';
 import VolumeDeltaPower from './components/VolumeDeltaPower';
+import AISignalsSection from './components/AISignalsSection';
+import { signalsStore } from './lib/signalsStore';
 import { authenticateUser, saveSession, loadSession, clearSession, updateUserLogin, addTokensUsed, addActiveMinutes, SessionData, AppUser } from './lib/users';
 
 
@@ -125,6 +127,7 @@ function SignalCard({
   const [vals, setVals] = useState({ entry: '', sl: '', tp1: '', tp2: '', tp3: '' });
   const [copied, setCopied] = useState(false);
   const [savedJournal, setSavedJournal] = useState(false);
+  const [savedToSignals, setSavedToSignals] = useState(false);
   const [sendingDirectTg, setSendingDirectTg] = useState(false);
   const [sentDirectTg, setSentDirectTg] = useState(false);
 
@@ -154,6 +157,38 @@ function SignalCard({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
+  };
+
+  const handleSaveToSignals = () => {
+    if (!vals.entry || !vals.sl) {
+      alert("Kirish (Entry) va Stop Loss bo'sh bo'lmasligi kerak!");
+      return;
+    }
+    const isBuy = parseFloat(vals.tp1) > parseFloat(vals.entry) || parseFloat(vals.entry) > parseFloat(vals.sl);
+    signalsStore.add({
+      asset: asset.name,
+      symbol: asset.symbol || 'XAUUSD',
+      timeframe: '1m/5m/1h',
+      termMode: 'short',
+      strategy: 'AI Claude Tahlili (10 ta SMC/ICT)',
+      direction: isBuy ? 'BUY' : 'SELL',
+      entry: vals.entry,
+      sl: vals.sl,
+      tp1: vals.tp1 || '—',
+      tp2: vals.tp2 || '—',
+      tp3: vals.tp3 || '—',
+      outcome: 'PENDING',
+      fullAnalysisText: text,
+      source: 'ai-analysis',
+    });
+
+    setSavedToSignals(true);
+    setTimeout(() => setSavedToSignals(false), 2500);
+
+    const el = document.getElementById('ai-signals-section');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   const handleSave = () => {
@@ -255,6 +290,19 @@ function SignalCard({
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
+          {/* Signallar bo'limiga qo'shish */}
+          <button
+            onClick={handleSaveToSignals}
+            className={`flex items-center gap-1 px-3 py-1.5 text-xs font-black rounded-lg transition-all active:scale-95 shadow-md ${
+              savedToSignals
+                ? 'bg-emerald-600 text-white'
+                : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-emerald-500/20'
+            }`}
+          >
+            <span>{savedToSignals ? '✓' : '📥'}</span>
+            <span>{savedToSignals ? 'Qo\'shildi!' : 'Signallar bo\'limiga qo\'shish'}</span>
+          </button>
+
           {isAdmin && (
             <button
               onClick={handleSendDirectTg}
@@ -425,8 +473,9 @@ function AIAnalysisPanel({
         const lines = buffer.split('\n');
         buffer = lines.pop() ?? '';
         for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const payload = line.slice(6).trim();
+          const trimmed = line.trim();
+          if (!trimmed.startsWith('data:')) continue;
+          const payload = trimmed.replace(/^data:\s*/, '').trim();
           if (payload === '[DONE]') { done = true; break; }
           try {
             const parsed = JSON.parse(payload);
@@ -477,8 +526,9 @@ function AIAnalysisPanel({
         const lines = buffer.split('\n');
         buffer = lines.pop() ?? '';
         for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const payload = line.slice(6).trim();
+          const trimmed = line.trim();
+          if (!trimmed.startsWith('data:')) continue;
+          const payload = trimmed.replace(/^data:\s*/, '').trim();
           if (payload === '[DONE]') { done = true; break; }
           try {
             const parsed = JSON.parse(payload);
@@ -1040,12 +1090,27 @@ function LoginScreen({ onAuthenticate }: { onAuthenticate: (session: SessionData
   );
 }
 
+const TypeToggle = ({ value, onChange, isBuyLabel = 'Bullish', isSellLabel = 'Bearish' }:
+  { value: OBType; onChange: (v: OBType) => void; isBuyLabel?: string; isSellLabel?: string }) => (
+  <div className="grid grid-cols-2 gap-2 mt-3">
+    <button onClick={() => onChange('bullish')}
+      className={`py-2 rounded-lg text-sm font-bold transition-all ${value === 'bullish' ? 'bg-green-600 text-white' : 'bg-slate-700/80 text-slate-400 hover:bg-slate-600'}`}>
+      ▲ {isBuyLabel}
+    </button>
+    <button onClick={() => onChange('bearish')}
+      className={`py-2 rounded-lg text-sm font-bold transition-all ${value === 'bearish' ? 'bg-red-600 text-white' : 'bg-slate-700/80 text-slate-400 hover:bg-slate-600'}`}>
+      ▼ {isSellLabel}
+    </button>
+  </div>
+);
+
 // ─────────────────────────────────────────────
 function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: boolean; currentUsername: string; onLogout: () => void }) {
   const [selectedAsset, setSelectedAsset] = useState<AssetConfig>(ASSET_LIST[0]);
   const [activeMainTab, setActiveMainTab] = useState<
     | 'dashboard'
     | 'calc'
+    | 'arxiv'
     | 'trap'
     | 'radar'
     | 'delta'
@@ -1504,20 +1569,6 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
   const rangeWarning = rangeVal > tf.maxRange;
   const TIMEFRAMES: Timeframe[] = ['1m', '5m', '15m', '1h', '4h', '1d'];
 
-  const TypeToggle = ({ value, onChange, isBuyLabel = 'Bullish', isSellLabel = 'Bearish' }:
-    { value: OBType; onChange: (v: OBType) => void; isBuyLabel?: string; isSellLabel?: string }) => (
-    <div className="grid grid-cols-2 gap-2 mt-3">
-      <button onClick={() => onChange('bullish')}
-        className={`py-2 rounded-lg text-sm font-bold transition-all ${value === 'bullish' ? 'bg-green-600 text-white' : 'bg-slate-700/80 text-slate-400 hover:bg-slate-600'}`}>
-        ▲ {isBuyLabel}
-      </button>
-      <button onClick={() => onChange('bearish')}
-        className={`py-2 rounded-lg text-sm font-bold transition-all ${value === 'bearish' ? 'bg-red-600 text-white' : 'bg-slate-700/80 text-slate-400 hover:bg-slate-600'}`}>
-        ▼ {isSellLabel}
-      </button>
-    </div>
-  );
-
   const aiContext = useMemo(() => {
     if (!calculations) return '';
     const lines: string[] = [
@@ -1709,6 +1760,16 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
               timeframe={timeframe}
               isAdmin={isAdmin}
               currentUsername={currentUsername}
+              onOpenTelegram={(data) => {
+                setTelegramModalData(data);
+                setIsTelegramModalOpen(true);
+              }}
+            />
+
+            {/* ── AI SIGNALLAR VA NATIJALAR BO'LIMI ── */}
+            <AISignalsSection
+              currentAssetSymbol={selectedAsset.symbol}
+              isAdmin={isAdmin}
               onOpenTelegram={(data) => {
                 setTelegramModalData(data);
                 setIsTelegramModalOpen(true);
@@ -2458,10 +2519,32 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
           </div>
         )}
 
+        {/* ── TAB: ARXIV (AI SIGNALLAR VA NATIJALAR) ── */}
+        {activeMainTab === 'arxiv' && (
+          <div className="space-y-4">
+            <AISignalsSection
+              currentAssetSymbol={selectedAsset.symbol}
+              isAdmin={isAdmin}
+              onOpenTelegram={(data) => {
+                setTelegramModalData(data);
+                setIsTelegramModalOpen(true);
+              }}
+            />
+          </div>
+        )}
+
         {/* ── TAB: AI TRAP HUNTER ── */}
         {activeMainTab === 'trap' && (
-          <div>
+          <div className="space-y-4">
             <AITrapHunter currentPrice={parseFloat(currentPrice) || 4492.5} assetSymbol={selectedAsset.symbol} />
+            <AISignalsSection
+              currentAssetSymbol={selectedAsset.symbol}
+              isAdmin={isAdmin}
+              onOpenTelegram={(data) => {
+                setTelegramModalData(data);
+                setIsTelegramModalOpen(true);
+              }}
+            />
           </div>
         )}
 
@@ -2538,7 +2621,7 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
                 </div>
                 <div>
                   <div className="text-amber-300 font-black text-lg">Yangi Pro Admin Panel</div>
-                  <div className="text-slate-400 text-xs">To'liq zamonaviy interfeys, sidebar va barcha vositalar</div>
+                  <div className="text-slate-400 text-xs">To&apos;liq zamonaviy interfeys, sidebar va barcha vositalar</div>
                 </div>
               </div>
               <a

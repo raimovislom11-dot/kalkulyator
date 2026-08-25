@@ -1,7 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import {
-  loadUsers,
   fetchUsersFromBackend,
   addUser,
   removeUser,
@@ -36,24 +35,26 @@ export default function AdminPanel() {
   const handleAddUser = async () => {
     setAddError('');
     setAddSuccess('');
-    if (!newLogin.trim() || !newPassword.trim()) {
+    const loginVal = newLogin.trim();
+    const passVal = newPassword.trim();
+    if (!loginVal || !passVal) {
       setAddError("Login va parol bo'sh bo'lmasligi kerak!");
       return;
     }
-    if (newLogin.trim().length < 3) {
+    if (loginVal.length < 3) {
       setAddError('Login kamida 3 ta belgi bolishi kerak!');
       return;
     }
-    if (newPassword.trim().length < 3) {
+    if (passVal.length < 3) {
       setAddError('Parol kamida 3 ta belgi bolishi kerak!');
       return;
     }
-    const result = await addUser(newLogin.trim(), newPassword.trim());
+    const result = await addUser(loginVal, passVal);
     if (!result.ok) {
       setAddError(result.error || 'Xatolik yuz berdi');
       return;
     }
-    setAddSuccess(`✓ "${newLogin.trim()}" foydalanuvchisi muvaffaqiyatli yaratildi!`);
+    setAddSuccess(`✓ "${loginVal}" foydalanuvchisi muvaffaqiyatli yaratildi!`);
     setNewLogin('');
     setNewPassword('');
     refresh();
@@ -109,7 +110,7 @@ export default function AdminPanel() {
             </div>
             <div>
               <div className="text-white font-black text-sm">Foydalanuvchilar</div>
-              <div className="text-slate-500 text-xs">{users.length} ta ro'yxatda</div>
+              <div className="text-slate-500 text-xs">{users.length} ta ro&apos;yxatda</div>
             </div>
           </div>
           <button
@@ -127,7 +128,7 @@ export default function AdminPanel() {
           <div className="col-span-2">Parol</div>
           <div className="col-span-1">Rol</div>
           <div className="col-span-2">Yaratilgan</div>
-          <div className="col-span-2">So'nggi kirish</div>
+          <div className="col-span-2">So&apos;nggi kirish</div>
           <div className="col-span-1">Faol vaqt</div>
           <div className="col-span-1">Tokenlar</div>
           <div className="col-span-1 text-right">Amal</div>
@@ -227,7 +228,7 @@ export default function AdminPanel() {
             </div>
 
             <h3 className="text-white text-xl font-black text-center mb-1">Yangi foydalanuvchi</h3>
-            <p className="text-slate-400 text-xs text-center mb-5">Login va parol kiriting. Foydalanuvchi saytga kirish imkoniga ega bo'ladi, lekin Telegram signal yuborolmaydi.</p>
+            <p className="text-slate-400 text-xs text-center mb-5">Login va parol kiriting. Foydalanuvchi saytga kirish imkoniga ega bo&apos;ladi, lekin Telegram signal yuborolmaydi.</p>
 
             <div className="space-y-3">
               <div>

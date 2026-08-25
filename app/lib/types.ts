@@ -109,3 +109,54 @@ export const DEFAULT_SETTINGS: AdminSettings = {
   notifications: true,
   language: 'ru',
 };
+
+// ─── AI Signals & Learning Types ─────────────────────────────────────────────
+export type AISignalOutcome = 'PENDING' | 'TP_HIT' | 'SL_HIT' | 'MISSED_LIMIT' | 'CANCELLED';
+
+export type AISignalMistakeReason =
+  | 'NO_SWEEP'          // Likvidlik olinmadi / supurilmadi
+  | 'NEWS_VOLATILITY'   // Yangiliklar payti / Spred kengaydi
+  | 'COUNTER_TREND'     // Katta TF trendiga qarshi kirildi
+  | 'MISSED_FVG'        // FVG yoki Order Block ga yetmasdan qaytdi
+  | 'EARLY_ENTRY'       // Tasdiq (Confirmation / CHoCH) olmasdan erta kirildi
+  | 'SL_TOO_TIGHT'      // SL juda qisqa qo'yilgan
+  | 'CHOPPY_MARKET'     // Sessiya yopilishida yoki noaniq konsolidatsiyada
+  | 'OTHER';            // Boshqa sabab
+
+export interface AISignal {
+  id: string;
+  createdAt: string;       // ISO string
+  updatedAt: string;       // ISO string
+  asset: string;           // e.g. "XAUUSD" or "Gold (XAUUSD)"
+  symbol: string;          // e.g. "XAUUSD"
+  timeframe: string;       // "1m", "5m", "15m", "1h", "4h"
+  termMode: 'short' | 'long' | 'trap';
+  strategy: string;        // "10 ta Elita SMC/ICT", "Judas Swing", "Scalp", etc.
+  direction: 'BUY' | 'SELL' | 'WAIT';
+  entry: string;
+  sl: string;
+  tp1: string;
+  tp2?: string;
+  tp3?: string;
+  rr?: string;
+  outcome: AISignalOutcome;
+  outcomeDate?: string;
+  mistakeReason?: AISignalMistakeReason;
+  mistakeNote?: string;    // Foydalanuvchi yoki AI xulosa izohi
+  aiLearnedLesson?: string; // AI ning keyingi tahlil uchun xulosasi
+  fullAnalysisText?: string; // AI bergan to'liq tahlil matni
+  createdBy?: string;
+  source?: 'ai-analysis' | 'trap-hunter' | 'market-analysis' | 'manual';
+}
+
+export interface AISignalsStats {
+  total: number;
+  pending: number;
+  tpHit: number;
+  slHit: number;
+  missed: number;
+  cancelled: number;
+  winRate: number; // percentage of closed decisive trades (TP / (TP + SL))
+  accuracyRate: number; // percentage of all closed signals
+}
+
