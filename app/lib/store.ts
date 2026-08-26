@@ -47,6 +47,17 @@ export const tradesStore = {
     return load<Trade[]>(KEYS.TRADES, []);
   },
 
+  async fetchFromBackend(): Promise<Trade[]> {
+    try {
+      const data = await tradesApi.getAll();
+      if (Array.isArray(data) && data.length > 0) {
+        save(KEYS.TRADES, data);
+        return data;
+      }
+    } catch {}
+    return this.getAll();
+  },
+
   add(trade: Omit<Trade, 'id'>): Trade {
     const newTrade: Trade = { ...trade, id: genId() };
     const trades = this.getAll();
@@ -169,6 +180,17 @@ export const notesStore = {
     return load<Note[]>(KEYS.NOTES, []);
   },
 
+  async fetchFromBackend(): Promise<Note[]> {
+    try {
+      const data = await notesApi.getAll();
+      if (Array.isArray(data) && data.length > 0) {
+        save(KEYS.NOTES, data);
+        return data;
+      }
+    } catch {}
+    return this.getAll();
+  },
+
   add(note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>): Note {
     const now = new Date().toISOString();
     const newNote: Note = { ...note, id: genId(), createdAt: now, updatedAt: now };
@@ -212,6 +234,17 @@ export const notesStore = {
 export const settingsStore = {
   get(): AdminSettings {
     return load<AdminSettings>(KEYS.SETTINGS, DEFAULT_SETTINGS);
+  },
+
+  async fetchFromBackend(): Promise<AdminSettings> {
+    try {
+      const data = await settingsApi.get();
+      if (data) {
+        save(KEYS.SETTINGS, data);
+        return data;
+      }
+    } catch {}
+    return this.get();
   },
 
   update(patch: Partial<AdminSettings>): AdminSettings {
