@@ -5,28 +5,6 @@ import { tradesStore, settingsStore, computeAnalytics } from '../../lib/store';
 import type { Trade, AnalyticsData } from '../../lib/types';
 import type { CandlestickData, AreaData, HistogramData, Time } from 'lightweight-charts';
 
-function generateDemoCandles(days = 90) {
-  const candles = [];
-  let price = 3320;
-  const now = new Date();
-  for (let i = days; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
-    const change = (Math.random() - 0.48) * 18;
-    const open = price;
-    const close = price + change;
-    const high = Math.max(open, close) + Math.random() * 8;
-    const low = Math.min(open, close) - Math.random() * 8;
-    candles.push({
-      time: d.toISOString().slice(0, 10),
-      open: +open.toFixed(2), high: +high.toFixed(2),
-      low: +low.toFixed(2), close: +close.toFixed(2),
-    });
-    price = close;
-  }
-  return candles;
-}
-
 type ChartMode = 'candles' | 'equity' | 'pnl';
 
 function LWChart({ mode, trades, deposit }: { mode: ChartMode; trades: Trade[]; deposit: number }) {
@@ -66,7 +44,26 @@ function LWChart({ mode, trades, deposit }: { mode: ChartMode; trades: Trade[]; 
           borderUpColor: '#34d399', borderDownColor: '#f87171',
           wickUpColor: '#34d39980', wickDownColor: '#f8717180',
         });
-        s.setData(generateDemoCandles(90) as CandlestickData[]);
+        fetch('/api/market-candles?symbol=XAUUSD&timeframe=1h')
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.candles && Array.isArray(data.candles)) {
+              const formatted: CandlestickData<Time>[] = data.candles.map((c: any, idx: number) => {
+                const now = Date.now();
+                const timeStr = new Date(now - (data.candles.length - idx) * 3600 * 1000).toISOString().slice(0, 10);
+                return {
+                  time: timeStr as Time,
+                  open: Number(c.open),
+                  high: Number(c.high),
+                  low: Number(c.low),
+                  close: Number(c.close),
+                };
+              });
+              s.setData(formatted);
+              chart.timeScale().fitContent();
+            }
+          })
+          .catch(() => {});
       } else if (mode === 'equity') {
         const analytics = computeAnalytics(trades, deposit);
         const s = chart.addSeries(AreaSeries, {
@@ -188,10 +185,11 @@ export default function ChartsPage() {
           </h2>
           {mode === 'candles' && (
             <span
-              className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-widest"
-              style={{ background: 'rgba(251,191,36,0.1)', color: 'rgba(251,191,36,0.7)', border: '1px solid rgba(251,191,36,0.2)' }}
+              className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-widest flex items-center gap-1.5"
+              style={{ background: 'rgba(52,211,153,0.1)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)' }}
             >
-              DEMO DATA
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              LIVE MARKET
             </span>
           )}
         </header>

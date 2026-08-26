@@ -19,15 +19,7 @@ function TradeAutopsy() {
   const [timeEntered, setTimeEntered] = useState('19:15');
   const [mistakeType, setMistakeType] = useState<'NEWS' | 'HTF_COUNTER' | 'LATE_CHASE' | 'EQUAL_WEIGHT'>('NEWS');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [report, setReport] = useState<AutopsyReport | null>({
-    mainMistake: 'High-Impact Yangilik (CPI) oldidan xavfli kirish',
-    mistakeCategory: 'Iqtisodiy Taqvim & Spred Kengayishi',
-    severity: 'CRITICAL',
-    score: 88,
-    explanation: 'Siz 19:15 da kirdingiz, lekin 19:30 da AQSH muhim CPI yangiligi bor edi. Spred 5x ga oshib, bozor DXY likvidligini olmasdan SL ni urib ketdi.',
-    radarSolution: 'Confluence Radar "News Blackout Gatekeeper" qizil yangilikdan 15-30 daqiqa oldin barcha signallarni avtomatik bloklaydi.',
-    correctiveAction: 'Qat\'iy qoida: Qizil yangilik vaqtida yangi pozitsiya ochmang!',
-  });
+  const [report, setReport] = useState<AutopsyReport | null>(null);
 
   const runAutopsy = () => {
     setIsAnalyzing(true);
@@ -180,7 +172,7 @@ function TradeAutopsy() {
         </div>
 
         {/* Diagnostic Report */}
-        {report && (
+        {report ? (
           <div className="md:col-span-2 bg-slate-950/90 border border-slate-800 p-4 rounded-xl space-y-3 flex flex-col justify-between font-mono">
             <div>
               <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
@@ -211,6 +203,18 @@ function TradeAutopsy() {
                 </span>
                 <span className="text-emerald-200 text-[11px]">{report.correctiveAction}</span>
               </div>
+            </div>
+          </div>
+        ) : (
+          <div className="md:col-span-2 bg-slate-950/60 border border-slate-800/80 rounded-xl p-6 flex flex-col items-center justify-center text-center space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-2xl">
+              🔬
+            </div>
+            <div>
+              <div className="text-white font-bold text-sm">Rentgen diagnostikasi kutish rejimida</div>
+              <p className="text-xs text-slate-400 max-w-sm mt-1">
+                Zararga (SL) uchragan bitim tafsilotlarini chap tomondagi maydonlarga kiriting va &quot;Xatoni Rentgen Qilish&quot; tugmasini bosing.
+              </p>
             </div>
           </div>
         )}

@@ -15,7 +15,7 @@ function AITrapHunter({
   onOpenSignal,
 }: AITrapHunterProps) {
   const [isScanning, setIsScanning] = useState(false);
-  const [trapDetected, setTrapDetected] = useState(true);
+  const [trapDetected, setTrapDetected] = useState(false);
   const [savedToSignals, setSavedToSignals] = useState(false);
   const [trapData, setTrapData] = useState({
     session: 'London / NY Overlap',
@@ -43,6 +43,25 @@ function AITrapHunter({
     setIsScanning(true);
     setTimeout(() => {
       setIsScanning(false);
+      const isBuy = Math.random() > 0.4;
+      const dir: 'BUY' | 'SELL' = isBuy ? 'BUY' : 'SELL';
+      const offset = currentPrice > 100 ? (currentPrice > 1000 ? 2.5 : 0.5) : 0.0020;
+      const slOffset = currentPrice > 100 ? (currentPrice > 1000 ? 1.8 : 0.35) : 0.0015;
+      const tp1Offset = currentPrice > 100 ? (currentPrice > 1000 ? 4.5 : 0.9) : 0.0035;
+      const tp2Offset = currentPrice > 100 ? (currentPrice > 1000 ? 8.0 : 1.6) : 0.0065;
+      const decimals = currentPrice > 100 ? 2 : 5;
+
+      setTrapData({
+        session: 'London / NY Overlap',
+        type: 'Judas Swing Manipulation',
+        direction: dir,
+        sweptLevel: (isBuy ? currentPrice - offset : currentPrice + offset).toFixed(decimals),
+        entryZone: currentPrice.toFixed(decimals),
+        slLevel: (isBuy ? currentPrice - slOffset : currentPrice + slOffset).toFixed(decimals),
+        tp1: (isBuy ? currentPrice + tp1Offset : currentPrice - tp1Offset).toFixed(decimals),
+        tp2: (isBuy ? currentPrice + tp2Offset : currentPrice - tp2Offset).toFixed(decimals),
+        confidence: '95% (A+ Institutional Trap)',
+      });
       setTrapDetected(true);
       speakAlert();
     }, 1200);
@@ -116,7 +135,7 @@ function AITrapHunter({
       </div>
 
       {/* Detected Alert Box */}
-      {trapDetected && (
+      {trapDetected ? (
         <div className="bg-gradient-to-br from-slate-950 via-rose-950/20 to-slate-950 border border-rose-500/40 rounded-xl p-4 space-y-3 shadow-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -163,6 +182,11 @@ function AITrapHunter({
               <span>{savedToSignals ? 'Signallarga qo\'shildi!' : 'Signallar bo\'limiga qo\'shish'}</span>
             </button>
           </div>
+        </div>
+      ) : (
+        <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-5 text-center text-xs text-slate-400 font-mono flex items-center justify-center gap-2">
+          <span>📡</span>
+          <span>Bozor skaneri tayyor holatda. Likvidlik tuzoqlarini qidirish uchun yuqoridagi <strong>&quot;Tuzoqlarni Skanerlash&quot;</strong> tugmasini bosing.</span>
         </div>
       )}
     </div>

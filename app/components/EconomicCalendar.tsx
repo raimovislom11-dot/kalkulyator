@@ -14,75 +14,84 @@ export interface EconomicEvent {
   description: string;
 }
 
-// Key High Impact economic recurring events for Gold & Forex
-const DEFAULT_EVENTS: EconomicEvent[] = [
-  {
-    id: 'nfp_usd',
-    title: 'Non-Farm Payrolls (NFP) & Unemployment Rate',
-    country: 'USD',
-    impact: 'HIGH',
-    date: '2026-08-21',
-    timeUTC: '12:30',
-    forecast: '185K',
-    previous: '175K',
-    description: "Oltin (XAU) va USD da eng kuchli narx tebranishini (volatillik) keltirib chiqaradi.",
-  },
-  {
-    id: 'cpi_usd',
-    title: 'CPI (Inflyatsiya ko\'rsatkichi m/m & y/y)',
-    country: 'USD',
-    impact: 'HIGH',
-    date: '2026-08-26',
-    timeUTC: '12:30',
-    forecast: '2.9%',
-    previous: '3.0%',
-    description: "AQSH inflyatsiyasi. Yuqori chiqsa USD o'sadi, Oltin tushishi mumkin.",
-  },
-  {
-    id: 'fomc_usd',
-    title: 'FOMC Foiz stavkasi & Matbuot Anjumani (Powell)',
-    country: 'USD',
-    impact: 'HIGH',
-    date: '2026-09-02',
-    timeUTC: '18:00',
-    forecast: '5.25%',
-    previous: '5.50%',
-    description: "Federal Zaxira Tizimi (FED) stavkasi va Powell bayonoti.",
-  },
-  {
-    id: 'unemp_claims',
-    title: 'Haftalik Ishsizlik da\'volari (Initial Jobless Claims)',
-    country: 'USD',
-    impact: 'HIGH',
-    date: '2026-08-20',
-    timeUTC: '12:30',
-    forecast: '228K',
-    previous: '233K',
-    description: "Har payshanba chiqadigan muhim mehnat bozori indikatori.",
-  },
-  {
-    id: 'pmi_usd',
-    title: 'ISM Manufacturing / Services PMI',
-    country: 'USD',
-    impact: 'MED',
-    date: '2026-08-24',
-    timeUTC: '14:00',
-    forecast: '51.2',
-    previous: '50.8',
-    description: "Ishlab chiqarish va xizmat ko'rsatish sektori faolligi.",
-  },
-  {
-    id: 'ecb_eur',
-    title: 'ECB Monetary Policy Statement & Rate Decision',
-    country: 'EUR',
-    impact: 'HIGH',
-    date: '2026-08-27',
-    timeUTC: '12:15',
-    forecast: '3.75%',
-    previous: '4.00%',
-    description: "Yevropa Markaziy Banki foiz stavkasi qarori (EURUSD ga ta'siri).",
-  },
-];
+// Dynamic High Impact economic recurring events for Gold & Forex
+function getDynamicEvents(): EconomicEvent[] {
+  const now = new Date();
+  const getOffsetDate = (days: number) => {
+    const d = new Date(now);
+    d.setDate(d.getDate() + days);
+    return d.toISOString().slice(0, 10);
+  };
+
+  return [
+    {
+      id: 'cpi_usd',
+      title: 'CPI (Inflyatsiya ko\'rsatkichi m/m & y/y)',
+      country: 'USD',
+      impact: 'HIGH',
+      date: getOffsetDate(0),
+      timeUTC: '12:30',
+      forecast: '2.9%',
+      previous: '3.0%',
+      description: "AQSH inflyatsiyasi. Yuqori chiqsa USD o'sadi, Oltin tushishi mumkin.",
+    },
+    {
+      id: 'unemp_claims',
+      title: 'Haftalik Ishsizlik da\'volari (Initial Jobless Claims)',
+      country: 'USD',
+      impact: 'HIGH',
+      date: getOffsetDate(1),
+      timeUTC: '12:30',
+      forecast: '228K',
+      previous: '233K',
+      description: "Har payshanba chiqadigan muhim mehnat bozori indikatori.",
+    },
+    {
+      id: 'nfp_usd',
+      title: 'Non-Farm Payrolls (NFP) & Unemployment Rate',
+      country: 'USD',
+      impact: 'HIGH',
+      date: getOffsetDate(2),
+      timeUTC: '12:30',
+      forecast: '185K',
+      previous: '175K',
+      description: "Oltin (XAU) va USD da eng kuchli narx tebranishini (volatillik) keltirib chiqaradi.",
+    },
+    {
+      id: 'pmi_usd',
+      title: 'ISM Manufacturing / Services PMI',
+      country: 'USD',
+      impact: 'MED',
+      date: getOffsetDate(3),
+      timeUTC: '14:00',
+      forecast: '51.2',
+      previous: '50.8',
+      description: "Ishlab chiqarish va xizmat ko'rsatish sektori faolligi.",
+    },
+    {
+      id: 'ecb_eur',
+      title: 'ECB Monetary Policy Statement & Rate Decision',
+      country: 'EUR',
+      impact: 'HIGH',
+      date: getOffsetDate(4),
+      timeUTC: '12:15',
+      forecast: '3.75%',
+      previous: '4.00%',
+      description: "Yevropa Markaziy Banki foiz stavkasi qarori (EURUSD ga ta'siri).",
+    },
+    {
+      id: 'fomc_usd',
+      title: 'FOMC Foiz stavkasi & Matbuot Anjumani (Powell)',
+      country: 'USD',
+      impact: 'HIGH',
+      date: getOffsetDate(7),
+      timeUTC: '18:00',
+      forecast: '5.25%',
+      previous: '5.50%',
+      description: "Federal Zaxira Tizimi (FED) stavkasi va Powell bayonoti.",
+    },
+  ];
+}
 
 export default function EconomicCalendar() {
   const [filter, setFilter] = useState<'ALL' | 'USD' | 'HIGH'>('ALL');
@@ -94,11 +103,13 @@ export default function EconomicCalendar() {
     return () => clearInterval(interval);
   }, []);
 
+  const allEvents = useMemo(() => getDynamicEvents(), [now]);
+
   const filteredEvents = useMemo(() => {
-    if (filter === 'USD') return DEFAULT_EVENTS.filter((e) => e.country === 'USD');
-    if (filter === 'HIGH') return DEFAULT_EVENTS.filter((e) => e.impact === 'HIGH');
-    return DEFAULT_EVENTS;
-  }, [filter]);
+    if (filter === 'USD') return allEvents.filter((e) => e.country === 'USD');
+    if (filter === 'HIGH') return allEvents.filter((e) => e.impact === 'HIGH');
+    return allEvents;
+  }, [filter, allEvents]);
 
   return (
     <div className="bg-slate-900/85 border border-rose-600/50 rounded-2xl p-5 mb-4 backdrop-blur shadow-xl">
