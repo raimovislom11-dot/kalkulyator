@@ -248,3 +248,63 @@ export const telegramApi = {
     return res.json();
   },
 };
+
+// ─── Signals & AI Learning API ────────────────────────────────────────────────
+export const signalsApi = {
+  async getAll() {
+    const res = await fetch(apiUrl('/api/signals'), {
+      headers: authHeaders(),
+    });
+    return res.json();
+  },
+
+  async create(signal: any) {
+    const res = await fetch(apiUrl('/api/signals'), {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(signal),
+    });
+    return res.json();
+  },
+
+  async update(signal: any) {
+    const res = await fetch(apiUrl('/api/signals'), {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify(signal),
+    });
+    return res.json();
+  },
+
+  async delete(id: string) {
+    const res = await fetch(apiUrl(`/api/signals?id=${encodeURIComponent(id)}`), {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    return res.json();
+  },
+
+  async clearAll() {
+    const res = await fetch(apiUrl('/api/signals?clear=true'), {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    return res.json();
+  },
+
+  async getStats() {
+    const res = await fetch(apiUrl('/api/signals/stats'), {
+      headers: authHeaders(),
+    });
+    return res.json();
+  },
+
+  async getLearningPrompt(symbol?: string) {
+    const url = symbol
+      ? apiUrl(`/api/signals/learning-prompt?symbol=${encodeURIComponent(symbol)}`)
+      : apiUrl('/api/signals/learning-prompt');
+    const res = await fetch(url, { headers: authHeaders() });
+    return res.json();
+  },
+};
+

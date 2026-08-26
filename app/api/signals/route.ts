@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import type { AISignal } from '../../lib/types';
+import { API_BASE_URL } from '../../lib/api';
+
+export const dynamic = 'force-dynamic';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const SIGNALS_FILE = path.join(DATA_DIR, 'signals.json');
@@ -30,16 +33,25 @@ function writeSignals(signals: AISignal[]): void {
   fs.writeFileSync(SIGNALS_FILE, JSON.stringify(signals, null, 2), 'utf-8');
 }
 
-// GET: Return all signals
+// GET: Return all signals from backend (or fallback to local file)
 export async function GET() {
   try {
-    const signals = readSignals();
-    // Sort newest first
-    signals.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    return NextResponse.json(signals);
-  } catch (err) {
-    return NextResponse.json({ error: 'Failed to read signals' }, { status: 500 });
-  }
+    const backendRes = await fetch(`${API_BASE_URL}/api/signals`, {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(4000),
+    });
+    if (backendRes.ok) {
+      const data = await backendRes.json();
+      if (Array.isArray(data)) {
+        writeSignals(data);
+        return NextResponse.json(data);
+      }
+    }
+  } catch {}
+
+  const signals = readSignals();
+  signals.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  return NextResponse.json(signals);
 }
 
 // POST: Add new signal
@@ -50,6 +62,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid signal data' }, { status: 400 });
     }
 
+    // Try backend
+    try {
+      const backendRes = await fetch(`${API_BASE_URL}/api/signals`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(4000),
+      });
+      if (backendRes.ok) {
+        const data = await backendRes.json();
+        // save locally
+        const signals = readSignals();
+        const existingIdx = signals.findIndex(s => s.id === data.id);
+        if (existingIdx >= 0) signals[existingIdx] = data;
+        else signals.unshift(data);
+        writeSignals(signals);
+        return NextResponse.json(data, { status: 201 });
+      }
+    } catch {}
+
+    // Fallback local save
     const signals = readSignals();
     const newSignal: AISignal = {
       ...body,
@@ -59,7 +92,6 @@ export async function POST(req: NextRequest) {
       outcome: body.outcome || 'PENDING',
     };
 
-    // Prevent exact duplicates by id
     const existingIdx = signals.findIndex(s => s.id === newSignal.id);
     if (existingIdx >= 0) {
       signals[existingIdx] = newSignal;
@@ -82,10 +114,29 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Signal ID required' }, { status: 400 });
     }
 
+    // Try backend
+    try {
+      const backendRes = await fetch(`${API_BASE_URL}/api/signals`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(4000),
+      });
+      if (backendRes.ok) {
+        const data = await backendRes.json();
+        const signals = readSignals();
+        const idx = signals.findIndex(s => s.id === data.id);
+        if (idx >= 0) signals[idx] = data;
+        else signals.unshift(data);
+        writeSignals(signals);
+        return NextResponse.json(data);
+      }
+    } catch {}
+
+    // Local fallback
     const signals = readSignals();
     const idx = signals.findIndex(s => s.id === body.id);
     if (idx === -1) {
-      // If not found, create it
       signals.unshift({
         ...body,
         createdAt: body.createdAt || new Date().toISOString(),
@@ -114,6 +165,14 @@ export async function DELETE(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
     const clear = searchParams.get('clear');
+
+    // Try backend
+    try {
+      const url = clear === 'true'
+        ? `${API_BASE_URL}/api/signals?clear=true`
+        : `${API_BASE_URL}/api/signals?id=${encodeURIComponent(id || '')}`;
+      await fetch(url, { method: 'DELETE', signal: AbortSignal.timeout(4000) });
+    } catch {}
 
     if (clear === 'true') {
       writeSignals([]);
