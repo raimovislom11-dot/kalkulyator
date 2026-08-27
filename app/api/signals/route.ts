@@ -1,46 +1,72 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import type { AISignal } from '../../lib/types';
 import { API_BASE_URL } from '../../lib/api';
 
 export const dynamic = 'force-dynamic';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const SIGNALS_FILE = path.join(DATA_DIR, 'signals.json');
+// In Serverless/Vercel environments, only /tmp is writable.
+const LOCAL_DATA_DIR = path.join(process.cwd(), 'data');
+const TMP_DATA_DIR = path.join(os.tmpdir(), 'kalkulyator-data');
+const LOCAL_SIGNALS_FILE = path.join(LOCAL_DATA_DIR, 'signals.json');
+const TMP_SIGNALS_FILE = path.join(TMP_DATA_DIR, 'signals.json');
 
 const CANDIDATE_BACKEND_URLS = Array.from(new Set([
-  process.env.LOCAL_API_URL,
+  'https://calc.213.199.51.43.sslip.io',
+  API_BASE_URL,
   process.env.BACKEND_API_URL,
   process.env.NEXT_PUBLIC_API_URL,
+  'http://127.0.0.1:8090',
   'http://localhost:8080',
   'http://127.0.0.1:8080',
-  API_BASE_URL,
-  'https://calc.213.199.51.43.sslip.io',
 ].filter(Boolean) as string[]));
 
-function ensureDataFile(): void {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-  if (!fs.existsSync(SIGNALS_FILE)) {
-    fs.writeFileSync(SIGNALS_FILE, JSON.stringify([], null, 2), 'utf-8');
-  }
-}
+// In-memory fallback
+let memorySignals: AISignal[] = [];
 
 function readSignals(): AISignal[] {
-  ensureDataFile();
+  // 1. Try local data dir
   try {
-    const raw = fs.readFileSync(SIGNALS_FILE, 'utf-8');
-    return JSON.parse(raw) as AISignal[];
-  } catch {
-    return [];
-  }
+    if (fs.existsSync(LOCAL_SIGNALS_FILE)) {
+      const raw = fs.readFileSync(LOCAL_SIGNALS_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {}
+
+  // 2. Try /tmp
+  try {
+    if (fs.existsSync(TMP_SIGNALS_FILE)) {
+      const raw = fs.readFileSync(TMP_SIGNALS_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {}
+
+  return memorySignals;
 }
 
 function writeSignals(signals: AISignal[]): void {
-  ensureDataFile();
-  fs.writeFileSync(SIGNALS_FILE, JSON.stringify(signals, null, 2), 'utf-8');
+  memorySignals = signals;
+
+  // Try writing to local data dir (works locally, may fail on Vercel)
+  try {
+    if (!fs.existsSync(LOCAL_DATA_DIR)) {
+      fs.mkdirSync(LOCAL_DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(LOCAL_SIGNALS_FILE, JSON.stringify(signals, null, 2), 'utf-8');
+    return;
+  } catch {}
+
+  // If local fails (e.g. Vercel read-only filesystem), write to /tmp
+  try {
+    if (!fs.existsSync(TMP_DATA_DIR)) {
+      fs.mkdirSync(TMP_DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(TMP_SIGNALS_FILE, JSON.stringify(signals, null, 2), 'utf-8');
+  } catch {}
 }
 
 function normalizeSignal(sig: Partial<AISignal>): AISignal {
@@ -83,35 +109,40 @@ function mergeSignals(listA: AISignal[], listB: AISignal[]): AISignal[] {
       map.set(s.id, normalizeSignal({ ...existing, ...s }));
     }
   });
-  return Array.from(map.values()).sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+  return Array.from(map.values()).sort((a, b) => {
+    const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return (isNaN(tB) ? 0 : tB) - (isNaN(tA) ? 0 : tA);
+  });
 }
 
-// GET: Return all signals from backend + local file merged
+// GET: Return all signals from backend + local cache
 export async function GET() {
-  const local = readSignals();
-  let remoteSignals: AISignal[] = [];
-
-  for (const base of CANDIDATE_BACKEND_URLS) {
-    try {
-      const res = await fetch(`${base}/api/signals`, {
-        cache: 'no-store',
-        signal: AbortSignal.timeout(2500),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          remoteSignals = data;
-          break;
+  try {
+    for (const base of CANDIDATE_BACKEND_URLS) {
+      try {
+        const res = await fetch(`${base}/api/signals`, {
+          cache: 'no-store',
+          signal: AbortSignal.timeout(3500),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            const local = readSignals();
+            const merged = mergeSignals(local, data);
+            writeSignals(merged);
+            return NextResponse.json(merged);
+          }
         }
-      }
-    } catch {}
-  }
+      } catch {}
+    }
 
-  const merged = mergeSignals(local, remoteSignals);
-  writeSignals(merged);
-  return NextResponse.json(merged);
+    const fallback = readSignals();
+    return NextResponse.json(fallback);
+  } catch (err) {
+    console.error('Signals GET route error:', err);
+    return NextResponse.json(readSignals());
+  }
 }
 
 // POST: Add new signal
@@ -124,7 +155,7 @@ export async function POST(req: NextRequest) {
 
     const newSignal = normalizeSignal(body);
 
-    // Save locally first immediately
+    // Save locally/memory first
     const local = readSignals();
     const existingIdx = local.findIndex(s => s.id === newSignal.id);
     if (existingIdx >= 0) {
@@ -134,14 +165,14 @@ export async function POST(req: NextRequest) {
     }
     writeSignals(local);
 
-    // Attempt backend sync in candidate URLs
+    // Sync with backend
     for (const base of CANDIDATE_BACKEND_URLS) {
       try {
         const backendRes = await fetch(`${base}/api/signals`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(newSignal),
-          signal: AbortSignal.timeout(3000),
+          signal: AbortSignal.timeout(3500),
         });
         if (backendRes.ok) {
           const data = await backendRes.json();
@@ -159,6 +190,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(newSignal, { status: 201 });
   } catch (err) {
+    console.error('Signals POST error:', err);
     return NextResponse.json({ error: 'Failed to create signal' }, { status: 500 });
   }
 }
@@ -192,7 +224,7 @@ export async function PUT(req: NextRequest) {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updated),
-          signal: AbortSignal.timeout(3000),
+          signal: AbortSignal.timeout(3500),
         });
         if (backendRes.ok) {
           const data = await backendRes.json();
@@ -203,6 +235,7 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json(updated);
   } catch (err) {
+    console.error('Signals PUT error:', err);
     return NextResponse.json({ error: 'Failed to update signal' }, { status: 500 });
   }
 }
@@ -219,7 +252,7 @@ export async function DELETE(req: NextRequest) {
         const url = clear === 'true'
           ? `${base}/api/signals?clear=true`
           : `${base}/api/signals?id=${encodeURIComponent(id || '')}`;
-        await fetch(url, { method: 'DELETE', signal: AbortSignal.timeout(3000) });
+        await fetch(url, { method: 'DELETE', signal: AbortSignal.timeout(3500) });
       } catch {}
     }
 
@@ -238,6 +271,7 @@ export async function DELETE(req: NextRequest) {
 
     return NextResponse.json({ success: true, id });
   } catch (err) {
+    console.error('Signals DELETE error:', err);
     return NextResponse.json({ error: 'Failed to delete signal' }, { status: 500 });
   }
 }
