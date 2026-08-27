@@ -60,62 +60,87 @@ export const signalsStore = {
 
   async fetchRemote(): Promise<AISignal[]> {
     try {
-      const res = await fetch('/api/signals');
+      const res = await fetch('/api/signals', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) {
-          // Merge local and remote
-          const local = loadSignals();
-          const map = new Map<string, AISignal>();
-          local.forEach(s => map.set(s.id, s));
-          data.forEach(s => map.set(s.id, s));
-          const merged = Array.from(map.values()).sort(
+          const sorted = data.sort(
             (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
-          saveSignals(merged);
-          return merged;
+          saveSignals(sorted);
+          return sorted;
         }
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      console.warn('Signals fetch failed:', err);
     }
     return loadSignals();
   },
 
-  add(signal: Omit<AISignal, 'id' | 'createdAt' | 'updatedAt'>): AISignal {
+  async add(signal: Omit<AISignal, 'id' | 'createdAt' | 'updatedAt'>): Promise<AISignal> {
     const now = new Date().toISOString();
-    const newSignal: AISignal = {
+    const tempSignal: AISignal = {
       ...signal,
       id: genSignalId(),
       createdAt: now,
       updatedAt: now,
     };
+
+    try {
+      const res = await fetch('/api/signals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(tempSignal),
+      });
+      if (res.ok) {
+        const created = await res.json();
+        await this.fetchRemote();
+        return created;
+      }
+    } catch (err) {
+      console.warn('Backend signal creation failed:', err);
+    }
+
     const list = loadSignals();
-    const updated = [newSignal, ...list];
+    const updated = [tempSignal, ...list.filter(s => s.id !== tempSignal.id)];
     saveSignals(updated);
-
-    // Sync to backend asynchronously
-    fetch('/api/signals', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newSignal),
-    }).catch(() => {});
-
-    return newSignal;
+    return tempSignal;
   },
 
-  updateOutcome(
+  async updateOutcome(
     id: string,
     outcome: AISignalOutcome,
     mistakeReason?: AISignalMistakeReason,
     mistakeNote?: string
-  ): AISignal | null {
+  ): Promise<AISignal | null> {
+    const now = new Date().toISOString();
+    const aiLesson = mistakeReason ? MISTAKE_AI_LESSONS[mistakeReason] : undefined;
+
+    try {
+      const res = await fetch('/api/signals', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id,
+          outcome,
+          outcomeDate: now,
+          mistakeReason,
+          mistakeNote,
+          aiLearnedLesson: aiLesson,
+        }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        await this.fetchRemote();
+        return updated;
+      }
+    } catch (err) {
+      console.warn('Backend signal update failed:', err);
+    }
+
     const list = loadSignals();
     const idx = list.findIndex(s => s.id === id);
     if (idx === -1) return null;
-
-    const now = new Date().toISOString();
-    const aiLesson = mistakeReason ? MISTAKE_AI_LESSONS[mistakeReason] : undefined;
 
     list[idx] = {
       ...list[idx],
@@ -128,29 +153,30 @@ export const signalsStore = {
     };
 
     saveSignals(list);
-
-    // Sync to backend
-    fetch('/api/signals', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(list[idx]),
-    }).catch(() => {});
-
     return list[idx];
   },
 
-  remove(id: string): void {
-    const list = loadSignals().filter(s => s.id !== id);
-    saveSignals(list);
-
-    fetch(`/api/signals?id=${encodeURIComponent(id)}`, {
-      method: 'DELETE',
-    }).catch(() => {});
+  async remove(id: string): Promise<void> {
+    try {
+      await fetch(`/api/signals?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+      await this.fetchRemote();
+    } catch (err) {
+      console.warn('Backend signal delete failed:', err);
+      const list = loadSignals().filter(s => s.id !== id);
+      saveSignals(list);
+    }
   },
 
-  clear(): void {
-    saveSignals([]);
-    fetch('/api/signals?clear=true', { method: 'DELETE' }).catch(() => {});
+  async clear(): Promise<void> {
+    try {
+      await fetch('/api/signals?clear=true', { method: 'DELETE' });
+      await this.fetchRemote();
+    } catch (err) {
+      console.warn('Backend signal clear failed:', err);
+      saveSignals([]);
+    }
   },
 
   computeStats(signals: AISignal[]): AISignalsStats {

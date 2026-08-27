@@ -47,17 +47,23 @@ function AISignalsSection({
   const [expandedAnalysisId, setExpandedAnalysisId] = useState<string | null>(null);
   const [selectedDetailSignal, setSelectedDetailSignal] = useState<AISignal | null>(null);
 
-  // Load signals on mount and dynamic sync
+  // Load signals on mount and dynamic sync with server
   useEffect(() => {
     const refresh = () => setSignals(signalsStore.getAll());
     refresh();
     signalsStore.fetchRemote().then(res => {
-      if (res && res.length > 0) setSignals(res);
+      if (Array.isArray(res)) setSignals(res);
     });
+
+    const syncFromServer = () => {
+      signalsStore.fetchRemote().then(res => {
+        if (Array.isArray(res)) setSignals(res);
+      });
+    };
 
     window.addEventListener('signals_updated', refresh);
     window.addEventListener('storage', refresh);
-    const interval = setInterval(refresh, 3000);
+    const interval = setInterval(syncFromServer, 4000);
 
     return () => {
       window.removeEventListener('signals_updated', refresh);
@@ -112,7 +118,7 @@ function AISignalsSection({
     });
   }, [closedSignals, activeClosedFilter, filterAsset, searchQuery]);
 
-  const handleSetOutcome = (id: string, outcome: AISignalOutcome) => {
+  const handleSetOutcome = async (id: string, outcome: AISignalOutcome) => {
     if (outcome === 'SL_HIT') {
       setActiveReasonModalSignalId(id);
       setSelectedReason('NO_SWEEP');
@@ -120,15 +126,15 @@ function AISignalsSection({
       return;
     }
 
-    const updated = signalsStore.updateOutcome(id, outcome);
+    const updated = await signalsStore.updateOutcome(id, outcome);
     if (updated) {
       setSignals(signalsStore.getAll());
     }
   };
 
-  const handleConfirmSLOutcome = () => {
+  const handleConfirmSLOutcome = async () => {
     if (!activeReasonModalSignalId) return;
-    signalsStore.updateOutcome(
+    await signalsStore.updateOutcome(
       activeReasonModalSignalId,
       'SL_HIT',
       selectedReason,
@@ -138,9 +144,9 @@ function AISignalsSection({
     setActiveReasonModalSignalId(null);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm("Rostdan ham ushbu signalni arxivdan o'chirmoqchimisiz?")) {
-      signalsStore.remove(id);
+      await signalsStore.remove(id);
       setSignals(signalsStore.getAll());
       if (selectedDetailSignal?.id === id) {
         setSelectedDetailSignal(null);

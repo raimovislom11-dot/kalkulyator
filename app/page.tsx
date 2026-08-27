@@ -1719,14 +1719,14 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
                     onClick={() => setActiveMainTab('calc')}
                     className="px-5 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black text-xs sm:text-sm shadow-xl shadow-blue-500/25 hover:scale-105 transition-all flex items-center gap-2"
                   >
-                    <span>🧮 Kalkulyator</span>
+                    <span>🧮 Kalkulyator &amp; Signal</span>
                     <span>→</span>
                   </button>
                   <button
-                    onClick={() => setActiveMainTab('chart')}
+                    onClick={() => setActiveMainTab('arxiv')}
                     className="px-5 py-3 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-xs sm:text-sm border border-slate-700 hover:scale-105 transition-all flex items-center gap-2"
                   >
-                    <span>📊 Live Grafik</span>
+                    <span>📁 Arxiv (AI)</span>
                   </button>
                 </div>
               </div>
@@ -1761,24 +1761,17 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
               <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2">
                 <span>⚡</span> Barcha Savdo Vositalari
               </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-3">
                 {[
                   { id: 'calc', label: 'Kalkulyator', sub: 'Signal & Gann', icon: '🧮', color: 'from-amber-500/20 to-orange-500/10 border-amber-500/40 text-amber-300' },
-                  { id: 'chart', label: 'Live Grafik', sub: 'TradingView', icon: '📊', color: 'from-sky-500/20 to-blue-500/10 border-sky-500/40 text-sky-300' },
                   { id: 'multichart', label: 'Multi-Grid', sub: 'Ko\'p grafiklar', icon: '🪟', color: 'from-indigo-500/20 to-violet-500/10 border-indigo-500/40 text-indigo-300' },
-                  { id: 'trap', label: 'Trap Hunter', sub: 'Likvidlik tuzoqlari', icon: '🚨', color: 'from-red-500/20 to-rose-500/10 border-red-500/40 text-red-300' },
-                  { id: 'radar', label: '18-Radar', sub: 'Confluence radar', icon: '🧬', color: 'from-purple-500/20 to-fuchsia-500/10 border-purple-500/40 text-purple-300' },
-                  { id: 'delta', label: 'Vol Delta', sub: 'Order flow', icon: '🌊', color: 'from-teal-500/20 to-emerald-500/10 border-teal-500/40 text-teal-300' },
+                  { id: 'arxiv', label: 'Arxiv', sub: 'AI signallar bazasi', icon: '📁', color: 'from-blue-500/20 to-cyan-500/10 border-blue-500/40 text-blue-300' },
                   { id: 'checklist', label: 'Checklist', sub: 'Savdo qoidalari', icon: '📝', color: 'from-amber-500/20 to-yellow-500/10 border-amber-500/40 text-amber-300' },
                   { id: 'risk', label: 'Risk & Lot', sub: 'Lot hisoblash', icon: '🎯', color: 'from-cyan-500/20 to-blue-500/10 border-cyan-500/40 text-cyan-300' },
                   { id: 'proprisk', label: 'Prop Guard', sub: 'Prop nazorati', icon: '🛡️', color: 'from-rose-500/20 to-red-500/10 border-rose-500/40 text-rose-300' },
-                  { id: 'heatmap', label: 'Heatmap', sub: 'Valyuta kuchi', icon: '🔥', color: 'from-orange-500/20 to-amber-500/10 border-orange-500/40 text-orange-300' },
-                  { id: 'backtest', label: 'Backtest', sub: 'Strategiya sinovi', icon: '🧬', color: 'from-violet-500/20 to-purple-500/10 border-violet-500/40 text-violet-300' },
                   { id: 'killzones', label: 'Killzones', sub: 'Sessiyalar vaqti', icon: '⏰', color: 'from-emerald-500/20 to-teal-500/10 border-emerald-500/40 text-emerald-300' },
                   { id: 'calendar', label: 'Taqvim', sub: 'Iqtisodiy xabarlar', icon: '📰', color: 'from-pink-500/20 to-rose-500/10 border-pink-500/40 text-pink-300' },
-                  { id: 'journal', label: 'Savdo Jurnali', sub: 'Qaydlar va P&L', icon: '📓', color: 'from-yellow-500/20 to-amber-500/10 border-yellow-500/40 text-yellow-300' },
                   { id: 'encyclopedia', label: 'Lug\'at', sub: 'SMC qo\'llanma', icon: '📖', color: 'from-blue-500/20 to-sky-500/10 border-blue-500/40 text-blue-300' },
-                  { id: 'autopsy', label: 'Autopsy', sub: 'Xatolar tahlili', icon: '🧠', color: 'from-slate-500/20 to-zinc-500/10 border-slate-500/40 text-slate-300' },
                 ].map((item) => (
                   <button
                     key={item.id}

@@ -547,17 +547,6 @@ export default function AdminDashboard() {
             }
           />
           <QuickNavCard
-            href="/admin/grafik"
-            label="Grafik"
-            sub="TradingView Live"
-            accent="#38bdf8"
-            icon={
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-              </svg>
-            }
-          />
-          <QuickNavCard
             href="/admin/multi"
             label="Multi-Grid"
             sub="Ko'p grafiklar"
@@ -572,38 +561,15 @@ export default function AdminDashboard() {
             }
           />
           <QuickNavCard
-            href="/admin/trap"
-            label="Trap Hunter"
-            sub="Likvidlik tuzoqlari"
-            accent="#f87171"
+            href="/admin/arxiv"
+            label="Arxiv"
+            sub="AI signallar bazasi"
+            accent="#38bdf8"
             icon={
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-              </svg>
-            }
-          />
-          <QuickNavCard
-            href="/admin/radar"
-            label="18-Radar"
-            sub="Confluence radar"
-            accent="#c084fc"
-            icon={
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"/>
-                <circle cx="12" cy="12" r="6"/>
-              </svg>
-            }
-          />
-          <QuickNavCard
-            href="/admin/delta"
-            label="Vol Delta"
-            sub="Order flow tahlili"
-            accent="#34d399"
-            icon={
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="20" x2="18" y2="10"/>
-                <line x1="12" y1="20" x2="12" y2="4"/>
-                <line x1="6" y1="20" x2="6" y2="14"/>
+                <polyline points="21 8 21 21 3 21 3 8"/>
+                <rect x="1" y="3" width="22" height="5"/>
+                <line x1="10" y1="12" x2="14" y2="12"/>
               </svg>
             }
           />
@@ -643,29 +609,6 @@ export default function AdminDashboard() {
             }
           />
           <QuickNavCard
-            href="/admin/heatmap"
-            label="Heatmap"
-            sub="Valyuta kuchi"
-            accent="#f97316"
-            icon={
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
-              </svg>
-            }
-          />
-          <QuickNavCard
-            href="/admin/backtest"
-            label="Backtest"
-            sub="Strategiya sinovi"
-            accent="#a855f7"
-            icon={
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="1 4 1 10 7 10"/>
-                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
-              </svg>
-            }
-          />
-          <QuickNavCard
             href="/admin/killzones"
             label="Killzones"
             sub="Bozor sessiyalari"
@@ -688,20 +631,6 @@ export default function AdminDashboard() {
                 <line x1="16" y1="2" x2="16" y2="6"/>
                 <line x1="8" y1="2" x2="8" y2="6"/>
                 <line x1="3" y1="10" x2="21" y2="10"/>
-              </svg>
-            }
-          />
-          <QuickNavCard
-            href="/admin/journal"
-            label="Jurnal"
-            sub="Savdo qaydlari"
-            accent="#eab308"
-            icon={
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-                <line x1="16" y1="13" x2="8" y2="13"/>
-                <line x1="16" y1="17" x2="8" y2="17"/>
               </svg>
             }
           />
