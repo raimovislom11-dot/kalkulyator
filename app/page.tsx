@@ -1814,16 +1814,6 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
               }}
             />
 
-            {/* ── AI SIGNALLAR VA NATIJALAR BO'LIMI ── */}
-            <AISignalsSection
-              currentAssetSymbol={selectedAsset.symbol}
-              isAdmin={isAdmin}
-              onOpenTelegram={(data) => {
-                setTelegramModalData(data);
-                setIsTelegramModalOpen(true);
-              }}
-            />
-
             {/* TIMEFRAME */}
             <div className="bg-slate-900/85 border border-slate-700 rounded-2xl p-4 mb-4 backdrop-blur">
               <div className="text-slate-400 text-xs font-bold tracking-widest mb-3">VAQT ORALIG&apos;I</div>
@@ -2555,14 +2545,7 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
                       </button>
 
                       <button
-                        onClick={() => {
-                          const el = document.getElementById('ai-signals-section');
-                          if (el) {
-                            el.scrollIntoView({ behavior: 'smooth' });
-                          } else {
-                            setActiveMainTab('arxiv');
-                          }
-                        }}
+                        onClick={() => setActiveMainTab('arxiv')}
                         className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-semibold text-xs rounded-xl border border-slate-700 transition-all flex items-center gap-1"
                       >
                         <span>Arxivni ko&apos;rish</span>
