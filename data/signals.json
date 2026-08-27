@@ -1,1 +1,42 @@
-[]
+[
+  {
+    "asset": "Gold (XAU/USD)",
+    "symbol": "XAUUSD",
+    "timeframe": "1h",
+    "termMode": "short",
+    "strategy": "Elif trading (Kalkulyator)",
+    "direction": "BUY",
+    "entry": "4416.90",
+    "sl": "4416.30",
+    "tp1": "4460.00",
+    "tp2": "4510.00",
+    "tp3": "4560.00",
+    "rr": "1:1 : 71.83",
+    "outcome": "PENDING",
+    "fullAnalysisText": "📊 QO'LDA HISOB-KITOBLAR TAHLILI (Elif trading)\n• Aktiv: Gold (XAU/USD) (XAUUSD)\n• Vaqt oralig'i: 1h\n• Yo'nalish: BUY\n• Kirish narxi (Entry): 4416.90\n• Stop Loss: 4416.30 (0.14%)\n• TP1: 4460.00 (R:R 1 : 71.83)\n• TP2: 4510.00 (R:R 1 : 155.17)\n• TP3: 4560.00 (R:R 1 : 238.50)\n• Gann Confluence: Gann bilan sinergiya yo'q",
+    "source": "manual",
+    "createdBy": "islom",
+    "id": "sig_1787846223571_f1gl3",
+    "createdAt": "2026-08-27T15:57:03.571Z",
+    "updatedAt": "2026-08-27T15:57:03.571Z"
+  },
+  {
+    "asset": "Gold (XAU/USD)",
+    "symbol": "XAUUSD",
+    "timeframe": "1m/5m",
+    "termMode": "short",
+    "strategy": "1m/5m Scalp (18 Strategiya)",
+    "direction": "BUY",
+    "entry": "4612.89",
+    "sl": "4600.89",
+    "tp1": "4632.89",
+    "tp2": "4650.89",
+    "tp3": "4672.89",
+    "outcome": "PENDING",
+    "fullAnalysisText": "🎯 **1. ANIQ SAVDO SIGNALI:**\n─────────────────────────────\n● **Instrument:** Gold (XAU/USD) (XAUUSD) • 1m\n● **Buyruq:** 🟢 BUY (Demand OB & FVG Tasdiqlangan)\n● **⚡ Kirish Vaqti:** AYNAN HOZIR (SMC Rejection & Sweeps)\n● **Kirish (Entry):** 4612.89 USD\n● **Stop Loss (SL):** 4600.89 USD (Himoyalangan OB ostida)\n● **TP1:** 4632.89 USD (50% FVG Imbalance)\n● **TP2:** 4650.89 USD (BSL Likvidlik nishoni)\n● **TP3:** 4672.89 USD (HTF Trend kengayishi)\n● **Confluence:** 94% (Smart Money + Order Block + SMT Tasdiqladi)\n● **Risk-Reward (R:R):** 1:3.2\n\n🔍 **2. ELITA STRATEGIYALAR BO'YICHA JONLI GRAFIK TAHLILI:**\n─────────────────────────────\n• **🏛️ Smart Money & Timing:** Bozor SSL (Sell-side) likvidligini to'liq supurib oldi va 1m/5m CHoCH burilishini ko'rsatdi.\n• **🧱 SMC Zonalari:** Bullish Order Block va 50% FVG CE darajasida kuchli talab mavjud.\n• **⚡ ICT Vaqt & Sessiya:** London/NY faol savdo zonasida narx manipulyatsiyasi tugallanib, ekspansiya fazasiga o'tdi.\n• **📐 OTE & Confluence:** Fibonacci 0.705 Sweet Spot zonasidan ideal impuls qaytishi.\n\n💡 **3. TREYDER UCHUN AMALIY XATAR BOSHQARUVI:**\n─────────────────────────────\n- Depozitning 1-2% idan ortiq xatar qilmang.\n- TP1 ga yetganda 50% foydani yopib, Stop Loss ni kirish nuqtasiga (Breakeven) suring!\n ",
+    "source": "ai-analysis",
+    "id": "sig_1787664779211_hh1x9",
+    "createdAt": "2026-08-25T13:32:59.211Z",
+    "updatedAt": "2026-08-25T13:32:59.211Z"
+  }
+]

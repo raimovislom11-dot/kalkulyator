@@ -1591,6 +1591,8 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
   }, [calculations, timeframe, tf, effectiveHigh, effectiveLow, selectedAsset]);
 
   // Quick Action handlers for current strategy calculations
+  const [savedCalcToArchive, setSavedCalcToArchive] = useState(false);
+
   const handleSaveCalculationToJournal = () => {
     if (!calculations) return;
     const ok = saveTradeToJournalStorage({
@@ -1605,6 +1607,52 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
       notes: `${timeframe} timeframe, ${calculations.isStrongSignal ? 'Kuchli' : 'Oddiy'} signal`,
     });
     if (ok) showToast('✓ Savdo jurnali xotirasiga muvaffaqiyatli saqlandi!');
+  };
+
+  const handleSaveCalculationToArchive = () => {
+    if (!calculations) return;
+    if (!calculations.entry || !calculations.stopLoss) {
+      showToast("❌ Kirish (Entry) va Stop Loss narxlari to'liq emas!");
+      return;
+    }
+
+    const direction: 'BUY' | 'SELL' = calculations.isBuy ? 'BUY' : 'SELL';
+    const fullAnalysis = [
+      `📊 QO'LDA HISOB-KITOBLAR TAHLILI (${calculations.preset || 'Standart'})`,
+      `• Aktiv: ${selectedAsset.name} (${selectedAsset.symbol})`,
+      `• Vaqt oralig'i: ${timeframe}`,
+      `• Yo'nalish: ${direction}`,
+      `• Kirish narxi (Entry): ${calculations.entry}`,
+      `• Stop Loss: ${calculations.stopLoss} (${calculations.slPct}%)`,
+      `• TP1: ${calculations.tp1} (R:R ${calculations.rr1})`,
+      `• TP2: ${calculations.tp2} (R:R ${calculations.rr2})`,
+      `• TP3: ${calculations.tp3} (R:R ${calculations.rr3})`,
+      `• Gann Confluence: ${calculations.gannConfluence || '—'}`,
+      calculations.isStrongSignal ? '⚡ KUCHLI GANN SINERGIYASI MAVJUD' : '',
+    ].filter(Boolean).join('\n');
+
+    signalsStore.add({
+      asset: selectedAsset.name,
+      symbol: selectedAsset.symbol || 'XAUUSD',
+      timeframe: timeframe || '1H',
+      termMode: 'short',
+      strategy: `${calculations.preset || "Qo'lda hisoblangan"} (Kalkulyator)`,
+      direction: direction,
+      entry: String(calculations.entry),
+      sl: String(calculations.stopLoss),
+      tp1: String(calculations.tp1 || '—'),
+      tp2: String(calculations.tp2 || '—'),
+      tp3: String(calculations.tp3 || '—'),
+      rr: calculations.rr1 ? `1:${calculations.rr1}` : undefined,
+      outcome: 'PENDING',
+      fullAnalysisText: fullAnalysis,
+      source: 'manual',
+      createdBy: currentUsername || 'Foydalanuvchi',
+    });
+
+    setSavedCalcToArchive(true);
+    setTimeout(() => setSavedCalcToArchive(false), 2500);
+    showToast("✓ Hisoblangan tahlil Arxiv (Signallar) bo'limiga muvaffaqiyatli saqlandi!");
   };
 
   const handleOpenCalculationInTelegram = () => {
@@ -2401,6 +2449,17 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
                       <span>📓</span>
                       <span>Jurnalga saqlash</span>
                     </button>
+                    <button
+                      onClick={handleSaveCalculationToArchive}
+                      className={`px-3.5 py-1.5 font-bold text-xs rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-1.5 border ${
+                        savedCalcToArchive
+                          ? 'bg-emerald-600 border-emerald-400 text-white shadow-emerald-500/30'
+                          : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 border-violet-400/30 text-white shadow-indigo-500/25'
+                      }`}
+                    >
+                      <span>{savedCalcToArchive ? '✓' : '📥'}</span>
+                      <span>{savedCalcToArchive ? "Arxivga qo'shildi!" : "Arxivga saqlash"}</span>
+                    </button>
                     {isAdmin && (
                       <button
                         onClick={handleOpenCalculationInTelegram}
@@ -2468,6 +2527,48 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
                       </span>
                     </div>
                     <p className="text-xs text-slate-300">{calculations.gannConfluence}</p>
+                  </div>
+
+                  {/* Arxivga qo'shish paneli */}
+                  <div className="pt-3 border-t border-slate-700/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-slate-950/60 p-3.5 rounded-xl border border-slate-800">
+                    <div className="space-y-0.5">
+                      <div className="text-white font-bold text-xs flex items-center gap-1.5">
+                        <span className="text-indigo-400">📁</span>
+                        <span>Ushbu hisob-kitobni Arxiv (Signallar) bo&apos;limiga qo&apos;shish</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">
+                        Hisoblangan tahlil natijasini saqlab, keyinchalik TP/SL natijasini belgilashingiz va statistikani yuritishingiz mumkin.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        onClick={handleSaveCalculationToArchive}
+                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-lg flex items-center gap-2 active:scale-95 ${
+                          savedCalcToArchive
+                            ? 'bg-emerald-600 text-white shadow-emerald-500/30'
+                            : 'bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 hover:from-violet-500 hover:to-indigo-500 text-white shadow-indigo-500/30 border border-violet-400/30'
+                        }`}
+                      >
+                        <span>{savedCalcToArchive ? '✓' : '📥'}</span>
+                        <span>{savedCalcToArchive ? "Arxivga qo'shildi!" : "Arxivga qo'shish"}</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          const el = document.getElementById('ai-signals-section');
+                          if (el) {
+                            el.scrollIntoView({ behavior: 'smooth' });
+                          } else {
+                            setActiveMainTab('arxiv');
+                          }
+                        }}
+                        className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-semibold text-xs rounded-xl border border-slate-700 transition-all flex items-center gap-1"
+                      >
+                        <span>Arxivni ko&apos;rish</span>
+                        <span>↗</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

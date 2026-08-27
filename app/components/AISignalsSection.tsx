@@ -44,18 +44,23 @@ function AISignalsSection({
   const [customMistakeNote, setCustomMistakeNote] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Load signals on mount and periodic sync
+  // Load signals on mount and dynamic sync
   useEffect(() => {
-    setSignals(signalsStore.getAll());
+    const refresh = () => setSignals(signalsStore.getAll());
+    refresh();
     signalsStore.fetchRemote().then(res => {
       if (res && res.length > 0) setSignals(res);
     });
 
-    const interval = setInterval(() => {
-      setSignals(signalsStore.getAll());
-    }, 2500);
+    window.addEventListener('signals_updated', refresh);
+    window.addEventListener('storage', refresh);
+    const interval = setInterval(refresh, 3000);
 
-    return () => clearInterval(interval);
+    return () => {
+      window.removeEventListener('signals_updated', refresh);
+      window.removeEventListener('storage', refresh);
+      clearInterval(interval);
+    };
   }, []);
 
   const stats = useMemo(() => signalsStore.computeStats(signals), [signals]);
@@ -435,9 +440,24 @@ function AISignalsSection({
 
                 {/* Strategy & Date */}
                 <div className="flex items-center justify-between text-[11px] text-slate-400 font-medium">
-                  <span className="truncate max-w-[200px] text-indigo-300 font-semibold">
-                    ⚡ {sig.strategy || '10 ta SMC/ICT Strategiya'}
-                  </span>
+                  <div className="flex items-center gap-1.5 truncate max-w-[250px]">
+                    {sig.source === 'manual' ? (
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
+                        ✏️ Qo&apos;lda
+                      </span>
+                    ) : sig.source === 'trap-hunter' ? (
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30">
+                        🪤 Trap Hunter
+                      </span>
+                    ) : (
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-300 font-bold border border-indigo-500/30">
+                        🤖 AI
+                      </span>
+                    )}
+                    <span className="truncate text-indigo-300 font-semibold">
+                      ⚡ {sig.strategy || '10 ta SMC/ICT Strategiya'}
+                    </span>
+                  </div>
                   <span className="font-mono text-slate-500 text-[10px]">
                     {new Date(sig.createdAt).toLocaleString('uz-UZ', {
                       month: 'short',

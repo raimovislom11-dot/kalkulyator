@@ -23,6 +23,7 @@ html.dark {
   color-scheme: dark;
 }
 
+/* yftfyfy */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -193,9 +194,11 @@ html.light ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 9999px;
 }
+
 html.light ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
 html.light ::-webkit-scrollbar-track {
   background: #f1f5f9;
 }
@@ -204,6 +207,7 @@ html.light ::-webkit-scrollbar-track {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;

@@ -43,6 +43,7 @@ function saveSignals(signals: AISignal[]): void {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(signals));
+    window.dispatchEvent(new CustomEvent('signals_updated', { detail: signals }));
   } catch (err) {
     console.warn('AISignals localStorage save failed:', err);
   }

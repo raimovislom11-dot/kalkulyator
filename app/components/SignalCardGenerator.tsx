@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, memo } from 'react';
+import { signalsStore } from '../lib/signalsStore';
 
 interface SignalCardProps {
   assetSymbol?: string;
@@ -24,6 +25,7 @@ function SignalCardGenerator({
   rr = '1:2.8',
 }: SignalCardProps) {
   const [copied, setCopied] = useState(false);
+  const [savedArchive, setSavedArchive] = useState(false);
 
   const copyText = () => {
     const text =
@@ -41,26 +43,59 @@ function SignalCardGenerator({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleSaveToArchive = () => {
+    signalsStore.add({
+      asset: assetName,
+      symbol: assetSymbol,
+      timeframe: '1m/5m',
+      termMode: 'short',
+      strategy: "Qo'lda hisoblangan signal",
+      direction: command,
+      entry,
+      sl,
+      tp1,
+      tp2,
+      rr,
+      outcome: 'PENDING',
+      source: 'manual',
+    });
+    setSavedArchive(true);
+    setTimeout(() => setSavedArchive(false), 2000);
+  };
+
   return (
     <div className="bg-slate-900/90 border border-slate-700/80 rounded-2xl p-4 mb-4 backdrop-blur-xl shadow-2xl space-y-4">
       {/* Title */}
-      <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+      <div className="flex flex-wrap items-center justify-between border-b border-slate-800 pb-3 gap-2">
         <div className="flex items-center gap-2">
           <span className="text-2xl">📸</span>
           <div>
             <h3 className="text-white font-bold text-sm">TELEGRAM / INSTAGRAM SIGNAL KARTASI</h3>
             <p className="text-slate-400 text-xs mt-0.5">
-              Kanal va do'stlarga yuborish uchun estetik signal kartochkasi
+              Kanal va do&apos;stlarga yuborish uchun estetik signal kartochkasi
             </p>
           </div>
         </div>
 
-        <button
-          onClick={copyText}
-          className="px-3 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-md shadow-orange-500/20 transition-all flex items-center gap-1.5"
-        >
-          <span>{copied ? '✓ Nusxalandi!' : '📋 Signalni nusxalash'}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleSaveToArchive}
+            className={`px-3 py-1.5 rounded-xl font-bold text-xs shadow-md transition-all flex items-center gap-1.5 border ${
+              savedArchive
+                ? 'bg-emerald-600 border-emerald-400 text-white shadow-emerald-500/30'
+                : 'bg-indigo-600 hover:bg-indigo-500 border-indigo-400/30 text-white shadow-indigo-500/20'
+            }`}
+          >
+            <span>{savedArchive ? '✓' : '📥'}</span>
+            <span>{savedArchive ? "Arxivga qo'shildi!" : "Arxivga saqlash"}</span>
+          </button>
+          <button
+            onClick={copyText}
+            className="px-3 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-md shadow-orange-500/20 transition-all flex items-center gap-1.5"
+          >
+            <span>{copied ? '✓ Nusxalandi!' : '📋 Signalni nusxalash'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Visual Card Mockup */}
