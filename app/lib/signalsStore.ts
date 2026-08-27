@@ -64,11 +64,25 @@ export const signalsStore = {
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) {
-          const sorted = data.sort(
-            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          );
-          saveSignals(sorted);
-          return sorted;
+          // Merge local and remote safely
+          const local = loadSignals();
+          const map = new Map<string, AISignal>();
+          local.forEach(s => {
+            if (s && s.id) map.set(s.id, s);
+          });
+          data.forEach(s => {
+            if (s && s.id) {
+              const existing = map.get(s.id);
+              map.set(s.id, { ...existing, ...s });
+            }
+          });
+          const merged = Array.from(map.values()).sort((a, b) => {
+            const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return (isNaN(tB) ? 0 : tB) - (isNaN(tA) ? 0 : tA);
+          });
+          saveSignals(merged);
+          return merged;
         }
       }
     } catch (err) {
@@ -86,6 +100,11 @@ export const signalsStore = {
       updatedAt: now,
     };
 
+    // Save locally first
+    const list = loadSignals();
+    const updated = [tempSignal, ...list.filter(s => s.id !== tempSignal.id)];
+    saveSignals(updated);
+
     try {
       const res = await fetch('/api/signals', {
         method: 'POST',
@@ -94,16 +113,22 @@ export const signalsStore = {
       });
       if (res.ok) {
         const created = await res.json();
-        await this.fetchRemote();
-        return created;
+        if (created && created.id) {
+          const current = loadSignals();
+          const idx = current.findIndex(s => s.id === tempSignal.id || s.id === created.id);
+          if (idx >= 0) {
+            current[idx] = { ...current[idx], ...created };
+          } else {
+            current.unshift(created);
+          }
+          saveSignals(current);
+          return created;
+        }
       }
     } catch (err) {
       console.warn('Backend signal creation failed:', err);
     }
 
-    const list = loadSignals();
-    const updated = [tempSignal, ...list.filter(s => s.id !== tempSignal.id)];
-    saveSignals(updated);
     return tempSignal;
   },
 
@@ -223,32 +248,33 @@ export const signalsStore = {
 
     const wins = relevant.filter(s => s.outcome === 'TP_HIT').slice(0, 3);
 
-    let prompt = `\n═══════════════════════════════════════════════════════════\n`;
-    prompt += `🧠 AI XOTIRASI VA OLDINGI SIGNALLARDAN SABOQLAR (SELF-LEARNING):\n`;
+    const separator = "===========================================================";
+    let prompt = "\n" + separator + "\n";
+    prompt += "🧠 AI XOTIRASI VA OLDINGI SIGNALLARDAN SABOQLAR (SELF-LEARNING):\n";
     prompt += `Statistika: Jami ${stats.total} ta signal saqlangan (TP: ${stats.tpHit}, SL: ${stats.slHit}, Limitga bormagan: ${stats.missed}, Win Rate: ${stats.winRate}%).\n`;
 
     if (losses.length > 0) {
-      prompt += `\n⚠️ OLDINGI XATOLAR VA SL SABABLARI (BULARNI TAKRORLAMANG!):\n`;
+      prompt += "\n⚠️ OLDINGI XATOLAR VA SL SABABLARI (BULARNI TAKRORLAMANG!):\n";
       losses.forEach((sig, i) => {
-        const reasonText = sig.mistakeReason ? MISTAKE_REASON_LABELS[sig.mistakeReason] : (sig.mistakeNote || 'Noma\'lum xato');
+        const reasonText = sig.mistakeReason ? MISTAKE_REASON_LABELS[sig.mistakeReason] : (sig.mistakeNote || "Noma'lum xato");
         const lesson = sig.aiLearnedLesson ? ` | Xulosa: ${sig.aiLearnedLesson}` : '';
-        const outcomeLabel = sig.outcome === 'SL_HIT' ? 'SL Bo\'lgan' : 'Limitga Bormagan';
+        const outcomeLabel = sig.outcome === 'SL_HIT' ? "SL Bo'lgan" : "Limitga Bormagan";
         prompt += `${i + 1}. [${sig.asset || sig.symbol} ${sig.direction} @ ${sig.entry} (${outcomeLabel})] -> Xato sababi: ${reasonText}${lesson}\n`;
       });
-      prompt += `\n🎯 AI UCHUN QAT'IY KO'RSATMA:
-1. Yuqoridagi xatolardan saboq oling: agar bozor likvidligi (Asian/London High/Low) to'liq supurilmagan bo'lsa yoki tasdiqlovchi rad etish shamchasi (Rejection Candle) bo'lmasa, erta kirish bermang!
-2. Agar narx noaniq bo'lsa yoki konsolidatsiya bo'lsa, xavfli signal o'rniga "KUTISH (NO TRADE)" buyrug'ini bering.
-3. Stop Loss darajasini likvidlik zonasi ortiga xavfsiz qo'ying va Entry darajasini aniq FVG/OB ga moslang.\n`;
+      prompt += "\n🎯 AI UCHUN QAT'IY KO'RSATMA:\n";
+      prompt += "1. Yuqoridagi xatolardan saboq oling: agar bozor likvidligi (Asian/London High/Low) to'liq supurilmagan bo'lsa yoki tasdiqlovchi rad etish shamchasi (Rejection Candle) bo'lmasa, erta kirish bermang!\n";
+      prompt += "2. Agar narx noaniq bo'lsa yoki konsolidatsiya bo'lsa, xavfli signal o'rniga \"KUTISH (NO TRADE)\" buyrug'ini bering.\n";
+      prompt += "3. Stop Loss darajasini likvidlik zonasi ortiga xavfsiz qo'ying va Entry darajasini aniq FVG/OB ga moslang.\n";
     }
 
     if (wins.length > 0) {
-      prompt += `\n✅ MUVAFFAQIYATLI O'XSHAGAN MODEL VA PATTERNLAR:\n`;
-      wins.forEach((sig, i) => {
+      prompt += "\n✅ MUVAFFAQIYATLI O'XSHAGAN MODEL VA PATTERNLAR:\n";
+      wins.forEach((sig) => {
         prompt += `• [${sig.asset || sig.symbol} ${sig.direction} @ ${sig.entry} -> TP Oldi]: ${sig.strategy || 'SMC/ICT'}\n`;
       });
     }
 
-    prompt += `═══════════════════════════════════════════════════════════\n`;
+    prompt += separator + "\n";
     return prompt;
   },
 };

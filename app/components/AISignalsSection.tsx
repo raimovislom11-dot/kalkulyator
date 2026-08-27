@@ -29,6 +29,22 @@ const REASONS: AISignalMistakeReason[] = [
   'OTHER',
 ];
 
+function formatSignalDate(dateStr?: string): string {
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return String(dateStr).slice(0, 16);
+    return d.toLocaleString('uz-UZ', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return String(dateStr).slice(0, 16);
+  }
+}
+
 function AISignalsSection({
   currentAssetSymbol,
   isAdmin = false,

@@ -2538,7 +2538,10 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
                       </button>
 
                       <button
-                        onClick={() => setActiveMainTab('arxiv')}
+                        onClick={() => {
+                          setActiveMainTab('arxiv');
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
                         className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-semibold text-xs rounded-xl border border-slate-700 transition-all flex items-center gap-1"
                       >
                         <span>Arxivni ko&apos;rish</span>
