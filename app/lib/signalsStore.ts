@@ -64,25 +64,14 @@ export const signalsStore = {
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) {
-          // Merge local and remote safely
-          const local = loadSignals();
-          const map = new Map<string, AISignal>();
-          local.forEach(s => {
-            if (s && s.id) map.set(s.id, s);
-          });
-          data.forEach(s => {
-            if (s && s.id) {
-              const existing = map.get(s.id);
-              map.set(s.id, { ...existing, ...s });
-            }
-          });
-          const merged = Array.from(map.values()).sort((a, b) => {
+          // Authoritative list from server
+          const sorted = data.sort((a, b) => {
             const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
             const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
             return (isNaN(tB) ? 0 : tB) - (isNaN(tA) ? 0 : tA);
           });
-          saveSignals(merged);
-          return merged;
+          saveSignals(sorted);
+          return sorted;
         }
       }
     } catch (err) {
@@ -141,6 +130,22 @@ export const signalsStore = {
     const now = new Date().toISOString();
     const aiLesson = mistakeReason ? MISTAKE_AI_LESSONS[mistakeReason] : undefined;
 
+    // Optimistically update local
+    const list = loadSignals();
+    const idx = list.findIndex(s => s.id === id);
+    if (idx !== -1) {
+      list[idx] = {
+        ...list[idx],
+        outcome,
+        outcomeDate: now,
+        updatedAt: now,
+        mistakeReason: mistakeReason || list[idx].mistakeReason,
+        mistakeNote: mistakeNote !== undefined ? mistakeNote : list[idx].mistakeNote,
+        aiLearnedLesson: aiLesson || list[idx].aiLearnedLesson,
+      };
+      saveSignals(list);
+    }
+
     try {
       const res = await fetch('/api/signals', {
         method: 'PUT',
@@ -163,44 +168,33 @@ export const signalsStore = {
       console.warn('Backend signal update failed:', err);
     }
 
-    const list = loadSignals();
-    const idx = list.findIndex(s => s.id === id);
-    if (idx === -1) return null;
-
-    list[idx] = {
-      ...list[idx],
-      outcome,
-      outcomeDate: now,
-      updatedAt: now,
-      mistakeReason: mistakeReason || list[idx].mistakeReason,
-      mistakeNote: mistakeNote !== undefined ? mistakeNote : list[idx].mistakeNote,
-      aiLearnedLesson: aiLesson || list[idx].aiLearnedLesson,
-    };
-
-    saveSignals(list);
-    return list[idx];
+    return idx !== -1 ? list[idx] : null;
   },
 
   async remove(id: string): Promise<void> {
+    // 1. Instantly delete from local storage
+    const list = loadSignals().filter(s => s.id !== id);
+    saveSignals(list);
+
+    // 2. Call DELETE endpoint
     try {
       await fetch(`/api/signals?id=${encodeURIComponent(id)}`, {
         method: 'DELETE',
       });
+      // 3. Re-sync from server to match server state
       await this.fetchRemote();
     } catch (err) {
       console.warn('Backend signal delete failed:', err);
-      const list = loadSignals().filter(s => s.id !== id);
-      saveSignals(list);
     }
   },
 
   async clear(): Promise<void> {
+    saveSignals([]);
     try {
       await fetch('/api/signals?clear=true', { method: 'DELETE' });
       await this.fetchRemote();
     } catch (err) {
       console.warn('Backend signal clear failed:', err);
-      saveSignals([]);
     }
   },
 

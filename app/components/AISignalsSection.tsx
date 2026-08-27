@@ -162,11 +162,12 @@ function AISignalsSection({
 
   const handleDelete = async (id: string) => {
     if (window.confirm("Rostdan ham ushbu signalni arxivdan o'chirmoqchimisiz?")) {
-      await signalsStore.remove(id);
-      setSignals(signalsStore.getAll());
+      setSignals(prev => prev.filter(s => s.id !== id));
       if (selectedDetailSignal?.id === id) {
         setSelectedDetailSignal(null);
       }
+      await signalsStore.remove(id);
+      setSignals(signalsStore.getAll());
     }
   };
 
