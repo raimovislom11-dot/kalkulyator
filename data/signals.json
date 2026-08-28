@@ -1,5 +1,24 @@
 [
   {
+    "asset": "Gold (XAU/USD)",
+    "symbol": "XAUUSD",
+    "timeframe": "1m/5m",
+    "termMode": "short",
+    "strategy": "1m/5m Scalp (18 Strategiya)",
+    "direction": "BUY",
+    "entry": "4594.00",
+    "sl": "4583.80",
+    "tp1": "4609.30",
+    "tp2": "4621.50",
+    "tp3": "4635.00",
+    "outcome": "PENDING",
+    "fullAnalysisText": "🎯 1. ANIQ SAVDO SIGNALI:\n─────────────────────────────\n● **Instrument:** Gold (XAU/USD) (XAUUSD) • 1m/5m Scalp\n● **Buyruq:** 🟢 BUY (LIMIT — Discount zonaga qaytishni kutamiz)\n● **⚡ Kirish Vaqti:** Limit Buyurtma: **4594.00** (Narx hozir 4603.90 da — SMC kirish nuqtasidan $11+ uzoqlashgan, KECH QUVMAYMIZ! OTE 0.705 + FVG 50% CE retestida snayper kirish)\n● **Kirish (Entry):** 4594.00\n● **Stop Loss (SL):** 4583.80 (−$10.20 / ~102 pip — OB Demand pastki chegarasi 4590.53 va SSL 4591.56 supurilishi orqasida, ATR xavfsiz masofa $10.13 dan yuqori)\n● **TP1:** 4609.30 (+$15.30 / 1.5R — Sniper Scalp nishoni 4611.50 oldida)\n● **TP2:** 4621.50 (+$27.50 / 2.7R — Supply zona 4622.32 boshlanishi oldida)\n● **TP3:** 4635.00 (+$41.00 / 4.0R — Supply cho'qqisi 4636.13 va Bearish Breaker 4626.92 ortidagi BSL likvidligi)\n● **Confluence (Ishonchlilik):** 91% (MTF 94% Bullish + SMT Bullish + SMC Sweep + OTE/FVG mos tushdi)\n● **Risk-Reward (R:R):** 1:2.7 (TP2 asosida), 1:4.0 (TP3 asosida)\n● **Boshqaruv Vaqti:** 5 — 15 daqiqa (Limit faollashgach)\n\n🔍 2. ELITA STRATEGIYALAR BO'YICHA JONLI GRAFIK TAHLILI:\n─────────────────────────────\n• **🏛️ Smart Money & Timing:** SMC allaqachon 4592.24 da likvidlik supurilishi va Rejection bilan BUY berdi — narx 4603.90 gacha ko'tarildi. Bu bizning **Zero-Lag qoidamiz** bo'yicha bozorga hozir kirish = kech kirish demakdir. Institutsional yondashuv: narxning Discount zonaga (4594 atrofi) qaytishini Limit bilan kutish. Xotira sabog'i: oldingi XAUUSD BUY @ 4597 aynan shu retest modelida TP olgan edi ✅\n\n• **⚡ Sniper Scalp & M1/M5 Impuls:** 1m/5m Bullish mikro-impuls faol, tezkor nishon 4611.50. Micro-FVG lar yuqoriga ochilgan — lekin impulsning 50% qaytishida (4594-4595) kirish snayperlik hisoblanadi, cho'qqidan emas.\n\n• **🧱 SMC Zonalari (OB, Breaker, FVG):** Demand OB: 4590.53 - 4592.24 (mitigatsiya kutilmoqda). FVG 50% CE: 4594.69 — bizning Limit kirishimiz aynan shu muvozanat nuqtasi ostida. Bullish Breaker 4580.88 SL uchun ikkinchi himoya qatlami. Yuqorida Supply 4622.32 - 4636.13 — TP2/TP3 shu zonaga moslashtirilgan.\n\n• **🎯 Likvidlik & SMT (BSL/SSL Sweeps, SMT Divergence):** BSL 4596.57 allaqachon supurilgan (Swept ✅). SSL 4591.56 hali OCHIQ — narx aynan shu likvidlikni olish uchun pastga qaytishi ehtimoli yuqori, bu bizning Limit kirishimizga ideal yoqilg'i. SMT Bullish (DXY Lower Low / Gold Higher Low) — institutsional nomutanosiblik oltin foydasiga.\n\n• **⚡ ICT Vaqt & Sessiya (Silver Bullet, Judas Swing, Killzones AMD):** London/NY Overlap — eng yuqori likvidli oyna. Power of 3: **Bullish AMD** — Accumulation (4591 Open atrofi) → Manipulation (SSL 4591.56 ga pastga surish = Judas Swing SELL signali aslida tuzoq!) → Distribution yuqoriga. Silver Bullet oynasi (NY AM 10:00-11:00) +$5-10 harakat va'da qilmoqda — TP1 bilan mos.\n\n• **📐 OTE & Ko'p Taymfreym (Fib 0.705, H4 + M15 + M5 Confluence):** OTE 0.705 = 4594.00 — bu \"Sweet Spot\" bizning aniq kirishimiz. H4: BULLISH + M15: BOS Up + M5 trigger = 94% Confluence. OTE/Judas/Liq dagi \"SELL\" belgilari trend teskarisi emas — bular faqat retracement (Discount ga qaytish) haritasi, ya'ni BUY uchun chegirmali narx.\n\n💡 3. TREYDER UCHUN AMALIY QOIDALAR VA XATAR BOSHQARUVI:\n─────────────────────────────\n1. **Lot hajmi:** Depozitning maksimal 1-2% xatari. Misol: $1000 depozit → $10-20 risk → SL $10.20 bo'lsa ≈ 0.01-0.02 lot.\n2. **TP1 (4609.30) da pozitsiyaning 50% ni yoping** va SL ni darhol Entry (4594.00) ga — **Bezubitok (BE)** ga ko'chiring. Shundan keyin savdo 100% risksiz.\n3. **TP2 (4621.50) da yana 30% yoping**, qolgan 20% ni TP3 (4635.00) gacha trailing stop (M5 swing low ortidan) bilan olib boring.\n4. **Bekor qilish sharti:** Agar narx Limit ga tegmasdan 4622.32 (Supply)",
+    "source": "ai-analysis",
+    "id": "sig_1787913002731_m22rd",
+    "createdAt": "2026-08-28T10:30:02.731Z",
+    "updatedAt": "2026-08-28T10:30:03.544Z"
+  },
+  {
     "id": "sig_1787847469164_qqb2h",
     "createdAt": "2026-08-27T18:17:49.625628",
     "updatedAt": "2026-08-27T18:18:06.219575",

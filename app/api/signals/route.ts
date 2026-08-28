@@ -1,12 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
+import fs from 'fs';
+import path from 'path';
 import { API_BASE_URL } from '../../lib/api';
 
 export const dynamic = 'force-dynamic';
 
 const BACKEND_URL = (API_BASE_URL || 'https://calc.213.199.51.43.sslip.io').replace(/\/+$/, '');
 
-// In-memory fallback if backend is momentarily unreachable
-let inMemorySignals: any[] = [];
+function getLocalSignals(): any[] {
+  try {
+    const filePath = path.join(process.cwd(), 'data', 'signals.json');
+    if (!fs.existsSync(filePath)) return [];
+    const raw = fs.readFileSync(filePath, 'utf-8');
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalSignals(signals: any[]) {
+  try {
+    const dataDir = path.join(process.cwd(), 'data');
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+    const filePath = path.join(dataDir, 'signals.json');
+    fs.writeFileSync(filePath, JSON.stringify(signals, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('Failed to save local signals:', e);
+  }
+}
 
 // GET: /api/signals
 export async function GET() {
@@ -15,21 +37,20 @@ export async function GET() {
       method: 'GET',
       headers: { 'Accept': 'application/json' },
       cache: 'no-store',
-      signal: AbortSignal.timeout(6000),
+      signal: AbortSignal.timeout(800),
     });
 
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data)) {
-        inMemorySignals = data;
         return NextResponse.json(data);
       }
     }
-  } catch (err) {
-    console.error('[signals route] GET proxy error:', err);
+  } catch {
+    // remote backend down, use local
   }
 
-  return NextResponse.json(inMemorySignals);
+  return NextResponse.json(getLocalSignals());
 }
 
 // POST: /api/signals
@@ -48,18 +69,17 @@ export async function POST(req: NextRequest) {
           'Accept': 'application/json',
         },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(6000),
+        signal: AbortSignal.timeout(800),
       });
 
       if (res.ok) {
         const data = await res.json();
         return NextResponse.json(data, { status: 201 });
       }
-    } catch (err) {
-      console.error('[signals route] POST proxy error:', err);
+    } catch {
+      // fallback to local
     }
 
-    // Fallback: return created object locally
     const fallback = {
       ...body,
       id: body.id || `sig_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -67,7 +87,10 @@ export async function POST(req: NextRequest) {
       updatedAt: new Date().toISOString(),
       outcome: body.outcome || 'PENDING',
     };
-    inMemorySignals.unshift(fallback);
+    const current = getLocalSignals();
+    current.unshift(fallback);
+    saveLocalSignals(current);
+
     return NextResponse.json(fallback, { status: 201 });
   } catch (err) {
     console.error('[signals route] POST error:', err);
@@ -91,18 +114,28 @@ export async function PUT(req: NextRequest) {
           'Accept': 'application/json',
         },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(6000),
+        signal: AbortSignal.timeout(800),
       });
 
       if (res.ok) {
         const data = await res.json();
         return NextResponse.json(data);
       }
-    } catch (err) {
-      console.error('[signals route] PUT proxy error:', err);
+    } catch {
+      // fallback
     }
 
-    return NextResponse.json({ ...body, updatedAt: new Date().toISOString() });
+    const current = getLocalSignals();
+    const idx = current.findIndex(s => s.id === body.id);
+    const updated = { ...body, updatedAt: new Date().toISOString() };
+    if (idx !== -1) {
+      current[idx] = updated;
+    } else {
+      current.unshift(updated);
+    }
+    saveLocalSignals(current);
+
+    return NextResponse.json(updated);
   } catch (err) {
     console.error('[signals route] PUT error:', err);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
@@ -122,19 +155,19 @@ export async function DELETE(req: NextRequest) {
       const res = await fetch(`${BACKEND_URL}/api/signals${query}`, {
         method: 'DELETE',
         headers: { 'Accept': 'application/json' },
-        signal: AbortSignal.timeout(6000),
+        signal: AbortSignal.timeout(800),
       });
 
       if (res.ok) {
         const data = await res.json();
         return NextResponse.json(data);
       }
-    } catch (err) {
-      console.error('[signals route] DELETE proxy error:', err);
+    } catch {
+      // fallback
     }
 
     if (clear === 'true') {
-      inMemorySignals = [];
+      saveLocalSignals([]);
       return NextResponse.json({ success: true, message: 'All signals cleared' });
     }
 
@@ -142,7 +175,8 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Signal ID is required' }, { status: 400 });
     }
 
-    inMemorySignals = inMemorySignals.filter(s => s.id !== id);
+    const current = getLocalSignals().filter(s => s.id !== id);
+    saveLocalSignals(current);
     return NextResponse.json({ success: true, id });
   } catch (err) {
     console.error('[signals route] DELETE error:', err);
