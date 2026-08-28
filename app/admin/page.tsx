@@ -391,7 +391,7 @@ export default function AdminDashboard() {
 
           {/* Secondary stats */}
           <section aria-label="Secondary stats">
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <MiniStat label="Open" value={String(analytics.openTrades)} accent="#fbbf24" />
               <MiniStat label="Win streak" value={String(analytics.winStreak)} accent="#34d399" />
               <MiniStat label="Loss streak" value={String(analytics.lossStreak)} accent="#f87171" />

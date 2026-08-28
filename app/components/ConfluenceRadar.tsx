@@ -308,7 +308,7 @@ function ConfluenceRadar() {
         </div>
 
         {/* Voting Pills */}
-        <div className="flex items-center gap-2.5 text-xs font-mono">
+        <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
           <span className="px-3 py-1.5 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-emerald-400 font-bold">
             🟢 BUY: {stats.buyCount} ta
           </span>

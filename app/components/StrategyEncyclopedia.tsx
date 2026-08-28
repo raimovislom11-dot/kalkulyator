@@ -166,7 +166,7 @@ function StrategyEncyclopedia() {
 
         {/* Strategy Details Box */}
         <div className="md:col-span-2 bg-slate-950/90 border border-slate-800 rounded-xl p-4 space-y-3">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-2">
             <div className="flex items-center gap-2">
               <span className="text-2xl">{selected.icon}</span>
               <div>
@@ -174,7 +174,7 @@ function StrategyEncyclopedia() {
                 <span className="text-[10px] text-orange-400 font-mono font-bold">{selected.category} Strategiyasi</span>
               </div>
             </div>
-            <span className="text-xs px-2.5 py-1 bg-orange-500/20 text-orange-300 rounded-full font-mono font-bold border border-orange-500/30">
+            <span className="text-xs px-2.5 py-1 bg-orange-500/20 text-orange-300 rounded-full font-mono font-bold border border-orange-500/30 self-start sm:self-auto">
               {selected.keyLevel}
             </span>
           </div>

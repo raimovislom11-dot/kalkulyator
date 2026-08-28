@@ -1810,7 +1810,7 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
             {/* TIMEFRAME */}
             <div className="bg-slate-900/85 border border-slate-700 rounded-2xl p-4 mb-4 backdrop-blur">
               <div className="text-slate-400 text-xs font-bold tracking-widest mb-3">VAQT ORALIG&apos;I</div>
-              <div className="grid grid-cols-6 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                 {TIMEFRAMES.map((t) => (
                   <button
                     key={t}
@@ -1831,7 +1831,7 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
 
             {/* BUY / SELL */}
             {calculations && (
-              <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-2 gap-2 sm:gap-4 mb-4">
                 <div
                   className={`p-4 rounded-2xl border-2 text-center font-bold text-2xl flex items-center justify-center transition-all duration-300 ${isBuy
                     ? 'bg-green-500/20 border-green-400 text-green-300 shadow-lg shadow-green-500/30 scale-105'
@@ -1888,7 +1888,7 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
                   </div>
                 </div>
 
-                <div className="grid grid-cols-4 gap-3 mb-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
                   <div>
                     <label className="text-slate-400 text-xs font-bold mb-1 block">OPEN</label>
                     <input
@@ -1989,7 +1989,7 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
                 {selectedAsset.symbol} — {tf.label.toUpperCase()} DIAPAZONI
               </h3>
 
-              <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 mb-4">
                 <div>
                   <label className="text-slate-400 text-xs font-bold tracking-widest mb-2 block">HIGH (Liquidity)</label>
                   <input
@@ -2084,7 +2084,7 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
 
                   <TypeToggle value={smcType} onChange={setSmcType} isBuyLabel="Bullish SMC (Sweep & BUY)" isSellLabel="Bearish SMC (Sweep & SELL)" />
 
-                  <div className="grid grid-cols-3 gap-1.5 pt-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 pt-1">
                     {[
                       { key: 'SWEEP_REJECTION' as const, label: '⚡ Rejection Wick', desc: 'Supurilgan nuqtada' },
                       { key: 'OB_LIMIT' as const, label: '🧱 Order Block', desc: 'Unmitigated OB' },
@@ -2360,7 +2360,7 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {[
                       { key: '0.5', label: '50.0%', desc: 'Equilibrium' },
                       { key: '0.618', label: '61.8%', desc: 'Golden Ratio' },
@@ -2486,7 +2486,7 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
                   {/* Targets TP1, TP2, TP3 */}
                   <div>
                     <div className="text-slate-400 text-xs font-bold tracking-widest mb-2">MAQSAD NARXLAR (TAKE PROFIT)</div>
-                    <div className="grid grid-cols-3 gap-2 text-center font-mono">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center font-mono">
                       {[
                         { label: 'TP1', val: calculations.tp1, pct: calculations.tp1Pct, rr: calculations.rr1 },
                         { label: 'TP2', val: calculations.tp2, pct: calculations.tp2Pct, rr: calculations.rr2 },

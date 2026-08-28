@@ -306,7 +306,7 @@ export default function TradingJournal() {
                 </div>
 
                 {/* Levels Grid */}
-                <div className="grid grid-cols-4 gap-2 bg-slate-900/60 rounded-lg p-2 text-center text-xs font-mono mb-2.5">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-900/60 rounded-lg p-2 text-center text-xs font-mono mb-2.5">
                   <div>
                     <div className="text-slate-500 text-[10px]">ENTRY</div>
                     <div className="text-cyan-300 font-bold">{trade.entry}</div>
@@ -329,7 +329,7 @@ export default function TradingJournal() {
                 </div>
 
                 {/* Status & Actions */}
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-700/50 text-xs">
+                <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center justify-between gap-2 pt-1 border-t border-slate-700/50 text-xs">
                   {/* Status buttons */}
                   <div className="flex items-center gap-1">
                     <span className="text-slate-500 text-[11px] mr-1">Status:</span>
@@ -398,7 +398,7 @@ export default function TradingJournal() {
                 {/* Edit Notes & PnL Drawer */}
                 {isEditing && (
                   <div className="mt-3 p-3 bg-slate-900/80 rounded-xl border border-slate-700 space-y-2">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                       <div className="flex-1">
                         <label className="text-slate-400 text-[10px] font-bold block mb-1">
                           Haqiqiy Foyda / Zarar ($)

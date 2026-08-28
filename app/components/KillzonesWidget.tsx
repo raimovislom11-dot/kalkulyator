@@ -159,7 +159,7 @@ export default function KillzonesWidget() {
         </div>
 
         {/* Clocks */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="bg-slate-800/90 border border-slate-700 px-2.5 py-1 rounded-xl text-center">
             <div className="text-[10px] text-slate-400 font-bold">🇺🇸 NEW YORK</div>
             <div className="text-sm font-black text-amber-400 font-mono">{formatNYTime}</div>

@@ -239,7 +239,7 @@ export default function RiskCalculator({
       </div>
 
       {/* Stop Loss Info / Override */}
-      <div className="bg-slate-800/60 rounded-xl p-3 mb-4 flex items-center justify-between text-xs">
+      <div className="bg-slate-800/60 rounded-xl p-3 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">
         <div>
           <span className="text-slate-400">Joriy SL masofasi: </span>
           <span className="text-red-400 font-bold font-mono">

@@ -215,8 +215,8 @@ export default function TelegramShareModal({ isOpen, onClose, tradeData }: Teleg
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-lg bg-slate-900 border border-sky-500/50 rounded-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+      <div className="w-full max-w-lg bg-slate-900 border border-sky-500/50 rounded-2xl p-4 sm:p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -250,7 +250,7 @@ export default function TelegramShareModal({ isOpen, onClose, tradeData }: Teleg
         {/* Message Preview */}
         <div className="bg-slate-950/80 border border-slate-700/80 rounded-xl p-4 mb-4">
           <div className="text-slate-500 text-[10px] font-bold tracking-wider mb-2">SIGNAL MATNI KO&apos;RINISHI:</div>
-          <pre className="text-xs text-slate-200 font-mono whitespace-pre-wrap leading-relaxed">
+          <pre className="text-xs text-slate-200 font-mono whitespace-pre-wrap break-words leading-relaxed">
             {messageText}
           </pre>
         </div>

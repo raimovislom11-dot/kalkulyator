@@ -122,93 +122,98 @@ export default function AdminPanel() {
           </button>
         </div>
 
-        {/* Table header */}
-        <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-slate-800/60 text-slate-500 text-[10px] font-bold uppercase tracking-wider">
-          <div className="col-span-2">Login</div>
-          <div className="col-span-2">Parol</div>
-          <div className="col-span-1">Rol</div>
-          <div className="col-span-2">Yaratilgan</div>
-          <div className="col-span-2">So&apos;nggi kirish</div>
-          <div className="col-span-1">Faol vaqt</div>
-          <div className="col-span-1">Tokenlar</div>
-          <div className="col-span-1 text-right">Amal</div>
-        </div>
-
-        {/* Rows */}
-        <div className="divide-y divide-slate-800/60">
-          {users.map(user => (
-            <div key={user.username} className="grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-slate-800/30 transition-colors">
-              {/* Login */}
-              <div className="col-span-2 flex items-center gap-2">
-                <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black flex-shrink-0 ${user.role === 'admin' ? 'bg-amber-500/20 text-amber-400' : 'bg-blue-500/20 text-blue-400'}`}>
-                  {user.username.charAt(0).toUpperCase()}
-                </div>
-                <span className="text-white text-xs font-bold truncate">{user.username}</span>
-              </div>
-
-              {/* Parol */}
-              <div className="col-span-2 flex items-center gap-1">
-                <span className="text-slate-300 text-xs font-mono">
-                  {visiblePasswords[user.username] ? user.password : '••••••'}
-                </span>
-                <button
-                  onClick={() => togglePassword(user.username)}
-                  className="text-slate-500 hover:text-slate-300 text-xs transition-colors flex-shrink-0"
-                  title="Ko'rsatish/yashirish"
-                >
-                  {visiblePasswords[user.username] ? '🙈' : '👁️'}
-                </button>
-              </div>
-
-              {/* Rol */}
-              <div className="col-span-1">
-                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${user.role === 'admin' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'}`}>
-                  {user.role === 'admin' ? '👑 Admin' : '👤 User'}
-                </span>
-              </div>
-
-              {/* Yaratilgan */}
-              <div className="col-span-2 text-slate-500 text-[10px]">{formatDate(user.createdAt)}</div>
-
-              {/* So'nggi kirish */}
-              <div className="col-span-2 text-slate-500 text-[10px]">
-                {user.lastLoginAt ? (
-                  <span className="text-emerald-400">{formatDate(user.lastLoginAt)}</span>
-                ) : (
-                  <span className="text-slate-600">Hali kirmagan</span>
-                )}
-              </div>
-
-              {/* Faol vaqt */}
-              <div className="col-span-1 text-xs text-amber-400 font-bold">
-                {formatActiveTime(user.totalActiveMinutes)}
-              </div>
-
-              {/* Tokenlar */}
-              <div className="col-span-1 text-xs text-violet-400 font-bold">
-                {user.tokensUsed.toLocaleString()}
-              </div>
-
-              {/* O'chirish */}
-              <div className="col-span-1 flex justify-end">
-                {user.role !== 'admin' ? (
-                  <button
-                    onClick={() => handleDelete(user.username)}
-                    className={`text-[10px] font-black px-2 py-1 rounded-lg transition-all ${
-                      deleteConfirm === user.username
-                        ? 'bg-red-600 text-white animate-pulse'
-                        : 'bg-red-900/30 text-red-400 hover:bg-red-800/50 border border-red-700/30'
-                    }`}
-                    title={deleteConfirm === user.username ? "Tasdiqlash uchun yana bosing" : "O'chirish"}
-                  >
-                    {deleteConfirm === user.username ? '⚠️ Tasdiq' : '🗑️'}
-                  </button>
-                ) : (
-                  <span className="text-slate-700 text-[10px]">—</span>
-                )}
-              </div>
+        {/* Table wrapper for mobile responsiveness */}
+        <div className="overflow-x-auto">
+          <div className="min-w-[700px]">
+            {/* Table header */}
+            <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-slate-800/60 text-slate-500 text-[10px] font-bold uppercase tracking-wider">
+              <div className="col-span-2">Login</div>
+              <div className="col-span-2">Parol</div>
+              <div className="col-span-1">Rol</div>
+              <div className="col-span-2">Yaratilgan</div>
+              <div className="col-span-2">So&apos;nggi kirish</div>
+              <div className="col-span-1">Faol vaqt</div>
+              <div className="col-span-1">Tokenlar</div>
+              <div className="col-span-1 text-right">Amal</div>
             </div>
-          ))}
+
+            {/* Rows */}
+            <div className="divide-y divide-slate-800/60">
+              {users.map(user => (
+                <div key={user.username} className="grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-slate-800/30 transition-colors">
+                  {/* Login */}
+                  <div className="col-span-2 flex items-center gap-2">
+                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black flex-shrink-0 ${user.role === 'admin' ? 'bg-amber-500/20 text-amber-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                      {user.username.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="text-white text-xs font-bold truncate">{user.username}</span>
+                  </div>
+
+                  {/* Parol */}
+                  <div className="col-span-2 flex items-center gap-1">
+                    <span className="text-slate-300 text-xs font-mono">
+                      {visiblePasswords[user.username] ? user.password : '••••••'}
+                    </span>
+                    <button
+                      onClick={() => togglePassword(user.username)}
+                      className="text-slate-500 hover:text-slate-300 text-xs transition-colors flex-shrink-0"
+                      title="Ko'rsatish/yashirish"
+                    >
+                      {visiblePasswords[user.username] ? '🙈' : '👁️'}
+                    </button>
+                  </div>
+
+                  {/* Rol */}
+                  <div className="col-span-1">
+                    <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${user.role === 'admin' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'}`}>
+                      {user.role === 'admin' ? '👑 Admin' : '👤 User'}
+                    </span>
+                  </div>
+
+                  {/* Yaratilgan */}
+                  <div className="col-span-2 text-slate-500 text-[10px]">{formatDate(user.createdAt)}</div>
+
+                  {/* So'nggi kirish */}
+                  <div className="col-span-2 text-slate-500 text-[10px]">
+                    {user.lastLoginAt ? (
+                      <span className="text-emerald-400">{formatDate(user.lastLoginAt)}</span>
+                    ) : (
+                      <span className="text-slate-600">Hali kirmagan</span>
+                    )}
+                  </div>
+
+                  {/* Faol vaqt */}
+                  <div className="col-span-1 text-xs text-amber-400 font-bold">
+                    {formatActiveTime(user.totalActiveMinutes)}
+                  </div>
+
+                  {/* Tokenlar */}
+                  <div className="col-span-1 text-xs text-violet-400 font-bold">
+                    {user.tokensUsed.toLocaleString()}
+                  </div>
+
+                  {/* O'chirish */}
+                  <div className="col-span-1 flex justify-end">
+                    {user.role !== 'admin' ? (
+                      <button
+                        onClick={() => handleDelete(user.username)}
+                        className={`text-[10px] font-black px-2 py-1 rounded-lg transition-all ${
+                          deleteConfirm === user.username
+                            ? 'bg-red-600 text-white animate-pulse'
+                            : 'bg-red-900/30 text-red-400 hover:bg-red-800/50 border border-red-700/30'
+                        }`}
+                        title={deleteConfirm === user.username ? "Tasdiqlash uchun yana bosing" : "O'chirish"}
+                      >
+                        {deleteConfirm === user.username ? '⚠️ Tasdiq' : '🗑️'}
+                      </button>
+                    ) : (
+                      <span className="text-slate-700 text-[10px]">—</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 

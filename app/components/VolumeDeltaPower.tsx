@@ -35,7 +35,7 @@ function VolumeDeltaPower() {
 
       <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800 space-y-3">
         {/* Percentage Head */}
-        <div className="flex justify-between items-center text-xs font-mono font-bold">
+        <div className="flex flex-wrap justify-between items-center gap-2 text-xs font-mono font-bold">
           <span className="text-emerald-400 flex items-center gap-1">
             <span>🟢 BUYERS:</span>
             <span className="text-base">{buyersPct}%</span>
@@ -62,7 +62,7 @@ function VolumeDeltaPower() {
         </div>
 
         {/* Status */}
-        <div className="flex items-center justify-between text-xs bg-slate-900/90 p-2.5 rounded-lg border border-slate-800">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-xs bg-slate-900/90 p-2.5 rounded-lg border border-slate-800">
           <span className="text-slate-400">Order Flow Xulosasi:</span>
           <span className="text-emerald-400 font-bold font-mono">{imbalanceStatus}</span>
         </div>
