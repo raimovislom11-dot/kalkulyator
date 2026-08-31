@@ -200,6 +200,7 @@ function TradingViewWidget({
   ]);
 
   const interval = tfToTvInterval[timeframe] || '60';
+  const containerId = useMemo(() => `tv_chart_${asset.id}_${timeframe}`.replace(/[^a-zA-Z0-9_]/g, '_'), [asset.id, timeframe]);
 
   // 18 ta strategiyani jonli grafik ma'lumotlari bilan hisoblash
   const fetchMarketData = useCallback(async () => {
@@ -282,7 +283,7 @@ function TradingViewWidget({
           toolbar_bg: '#0f172a',
           enable_publishing: false,
           allow_symbol_change: true,
-          container_id: containerRef.current.id,
+          container_id: containerId,
           hide_side_toolbar: false,
           studies: [
             'MASimple@tv-basicstudies',
@@ -301,9 +302,8 @@ function TradingViewWidget({
         containerRef.current.innerHTML = '';
       }
     };
-  }, [isOpen, asset.tvSymbol, interval]);
+  }, [isOpen, asset.tvSymbol, interval, containerId]);
 
-  const widgetId = `tv_chart_container_${asset.id}_${Math.random().toString(36).substring(2, 6)}`;
   const displayPrice = livePrice || currentPrice || (asset.id.toLowerCase().includes('xau') || asset.id === 'gold' ? 4589.5 : 1.085);
   const formattedPrice = typeof displayPrice === 'number' ? (displayPrice > 10 ? displayPrice.toFixed(2) : displayPrice.toFixed(5)) : displayPrice;
 
@@ -429,7 +429,7 @@ function TradingViewWidget({
               </button>
             </div>
           )}
-          <div id={widgetId} ref={containerRef} className="w-full h-full" />
+          <div id={containerId} ref={containerRef} className="w-full h-full" />
         </div>
       )}
 

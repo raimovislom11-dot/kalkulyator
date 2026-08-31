@@ -71,6 +71,33 @@ export default function EconomicCalendar() {
   const [searchQuery, setSearchQuery] = useState('');
   const [timezoneMode, setTimezoneMode] = useState<'TASHKENT' | 'UTC'>('TASHKENT');
 
+  // Helper: Get timezone-correct YYYY-MM-DD day key from an ISO date string
+  const getLocalDayKey = useCallback((isoStr: string): string => {
+    try {
+      const date = new Date(isoStr);
+      if (isNaN(date.getTime())) return '';
+      const tz = timezoneMode === 'TASHKENT' ? 'Asia/Tashkent' : 'UTC';
+      // Use en-CA locale which formats as YYYY-MM-DD
+      return date.toLocaleDateString('en-CA', { timeZone: tz });
+    } catch {
+      return '';
+    }
+  }, [timezoneMode]);
+
+  // Helper: Get today's YYYY-MM-DD in the selected timezone
+  const getTodayKey = useCallback((): string => {
+    const tz = timezoneMode === 'TASHKENT' ? 'Asia/Tashkent' : 'UTC';
+    return new Date().toLocaleDateString('en-CA', { timeZone: tz });
+  }, [timezoneMode]);
+
+  // Helper: Get tomorrow's YYYY-MM-DD in the selected timezone
+  const getTomorrowKey = useCallback((): string => {
+    const tz = timezoneMode === 'TASHKENT' ? 'Asia/Tashkent' : 'UTC';
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toLocaleDateString('en-CA', { timeZone: tz });
+  }, [timezoneMode]);
+
   const fetchEvents = useCallback(async (showLoading = true) => {
     if (showLoading) setIsRefreshing(true);
     try {
@@ -97,17 +124,16 @@ export default function EconomicCalendar() {
     return () => clearInterval(interval);
   }, [fetchEvents]);
 
-  // Extract all available unique dates from the weekly events
+  // Extract all available unique dates from the weekly events (timezone-aware)
   const availableDays = useMemo(() => {
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+    const todayStr = getTodayKey();
+    const tomorrowStr = getTomorrowKey();
+    const tz = timezoneMode === 'TASHKENT' ? 'Asia/Tashkent' : 'UTC';
 
     const map = new Map<string, { count: number; highCount: number; sampleIso: string }>();
 
     events.forEach((evt) => {
-      const dayKey = evt.date ? evt.date.slice(0, 10) : '';
+      const dayKey = getLocalDayKey(evt.date);
       if (!dayKey) return;
       const cur = map.get(dayKey) || { count: 0, highCount: 0, sampleIso: evt.date };
       cur.count += 1;
@@ -126,12 +152,14 @@ export default function EconomicCalendar() {
       const isTomorrow = key === tomorrowStr;
 
       const shortLabel = d.toLocaleDateString('uz-UZ', {
+        timeZone: tz,
         weekday: 'short',
         day: 'numeric',
         month: 'short',
       });
 
       const label = d.toLocaleDateString('uz-UZ', {
+        timeZone: tz,
         weekday: 'long',
         day: 'numeric',
         month: 'long',
@@ -147,7 +175,7 @@ export default function EconomicCalendar() {
         highCount: data.highCount,
       };
     });
-  }, [events]);
+  }, [events, timezoneMode, getLocalDayKey, getTodayKey, getTomorrowKey]);
 
   // Format date for display with chosen timezone
   const formatEventTime = useCallback((isoStr: string) => {
@@ -155,7 +183,7 @@ export default function EconomicCalendar() {
       const date = new Date(isoStr);
       if (isNaN(date.getTime())) return { timeStr: '—', dateStr: '—', dayKey: '', dateObj: new Date() };
 
-      const dayKey = isoStr ? isoStr.slice(0, 10) : '';
+      const dayKey = getLocalDayKey(isoStr);
 
       if (timezoneMode === 'TASHKENT') {
         const timeStr = date.toLocaleTimeString('uz-UZ', {
@@ -189,7 +217,7 @@ export default function EconomicCalendar() {
     } catch {
       return { timeStr: '—', dateStr: '—', dayKey: '', dateObj: new Date() };
     }
-  }, [timezoneMode]);
+  }, [timezoneMode, getLocalDayKey]);
 
   // Time remaining helper
   const getEventTimingStatus = useCallback((isoStr: string) => {
@@ -223,12 +251,12 @@ export default function EconomicCalendar() {
     }
   }, []);
 
-  // Filtered Events
+  // Filtered Events (using timezone-aware day keys)
   const filteredEvents = useMemo(() => {
     return events.filter((evt) => {
-      // 1. Date filter (Specific date vs ALL)
-      const evtDay = evt.date ? evt.date.slice(0, 10) : '';
+      // 1. Date filter (Specific date vs ALL) — timezone-aware
       if (selectedDate !== 'ALL') {
+        const evtDay = getLocalDayKey(evt.date);
         if (evtDay !== selectedDate) return false;
       }
 
@@ -254,9 +282,9 @@ export default function EconomicCalendar() {
 
       return true;
     });
-  }, [events, selectedDate, impactFilter, currencyFilter, searchQuery]);
+  }, [events, selectedDate, impactFilter, currencyFilter, searchQuery, getLocalDayKey]);
 
-  // Group events by date
+  // Group events by date (timezone-aware)
   const groupedEvents = useMemo(() => {
     const map = new Map<string, { title: string; dayKey: string; items: ForexFactoryEvent[] }>();
 
@@ -281,8 +309,8 @@ export default function EconomicCalendar() {
   }, [events]);
 
   const stats = useMemo(() => {
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const todayList = events.filter((e) => e.date?.slice(0, 10) === todayStr);
+    const todayStr = getTodayKey();
+    const todayList = events.filter((e) => getLocalDayKey(e.date) === todayStr);
     const highList = events.filter((e) => (e.impact || '').toLowerCase() === 'high');
     const usdList = events.filter((e) => e.country === 'USD');
 
@@ -292,7 +320,7 @@ export default function EconomicCalendar() {
       high: highList.length,
       usd: usdList.length,
     };
-  }, [events]);
+  }, [events, getLocalDayKey, getTodayKey]);
 
   return (
     <div className="space-y-6">
@@ -661,7 +689,7 @@ export default function EconomicCalendar() {
       ) : (
         <div className="space-y-6">
           {groupedEvents.map((group) => {
-            const isTodayGroup = group.dayKey === new Date().toISOString().slice(0, 10);
+            const isTodayGroup = group.dayKey === getTodayKey();
             return (
               <div
                 key={group.dayKey || group.title}

@@ -611,17 +611,34 @@ export default function AIAnalysisPage() {
         {/* ── TAB 1: JONLI GRAFIK & AI ── */}
         {activeTab === 'live_chart' && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between bg-slate-800/60 px-4 py-2.5 rounded-xl border border-slate-700/60 text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-800/80 px-4 py-2.5 rounded-xl border border-slate-700/60 text-xs">
               <div className="flex items-center gap-2">
                 <span className="text-emerald-400 font-bold">● Jonli Grafik &amp; 10 Elita Strategiya:</span>
                 <span className="text-white font-bold font-mono">{selectedAsset.name} ({selectedAsset.symbol})</span>
-                <span className="text-orange-400 font-bold font-mono">• {timeframe}</span>
               </div>
-              <span className="text-slate-400 text-[11px]">Real-Time TradingView + 10 ta SMC/ICT Dasturi</span>
+              
+              {/* Timeframe Selector Pills */}
+              <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-lg border border-slate-700">
+                {['1m', '5m', '15m', '1h', '4h', '1d'].map((tfOption) => (
+                  <button
+                    key={tfOption}
+                    type="button"
+                    onClick={() => setTimeframe(tfOption)}
+                    className={`px-2.5 py-1 rounded text-xs font-bold font-mono transition-all ${
+                      timeframe === tfOption
+                        ? 'bg-orange-500 text-white font-black shadow-md shadow-orange-500/30 scale-105'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    }`}
+                  >
+                    {tfOption}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="rounded-xl overflow-hidden border border-slate-700/80 shadow-2xl">
               <TradingViewChart
+                key={`${selectedAsset.symbol}_${timeframe}`}
                 asset={selectedAsset}
                 timeframe={timeframe}
                 hideHeader={false}

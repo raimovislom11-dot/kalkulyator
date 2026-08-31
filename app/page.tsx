@@ -377,6 +377,7 @@ function AIAnalysisPanel({
   calcContext,
   asset,
   timeframe,
+  onTimeframeChange,
   onOpenTelegram,
   isAdmin = false,
   currentUsername = '',
@@ -384,6 +385,7 @@ function AIAnalysisPanel({
   calcContext: string;
   asset: AssetConfig;
   timeframe: string;
+  onTimeframeChange?: (tf: Timeframe) => void;
   onOpenTelegram?: (data: any) => void;
   isAdmin?: boolean;
   currentUsername?: string;
@@ -420,13 +422,16 @@ function AIAnalysisPanel({
     });
   }, []);
 
-  const removeImage = (idx: number) =>
+  const removeImage = (idx: number) => {
     setImages(prev => prev.filter((_, i) => i !== idx));
+  };
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    if (e.dataTransfer.files.length) addImages(e.dataTransfer.files);
+    if (e.dataTransfer.files.length) {
+      addImages(e.dataTransfer.files);
+    }
   }, [addImages]);
 
   const marketAnalyze = async (term: 'short' | 'long' = 'short') => {
@@ -436,20 +441,25 @@ function AIAnalysisPanel({
     setMarketResponse('');
     setMarketError(null);
 
+    const targetTf = term === 'short' ? (['1m', '5m', '15m'].includes(timeframe) ? timeframe : '15m') : (['1h', '4h', '1d'].includes(timeframe) ? timeframe : '1h');
+    if (onTimeframeChange && targetTf !== timeframe) {
+      onTimeframeChange(targetTf as Timeframe);
+    }
+
     const entryMatch = calcContext?.match(/(?:Kirish|Entry|Narx)\s*[:=]\s*([0-9.]+)/i);
     const userPrice = entryMatch ? entryMatch[1] : '';
 
     const form = new FormData();
     form.append('assetSymbol', asset.symbol || 'XAUUSD');
     form.append('assetName', asset.name || 'Gold');
-    form.append('timeframe', term === 'short' ? '1m' : (timeframe || '1h'));
+    form.append('timeframe', targetTf);
     form.append('termMode', term);
     if (userPrice) {
       form.append('userCurrentPrice', userPrice);
     }
     form.append(
       'calcContext',
-      `Instrument: ${asset.name} (${asset.symbol})\nVaqt oralig'i: ${term === 'short' ? '1m/5m' : timeframe}\n` +
+      `Instrument: ${asset.name} (${asset.symbol})\nVaqt oralig'i: ${targetTf}\n` +
       (userPrice ? `Grafikdagi Kirish Narxi: ${userPrice} USD\n` : '') +
       `Tahlil turi: ${term === 'short' ? 'Qisqa muddatli (1-15m Ultra-Scalp)' : 'Uzoq muddatli (Intraday: 1-4 soat)'}\n` +
       calcContext
@@ -683,18 +693,35 @@ function AIAnalysisPanel({
           {/* 1-TAB: JONLI GRAFIK & AVTO AI TAHLIL */}
           {activeTab === 'live_chart' && (
             <div className="space-y-3">
-              <div className="flex items-center justify-between bg-slate-800/60 px-3 py-2 rounded-xl border border-slate-700/60 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-800/80 px-3 py-2 rounded-xl border border-slate-700/60 text-xs">
                 <div className="flex items-center gap-2">
                   <span className="text-emerald-400 font-bold">● Jonli Grafik:</span>
                   <span className="text-white font-bold font-mono">{asset.name} ({asset.symbol})</span>
-                  <span className="text-orange-400 font-bold font-mono">• {timeframe}</span>
                 </div>
-                <span className="text-slate-400 text-[11px]">Real-Time TradingView</span>
+                
+                {/* Timeframe Selector Pills */}
+                <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-lg border border-slate-700">
+                  {(['1m', '5m', '15m', '1h', '4h', '1d'] as Timeframe[]).map((tfOption) => (
+                    <button
+                      key={tfOption}
+                      type="button"
+                      onClick={() => onTimeframeChange?.(tfOption)}
+                      className={`px-2 py-0.5 rounded text-[11px] font-bold font-mono transition-all ${
+                        timeframe === tfOption
+                          ? 'bg-orange-500 text-white font-black shadow-md shadow-orange-500/30 scale-105'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                      }`}
+                    >
+                      {tfOption}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Directly Embedded TradingView Widget */}
               <div className="rounded-xl overflow-hidden border border-slate-700 shadow-2xl">
                 <TradingViewWidget
+                  key={`${asset.symbol}_${timeframe}`}
                   asset={asset}
                   timeframe={timeframe}
                   hideHeader={true}
@@ -1799,6 +1826,7 @@ function CalculatorContent({ isAdmin, currentUsername, onLogout }: { isAdmin: bo
               calcContext={aiContext}
               asset={selectedAsset}
               timeframe={timeframe}
+              onTimeframeChange={setTimeframe}
               isAdmin={isAdmin}
               currentUsername={currentUsername}
               onOpenTelegram={(data) => {
